@@ -18,7 +18,7 @@ class Board(object):
             old_state = self.state
             new_state = (self.state[0] + action[0], self.state[1] + action[1])  # step
             self.state = old_state if np.min(new_state) < 0 or np.max(new_state) > 7 else new_state
-            return self.state, reward, episode_end
+            return reward, episode_end
 
     def render(self):
         visual_row = ["[ ]","[ ]","[ ]","[ ]","[ ]","[ ]","[ ]","[ ]"]
@@ -31,13 +31,3 @@ class Board(object):
         
 
 
-if __name__ == '__main__':
-    board = Board()
-    board.render()
-    print("\n In this environment, the King is looking for the shortest path to the Queen")
-    print("Every step the King takes costs -1.")
-    print("The environment looks as follows")
-    pprint.pprint(board.visual_board)
-    print("\n Policy Evaluation find the best policy for the King:")
-    King = Agent(board)
-    King.policy_iteration(eps=0.1)
