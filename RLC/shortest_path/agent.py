@@ -59,6 +59,20 @@ class Piece(object):
             for col in range(self.value_function.shape[1]):
                 self.value_function[row, col] = self.evaluate_state((row, col))
 
+    def monte_carlo_evaluation(self):
+        state = (np.random.randint(0,8),np.random.randint(0,8))
+        if np.sum(state) % 2 == 1 and self.piece == 'bishop':
+            print('moving terminal state to avoid endless MDP for bishop')
+            self.env.terminal_state = (7,6)
+            print('new terminal state',self.env.terminal_state)
+        rewards = []
+        episode_end = False
+        while not episode_end:
+            action = np.max(self.action_function[state[0],state[1]])
+            reward, episode_end = self.env.step(action)
+            rewards.append(reward)
+
+
     def evaluate_state(self, state):
         action_values = self.action_function[state[0], state[1], :]
         max_action_value = np.max(action_values)
