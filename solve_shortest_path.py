@@ -1,5 +1,5 @@
-from RLC.walking.agent import Piece
-from RLC.walking.environment import Board
+from RLC.shortest_path.agent import Piece
+from RLC.shortest_path.environment import Board
 import pprint
 
 
@@ -25,4 +25,9 @@ def solve_with_value_iteration(piece='king'):
 
 
 if __name__ == '__main__':
-    print("loaded walk_solve")
+    print("solutions to shortest path algorithm:")
+    print("solve_with_policy_iteration")
+    print("solve_with_policy_iteration_async")
+    print("solve_with_value_iteration")
+    print("\nwith possible pieces:")
+    print("king, rook, bishop, knight")
