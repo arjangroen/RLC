@@ -12,6 +12,7 @@ class Piece(object):
         self.synchronous = synchronous
         self.init_actionspace()
         self.value_function = np.zeros(shape=env.reward_space.shape)
+        self.N = np.zeros(self.value_function.shape)
         self.action_function = np.zeros(shape=(env.reward_space.shape[0],
                                                env.reward_space.shape[1],
                                                len(self.action_space)))
@@ -59,18 +60,58 @@ class Piece(object):
             for col in range(self.value_function.shape[1]):
                 self.value_function[row, col] = self.evaluate_state((row, col))
 
-    def monte_carlo_evaluation(self):
+    def monte_carlo_iteration(self):
+        self.N = np.zeros(self.value_function.shape)
+
+    def monte_carlo_evaluation(self,first_visit=True):
         state = (np.random.randint(0,8),np.random.randint(0,8))
+        self.env.state = state
         if np.sum(state) % 2 == 1 and self.piece == 'bishop':
             print('moving terminal state to avoid endless MDP for bishop')
             self.env.terminal_state = (7,6)
             print('new terminal state',self.env.terminal_state)
+        states = []
+        actions = []
         rewards = []
+        mean_value = 0
         episode_end = False
         while not episode_end:
-            action = np.max(self.action_function[state[0],state[1]])
+            states.append(state)
+            max_action_value = np.max(self.action_function[state[0],state[1],:])
+            max_indices = [i for i, a in enumerate(self.action_function[state[0],state[1],:]) if a == max_action_value]
+            action_index = np.random.choice(max_indices)
+            action = self.action_space[action_index]
+            actions.append(action)
             reward, episode_end = self.env.step(action)
+            state = self.env.state
             rewards.append(reward)
+
+        visited_states = set()
+        for idx,state in enumerate(states):
+            if state not in visited_states and first_visit:
+                self.N[state[0],state[1]] += 1
+                n = self.N[state[0],state[1]]
+                forward_rewards = np.sum(rewards[idx:])
+                expected_rewards = self.value_function[state[0],state[1]]
+                delta = forward_rewards - expected_rewards
+                self.value_function[state[0],state[1]] += ((1 / n) * delta)
+                visited_states.add(state)
+            elif not first_visit:
+                self.N[state[0],state[1]] += 1
+                n = self.N[state[0],state[1]]
+                forward_rewards = np.sum(rewards[idx:])
+                expected_rewards = self.value_function[state[0],state[1]]
+                delta = forward_rewards - expected_rewards
+                self.value_function[state[0],state[1]] += ((1 / n) * delta)
+                visited_states.add(state)
+            elif state in visited_states and first_visit:
+                continue
+
+
+
+
+
+
 
 
     def evaluate_state(self, state):

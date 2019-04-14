@@ -21,6 +21,12 @@ def solve_with_value_iteration(piece='king'):
     King = Piece(board,piece=piece,k_max=1,synchronous=True)
     King.policy_iteration()
 
+def solve_with_monte_carlo(piece='king'):
+    board = Board()
+    board.render()
+    King = Piece(board,piece=piece)
+    King.monte_carlo_evaluation()
+
 
 
 
