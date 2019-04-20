@@ -2,14 +2,14 @@ import numpy as np
 import pprint
 
 
-
 class Piece(object):
 
-    def __init__(self, env, piece='king',k_max=32,synchronous=True):
+    def __init__(self, env, piece='king', k_max=32, synchronous=True, lamb=0.9):
         self.env = env
-        self.piece=piece
+        self.piece = piece
         self.k_max = k_max
         self.synchronous = synchronous
+        self.lamb = lamb
         self.init_actionspace()
         self.value_function = np.zeros(shape=env.reward_space.shape)
         self.N = np.zeros(self.value_function.shape)
@@ -18,23 +18,23 @@ class Piece(object):
                                                len(self.action_space)))
 
     def init_actionspace(self):
-
-        assert self.piece in ["king","rook","bishop","knight"], f"{self.piece} is not a supported piece try another one"
+        assert self.piece in ["king", "rook", "bishop",
+                              "knight"], f"{self.piece} is not a supported piece try another one"
         if self.piece == 'king':
-            self.action_space = [(-1,0),  # north
-                                 (-1,1),  # north-west
-                                 (0,1),  # west
-                                 (1,1),  # south-west
-                                 (1,0),  # south
-                                 (1,-1),  # south-east
-                                 (0,-1),  # east
-                                 (-1,-1),  # north-east
-                                ]
+            self.action_space = [(-1, 0),  # north
+                                 (-1, 1),  # north-west
+                                 (0, 1),  # west
+                                 (1, 1),  # south-west
+                                 (1, 0),  # south
+                                 (1, -1),  # south-east
+                                 (0, -1),  # east
+                                 (-1, -1),  # north-east
+                                 ]
         elif self.piece == 'rook':
             self.action_space = []
-            for amplitude in range(1,8):
-                self.action_space.append((-amplitude,0)) # north
-                self.action_space.append((0,amplitude))  #  west
+            for amplitude in range(1, 8):
+                self.action_space.append((-amplitude, 0))  # north
+                self.action_space.append((0, amplitude))  # west
                 self.action_space.append((amplitude, 0))  # south
                 self.action_space.append((0, -amplitude))  # east
         elif self.piece == 'knight':
@@ -52,33 +52,32 @@ class Piece(object):
                 self.action_space.append((-amplitude, amplitude))  # north-west
                 self.action_space.append((amplitude, amplitude))  # south-west
                 self.action_space.append((amplitude, -amplitude))  # south-east
-                self.action_space.append((-amplitude,-amplitude))  # north-east
+                self.action_space.append((-amplitude, -amplitude))  # north-east
 
     def evaluate_policy(self):
-        self.value_function_old = self.value_function.copy()
+        self.value_function_old = self.value_function.copy()  # For synchronous updates
         for row in range(self.value_function.shape[0]):
             for col in range(self.value_function.shape[1]):
                 self.value_function[row, col] = self.evaluate_state((row, col))
 
     def monte_carlo_iteration(self):
-        self.N = np.zeros(self.value_function.shape)
+        pass
 
-    def monte_carlo_evaluation(self,first_visit=True):
-        state = (np.random.randint(0,8),np.random.randint(0,8))
+    def monte_carlo_evaluation(self, first_visit=True):
+        state = (np.random.randint(0, 8), np.random.randint(0, 8))
         self.env.state = state
-        if np.sum(state) % 2 == 1 and self.piece == 'bishop':
-            print('moving terminal state to avoid endless MDP for bishop')
-            self.env.terminal_state = (7,6)
-            print('new terminal state',self.env.terminal_state)
+        self.ensure_reachable_state()
         states = []
         actions = []
         rewards = []
-        mean_value = 0
         episode_end = False
+
+        # Play out an episode
         while not episode_end:
             states.append(state)
-            max_action_value = np.max(self.action_function[state[0],state[1],:])
-            max_indices = [i for i, a in enumerate(self.action_function[state[0],state[1],:]) if a == max_action_value]
+            max_action_value = np.max(self.action_function[state[0], state[1], :])
+            max_indices = [i for i, a in enumerate(self.action_function[state[0], state[1], :]) if
+                           a == max_action_value]
             action_index = np.random.choice(max_indices)
             action = self.action_space[action_index]
             actions.append(action)
@@ -87,32 +86,98 @@ class Piece(object):
             rewards.append(reward)
 
         visited_states = set()
-        for idx,state in enumerate(states):
+        for idx, state in enumerate(states):
             if state not in visited_states and first_visit:
-                self.N[state[0],state[1]] += 1
-                n = self.N[state[0],state[1]]
+                self.N[state[0], state[1]] += 1
+                n = self.N[state[0], state[1]]
                 forward_rewards = np.sum(rewards[idx:])
-                expected_rewards = self.value_function[state[0],state[1]]
+                expected_rewards = self.value_function[state[0], state[1]]
                 delta = forward_rewards - expected_rewards
-                self.value_function[state[0],state[1]] += ((1 / n) * delta)
+                self.value_function[state[0], state[1]] += ((1 / n) * delta)
                 visited_states.add(state)
             elif not first_visit:
-                self.N[state[0],state[1]] += 1
-                n = self.N[state[0],state[1]]
+                self.N[state[0], state[1]] += 1
+                n = self.N[state[0], state[1]]
                 forward_rewards = np.sum(rewards[idx:])
-                expected_rewards = self.value_function[state[0],state[1]]
+                expected_rewards = self.value_function[state[0], state[1]]
                 delta = forward_rewards - expected_rewards
-                self.value_function[state[0],state[1]] += ((1 / n) * delta)
+                self.value_function[state[0], state[1]] += ((1 / n) * delta)
                 visited_states.add(state)
             elif state in visited_states and first_visit:
                 continue
 
+    def temporal_difference_evaluation(self, n=1):
+        state = (np.random.randint(0, 8), np.random.randint(0, 8))
+        self.env.state = state
+        self.ensure_reachable_state()
+        states = []
+        actions = []
+        rewards = []
+        episode_end = False
+        while not episode_end:
+            states.append(state)
+            max_action_value = np.max(self.action_function[state[0], state[1], :])
+            max_indices = [i for i, a in enumerate(self.action_function[state[0], state[1], :]) if
+                           a == max_action_value]
+            action_index = np.random.choice(max_indices)
+            action = self.action_space[action_index]
+            actions.append(action)
+            reward, episode_end = self.env.step(action)
+            state = self.env.state
+            rewards.append(reward)
 
+            for idx in range(n):
+                pass
 
+    def TD_zero(self, alpha=0.05):
+        state = (np.random.randint(0, 8), np.random.randint(0, 8))
+        self.env.state = state
+        self.ensure_reachable_state()
+        states = []
+        actions = []
+        rewards = []
+        episode_end = False
+        while not episode_end:
+            states.append(state)
+            max_action_value = np.max(self.action_function[state[0], state[1], :])
+            max_indices = [i for i, a in enumerate(self.action_function[state[0], state[1], :]) if
+                           a == max_action_value]
+            action_index = np.random.choice(max_indices)
+            action = self.action_space[action_index]
+            actions.append(action)
+            reward, episode_end = self.env.step(action)
+            suc_state = self.env.state
+            self.value_function[state[0], state[1]] = self.value_function[state[0], state[1]] + alpha * (
+                    reward + self.lamb * self.value_function[suc_state[0], suc_state[1]] - self.value_function[state[0], state[1]])
+            state = self.env.state
 
-
-
-
+    def TD_lambda(self,alpha=0.05,gamma=0.9):
+        self.E = np.zeros(self.value_function.shape)
+        state = (np.random.randint(0, 8), np.random.randint(0, 8))
+        self.env.state = state
+        self.ensure_reachable_state()
+        states = []
+        actions = []
+        rewards = []
+        episode_end = False
+        while not episode_end:
+            states.append(state)
+            max_action_value = np.max(self.action_function[state[0], state[1], :])
+            max_indices = [i for i, a in enumerate(self.action_function[state[0], state[1], :]) if
+                           a == max_action_value]
+            action_index = np.random.choice(max_indices)
+            action = self.action_space[action_index]
+            actions.append(action)
+            reward, episode_end = self.env.step(action)
+            suc_state = self.env.state
+            delta = reward + self.lamb * self.value_function[suc_state[0], suc_state[1]] - self.value_function[state[0],
+                                                                                                               state[1]]
+            self.E[state[0],state[1]] += 1
+            for row in range(self.value_function.shape[0]):
+                for col in range(self.value_function.shape[1]):
+                    self.value_function[row,col] = self.value_function[row,col] + alpha * delta * self.E[row,col]
+                    self.E[row,col] = gamma * self.lamb * self.E[row, col]
+            state = self.env.state
 
     def evaluate_state(self, state):
         action_values = self.action_function[state[0], state[1], :]
@@ -127,7 +192,7 @@ class Piece(object):
                 successor_state_value = self.value_function_old[self.env.state]
             else:
                 successor_state_value = self.value_function[self.env.state]
-            state_value += (prob * (reward + successor_state_value))
+            state_value += (prob * (reward + self.lamb * successor_state_value))
         return state_value
 
     def improve_policy(self):
@@ -198,3 +263,9 @@ class Piece(object):
 
         visual_board[self.env.terminal_state[0]][self.env.terminal_state[1]] = "Q"
         pprint.pprint(visual_board)
+
+    def ensure_reachable_state(self):
+        if np.sum(self.env.state) % 2 == 1 and self.piece == 'bishop':
+            print('moving terminal state to avoid endless MDP for bishop')
+            self.env.terminal_state = (7, 6)
+            print('new terminal state', self.env.terminal_state)
