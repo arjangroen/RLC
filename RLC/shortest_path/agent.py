@@ -13,6 +13,7 @@ class Piece(object):
         self.init_actionspace()
         self.value_function = np.zeros(shape=env.reward_space.shape)
         self.N = np.zeros(self.value_function.shape)
+        self.Returns = {}
         self.action_function = np.zeros(shape=(env.reward_space.shape[0],
                                                env.reward_space.shape[1],
                                                len(self.action_space)))
@@ -60,8 +61,50 @@ class Piece(object):
             for col in range(self.value_function.shape[1]):
                 self.value_function[row, col] = self.evaluate_state((row, col))
 
-    def monte_carlo_iteration(self):
-        pass
+    def monte_carlo_control(self,epsilon=0.1):
+        state = (np.random.randint(0, 8), np.random.randint(0, 8))
+        self.env.state = state
+        self.ensure_reachable_state()
+        states = []
+        actions = []
+        rewards = []
+        episode_end = False
+
+        # Play out an episode
+        count_steps = 0
+        while not episode_end:
+            count_steps+=1
+            states.append(state)
+            max_action_value = np.max(self.action_function[state[0], state[1], :])
+            max_indices = [i for i, a in enumerate(self.action_function[state[0], state[1], :]) if
+                           a == max_action_value]
+            action_index = np.random.choice(max_indices)
+            if np.random.uniform(0,1) < epsilon:
+                action_index = np.random.choice(range(len(self.action_space)))
+            action = self.action_space[action_index]
+            actions.append(action_index)
+            reward, episode_end = self.env.step(action)
+            state = self.env.state
+            rewards.append(reward)
+
+            #  avoid infinite loops
+            if count_steps > 10000:
+                episode_end = True
+
+
+        first_visits = []
+        for idx, state in enumerate(states):
+            action_index = actions[idx]
+            if (state,action_index) in first_visits:
+                continue
+            R = np.sum(rewards[idx:])
+            if (state,action_index) in self.Returns.keys():
+                self.Returns[(state, action_index)].append(R)
+            else:
+                self.Returns[(state,action_index)] = [R]
+            self.action_function[state[0],state[1],action_index] = np.mean(self.Returns[(state,action_index)])
+            first_visits.append((state,action_index))
+
 
     def monte_carlo_evaluation(self, first_visit=True):
         state = (np.random.randint(0, 8), np.random.randint(0, 8))
