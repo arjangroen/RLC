@@ -17,6 +17,21 @@ class Piece(object):
         self.action_function = np.zeros(shape=(env.reward_space.shape[0],
                                                env.reward_space.shape[1],
                                                len(self.action_space)))
+        self.policy = np.zeros(shape=self.action_function.shape)
+        self.policy_old = self.policy.copy()
+
+    def apply_policy(self,state,epsilon):
+        greedy_action_value = np.max(self.policy[state[0], state[1], :])
+        greedy_indices = [i for i, a in enumerate(self.policy[state[0], state[1], :]) if
+                       a == greedy_action_value]
+        action_index = np.random.choice(greedy_indices)
+        if np.random.uniform(0, 1) < epsilon:
+            action_index = np.random.choice(range(len(self.action_space)))
+        return action_index
+
+    def compare_policies(self):
+        return np.sum(np.abs(self.policy - self.policy_old))
+
 
     def init_actionspace(self):
         assert self.piece in ["king", "rook", "bishop",
@@ -53,7 +68,7 @@ class Piece(object):
                 self.action_space.append((-amplitude, amplitude))  # north-west
                 self.action_space.append((amplitude, amplitude))  # south-west
                 self.action_space.append((amplitude, -amplitude))  # south-east
-                self.action_space.append((-amplitude, -amplitude))  # north-east
+                self.action_space.append((-amplitude, -amplitude))  # nort
 
     def evaluate_policy(self):
         self.value_function_old = self.value_function.copy()  # For synchronous updates
@@ -61,26 +76,19 @@ class Piece(object):
             for col in range(self.value_function.shape[1]):
                 self.value_function[row, col] = self.evaluate_state((row, col))
 
-    def monte_carlo_control(self,epsilon=0.1):
-        state = (np.random.randint(0, 8), np.random.randint(0, 8))
+    def play_episode(self,state,max_steps=1e9,epsilon=1e-1):
         self.env.state = state
         self.ensure_reachable_state()
         states = []
         actions = []
         rewards = []
         episode_end = False
-
         # Play out an episode
         count_steps = 0
         while not episode_end:
-            count_steps+=1
+            count_steps += 1
             states.append(state)
-            max_action_value = np.max(self.action_function[state[0], state[1], :])
-            max_indices = [i for i, a in enumerate(self.action_function[state[0], state[1], :]) if
-                           a == max_action_value]
-            action_index = np.random.choice(max_indices)
-            if np.random.uniform(0,1) < epsilon:
-                action_index = np.random.choice(range(len(self.action_space)))
+            action_index = self.apply_policy(state,epsilon)
             action = self.action_space[action_index]
             actions.append(action_index)
             reward, episode_end = self.env.step(action)
@@ -88,9 +96,18 @@ class Piece(object):
             rewards.append(reward)
 
             #  avoid infinite loops
-            if count_steps > 10000:
+            if count_steps > max_steps:
                 episode_end = True
 
+        return states, actions, rewards
+
+    def monte_carlo_control(self,epsilon=0.1):
+        state = (np.random.randint(0, 8), np.random.randint(0, 8))
+        self.env.state = state
+        self.ensure_reachable_state()
+
+        # Play out an episode
+        states, actions, rewards = self.play_episode(state,epsilon=epsilon)
 
         first_visits = []
         for idx, state in enumerate(states):
@@ -104,29 +121,15 @@ class Piece(object):
                 self.Returns[(state,action_index)] = [R]
             self.action_function[state[0],state[1],action_index] = np.mean(self.Returns[(state,action_index)])
             first_visits.append((state,action_index))
+        # Update the policy. In Monte Carlo Control, this is greedy behavior with respect to the action function
+        self.policy = self.action_function.copy()
 
 
     def monte_carlo_evaluation(self, first_visit=True):
         state = (np.random.randint(0, 8), np.random.randint(0, 8))
         self.env.state = state
         self.ensure_reachable_state()
-        states = []
-        actions = []
-        rewards = []
-        episode_end = False
-
-        # Play out an episode
-        while not episode_end:
-            states.append(state)
-            max_action_value = np.max(self.action_function[state[0], state[1], :])
-            max_indices = [i for i, a in enumerate(self.action_function[state[0], state[1], :]) if
-                           a == max_action_value]
-            action_index = np.random.choice(max_indices)
-            action = self.action_space[action_index]
-            actions.append(action)
-            reward, episode_end = self.env.step(action)
-            state = self.env.state
-            rewards.append(reward)
+        states, actions, rewards = self.play_episode(state)
 
         visited_states = set()
         for idx, state in enumerate(states):
@@ -149,29 +152,6 @@ class Piece(object):
             elif state in visited_states and first_visit:
                 continue
 
-    def temporal_difference_evaluation(self, n=1):
-        state = (np.random.randint(0, 8), np.random.randint(0, 8))
-        self.env.state = state
-        self.ensure_reachable_state()
-        states = []
-        actions = []
-        rewards = []
-        episode_end = False
-        while not episode_end:
-            states.append(state)
-            max_action_value = np.max(self.action_function[state[0], state[1], :])
-            max_indices = [i for i, a in enumerate(self.action_function[state[0], state[1], :]) if
-                           a == max_action_value]
-            action_index = np.random.choice(max_indices)
-            action = self.action_space[action_index]
-            actions.append(action)
-            reward, episode_end = self.env.step(action)
-            state = self.env.state
-            rewards.append(reward)
-
-            for idx in range(n):
-                pass
-
     def TD_zero(self, alpha=0.05):
         state = (np.random.randint(0, 8), np.random.randint(0, 8))
         self.env.state = state
@@ -182,10 +162,7 @@ class Piece(object):
         episode_end = False
         while not episode_end:
             states.append(state)
-            max_action_value = np.max(self.action_function[state[0], state[1], :])
-            max_indices = [i for i, a in enumerate(self.action_function[state[0], state[1], :]) if
-                           a == max_action_value]
-            action_index = np.random.choice(max_indices)
+            action_index = self.apply_policy(state,epsilon=-1)
             action = self.action_space[action_index]
             actions.append(action)
             reward, episode_end = self.env.step(action)
@@ -205,10 +182,7 @@ class Piece(object):
         episode_end = False
         while not episode_end:
             states.append(state)
-            max_action_value = np.max(self.action_function[state[0], state[1], :])
-            max_indices = [i for i, a in enumerate(self.action_function[state[0], state[1], :]) if
-                           a == max_action_value]
-            action_index = np.random.choice(max_indices)
+            action_index = self.apply_policy(state,epsilon=-1)
             action = self.action_space[action_index]
             actions.append(action)
             reward, episode_end = self.env.step(action)
@@ -216,6 +190,8 @@ class Piece(object):
             delta = reward + self.lamb * self.value_function[suc_state[0], suc_state[1]] - self.value_function[state[0],
                                                                                                                state[1]]
             self.E[state[0],state[1]] += 1
+
+            # Note to self: vectorize code below.
             for row in range(self.value_function.shape[0]):
                 for col in range(self.value_function.shape[1]):
                     self.value_function[row,col] = self.value_function[row,col] + alpha * delta * self.E[row,col]
@@ -223,12 +199,12 @@ class Piece(object):
             state = self.env.state
 
     def evaluate_state(self, state):
-        action_values = self.action_function[state[0], state[1], :]
-        max_action_value = np.max(action_values)
-        max_indices = [i for i, a in enumerate(action_values) if a == max_action_value]
-        prob = 1 / len(max_indices)
+        greedy_action_value = np.max(self.policy[state[0], state[1], :])
+        greedy_indices = [i for i, a in enumerate(self.policy[state[0], state[1], :]) if
+                          a == greedy_action_value]
+        prob = 1 / len(greedy_indices)
         state_value = 0
-        for i in max_indices:
+        for i in greedy_indices:
             self.env.state = state  # reset state to the one being evaluated
             reward, episode_end = self.env.step(self.action_space[i])
             if self.synchronous:
@@ -239,13 +215,19 @@ class Piece(object):
         return state_value
 
     def improve_policy(self):
+        self.policy_old = self.policy.copy()
         for row in range(self.action_function.shape[0]):
             for col in range(self.action_function.shape[1]):
                 for action in range(self.action_function.shape[2]):
                     self.env.state = (row, col)  # reset state to the one being evaluated
                     reward, episode_end = self.env.step(self.action_space[action])
                     successor_state_value = 0 if episode_end else self.value_function[self.env.state]
-                    self.action_function[row, col, action] = reward + successor_state_value
+                    self.policy[row,col,action] = reward + successor_state_value
+
+                max_policy_value = np.max(self.policy[row,col,:])
+                max_indices = [i for i, a in enumerate(self.policy[row,col,:]) if a == max_policy_value]
+                for idx in max_indices:
+                    self.policy[row,col,idx] = 1
 
     def policy_iteration(self, eps=0.1, iteration=1):
         policy_stable = True
@@ -262,24 +244,23 @@ class Piece(object):
             if value_delta_max < eps:
                 break
         print("Value function for this policy:")
-        print(self.value_function.astype(int))
+        print(self.value_function.round().astype(int))
         action_function_old = self.action_function.copy()
         print("\n Improving policy:")
         self.improve_policy()
-        policy_delta = np.sum(np.abs(np.argmax(action_function_old, axis=2) - np.argmax(self.action_function, axis=2)))
-        print("policy difference in improvement", policy_delta)
-        print("________________________________")
+        policy_stable = self.compare_policies() < 1
+        print("policy diff:",policy_stable)
 
-        if policy_delta > 0 and iteration < 20:
+        if not policy_stable and iteration < 20:
             iteration += 1
             self.policy_iteration(iteration=iteration)
-        elif policy_delta == 0:
+        elif policy_stable:
             print("Optimal policy found in", iteration, "steps of policy evaluation")
         else:
             print("failed to converge.")
 
     def visualize_policy(self):
-        greedy_policy = self.action_function.argmax(axis=2)
+        greedy_policy = self.policy.argmax(axis=2)
         policy_visualization = {}
         if self.piece == 'king':
             arrows = "↑ ↗ → ↘ ↓ ↙ ← ↖"
@@ -302,7 +283,9 @@ class Piece(object):
 
         for row in range(greedy_policy.shape[0]):
             for col in range(greedy_policy.shape[1]):
-                visual_board[row][col] = policy_visualization[greedy_policy[row, col]]
+                idx = greedy_policy[row, col]
+
+                visual_board[row][col] = policy_visualization[idx]
 
         visual_board[self.env.terminal_state[0]][self.env.terminal_state[1]] = "Q"
         pprint.pprint(visual_board)
