@@ -76,9 +76,8 @@ class Piece(object):
             for col in range(self.value_function.shape[1]):
                 self.value_function[row, col] = self.evaluate_state((row, col))
 
-    def play_episode(self,state,max_steps=1e9,epsilon=1e-1):
+    def play_episode(self,state,max_steps=1e3,epsilon=0.1):
         self.env.state = state
-        self.ensure_reachable_state()
         states = []
         actions = []
         rewards = []
@@ -104,7 +103,6 @@ class Piece(object):
     def monte_carlo_control(self,epsilon=0.1):
         state = (np.random.randint(0, 8), np.random.randint(0, 8))
         self.env.state = state
-        self.ensure_reachable_state()
 
         # Play out an episode
         states, actions, rewards = self.play_episode(state,epsilon=epsilon)
@@ -125,11 +123,10 @@ class Piece(object):
         self.policy = self.action_function.copy()
 
 
-    def monte_carlo_evaluation(self, first_visit=True):
-        state = (np.random.randint(0, 8), np.random.randint(0, 8))
+    def monte_carlo_evaluation(self, epsilon=0.1, first_visit=True):
+        state = (0,0)
         self.env.state = state
-        self.ensure_reachable_state()
-        states, actions, rewards = self.play_episode(state)
+        states, actions, rewards = self.play_episode(state,epsilon=epsilon)
 
         visited_states = set()
         for idx, state in enumerate(states):
@@ -152,17 +149,18 @@ class Piece(object):
             elif state in visited_states and first_visit:
                 continue
 
-    def TD_zero(self, alpha=0.05):
-        state = (np.random.randint(0, 8), np.random.randint(0, 8))
+    def TD_zero(self,epsilon=0.1, alpha=0.05,max_steps=1e3):
+        state = (0,0)
         self.env.state = state
-        self.ensure_reachable_state()
         states = []
         actions = []
         rewards = []
         episode_end = False
+        count_steps = 0
         while not episode_end:
+            count_steps+=1
             states.append(state)
-            action_index = self.apply_policy(state,epsilon=-1)
+            action_index = self.apply_policy(state,epsilon=epsilon)
             action = self.action_space[action_index]
             actions.append(action)
             reward, episode_end = self.env.step(action)
@@ -171,18 +169,22 @@ class Piece(object):
                     reward + self.lamb * self.value_function[suc_state[0], suc_state[1]] - self.value_function[state[0], state[1]])
             state = self.env.state
 
-    def TD_lambda(self,alpha=0.05,gamma=0.9):
+            if count_steps > max_steps:
+                episode_end = True
+
+    def TD_lambda(self,epsilon = 0.1, alpha=0.05,gamma=0.9,max_steps=1e3):
         self.E = np.zeros(self.value_function.shape)
-        state = (np.random.randint(0, 8), np.random.randint(0, 8))
+        state = (0,0)
         self.env.state = state
-        self.ensure_reachable_state()
         states = []
         actions = []
         rewards = []
+        count_steps=0
         episode_end = False
         while not episode_end:
+            count_steps += 1
             states.append(state)
-            action_index = self.apply_policy(state,epsilon=-1)
+            action_index = self.apply_policy(state,epsilon=epsilon)
             action = self.action_space[action_index]
             actions.append(action)
             reward, episode_end = self.env.step(action)
@@ -197,6 +199,9 @@ class Piece(object):
                     self.value_function[row,col] = self.value_function[row,col] + alpha * delta * self.E[row,col]
                     self.E[row,col] = gamma * self.lamb * self.E[row, col]
             state = self.env.state
+
+            if count_steps > max_steps:
+                episode_end = True
 
     def evaluate_state(self, state):
         greedy_action_value = np.max(self.policy[state[0], state[1], :])
@@ -289,9 +294,3 @@ class Piece(object):
 
         visual_board[self.env.terminal_state[0]][self.env.terminal_state[1]] = "Q"
         pprint.pprint(visual_board)
-
-    def ensure_reachable_state(self):
-        if np.sum(self.env.state) % 2 == 1 and self.piece == 'bishop':
-            print('moving terminal state to avoid endless MDP for bishop')
-            self.env.terminal_state = (7, 6)
-            print('new terminal state', self.env.terminal_state)
