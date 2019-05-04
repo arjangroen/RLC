@@ -50,9 +50,9 @@ class Piece(object):
             self.action_space = []
             for amplitude in range(1, 8):
                 self.action_space.append((-amplitude, 0))  # north
-                self.action_space.append((0, amplitude))  # west
+                self.action_space.append((0, amplitude))  # east
                 self.action_space.append((amplitude, 0))  # south
-                self.action_space.append((0, -amplitude))  # east
+                self.action_space.append((0, -amplitude))  # west
         elif self.piece == 'knight':
             self.action_space = [(-2, 1),  # north-north-west
                                  (-1, 2),  # n-w-w
@@ -101,7 +101,7 @@ class Piece(object):
         return states, actions, rewards
 
     def monte_carlo_control(self,epsilon=0.1):
-        state = (np.random.randint(0, 8), np.random.randint(0, 8))
+        state = (0,0)
         self.env.state = state
 
         # Play out an episode
@@ -274,10 +274,10 @@ class Piece(object):
             arrows = "↑↗ ↗→ →↘ ↓↘ ↙↓ ←↙ ←↖ ↖↑"
             visual_row = ["[  ]", "[  ]", "[  ]", "[  ]", "[  ]", "[  ]", "[  ]", "[  ]"]
         elif self.piece == 'bishop':
-            arrows = "↗ ↗ ↗ ↗ ↗ ↗ ↗ ↘ ↘ ↘ ↘ ↘ ↘ ↘ ↙ ↙ ↙ ↙ ↙ ↙ ↙ ↖ ↖ ↖ ↖ ↖ ↖ ↖"
+            arrows = "↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖"
             visual_row = ["[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]"]
         elif self.piece == 'rook':
-            arrows = "↑ ↑ ↑ ↑ ↑ ↑ ↑ → → → → → → → ↓ ↓ ↓ ↓ ↓ ↓ ↓ ← ← ← ← ← ← ←"
+            arrows = "↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ←"
             visual_row = ["[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]"]
         arrowlist = arrows.split(" ")
         for idx, arrow in enumerate(arrowlist):
