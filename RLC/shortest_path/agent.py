@@ -152,6 +152,34 @@ class Piece(object):
                 action_index = successor_action_index
                 self.policy = self.action_function.copy()
 
+    def q_learning(self,n_episodes=1000, alpha=0.05,gamma=0.9):
+        for k in range(n_episodes):
+            state = (0,0)
+            self.env.state = state
+            episode_end = False
+            epsilon = max(1/(k+1),0.1)
+            while not episode_end:
+                action_index = self.apply_policy(state,epsilon)
+                action = self.action_space[action_index]
+                reward, episode_end = self.env.step(action)
+                successor_state = self.env.state
+                successor_action_index = self.apply_policy(successor_state, -1)
+
+                action_value = self.action_function[state[0], state[1], action_index]
+                if not episode_end:
+                    successor_action_value = self.action_function[successor_state[0],
+                                                                  successor_state[1], successor_action_index]
+                else:
+                    successor_action_value = 0
+
+                av_new = self.action_function[state[0],state[1],action_index] + alpha * (reward +\
+                                                                                      gamma*successor_action_value -\
+                                                                                      action_value)
+                self.action_function[state[0],state[1],action_index] =  av_new
+                self.policy = self.action_function.copy()
+                state = successor_state
+
+
 
 
 
