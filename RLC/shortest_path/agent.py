@@ -123,6 +123,37 @@ class Piece(object):
                 self.action_function[state[0],state[1],action_index] += q_update
                 self.policy = self.action_function.copy()
 
+    def sarsa_lambda(self,n_episodes=1000,alpha=0.05,gamma=0.9,lamb=0.8):
+        for k in range(n_episodes):
+            self.E = np.zeros(shape=self.action_function.shape)
+            state=(0,0)
+            self.env.state = state
+            episode_end = False
+            epsilon = max(1/(1+k),0.2)
+            action_index = self.apply_policy(state, epsilon)
+            action = self.action_space[action_index]
+            while not episode_end:
+                reward, episode_end = self.env.step(action)
+                successor_state = self.env.state
+                successor_action_index = self.apply_policy(successor_state, epsilon)
+
+                action_value = self.action_function[state[0], state[1], action_index]
+                if not episode_end:
+                    successor_action_value = self.action_function[successor_state[0],
+                                                                  successor_state[1], successor_action_index]
+                else:
+                    successor_action_value = 0
+                delta = reward + gamma * successor_action_value - action_value
+                self.E[state[0],state[1],action_index] += 1
+                self.action_function = self.action_function + alpha*delta*self.E
+                self.E = gamma * lamb * self.E
+                state = successor_state
+                action = self.action_space[successor_action_index]
+                action_index = successor_action_index
+                self.policy = self.action_function.copy()
+
+
+
 
 
 
