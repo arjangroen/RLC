@@ -2,6 +2,7 @@ from RLC.random_chess.agent import Agent
 from RLC.random_chess.environment import Board
 import numpy as np
 from chess.pgn import Game
+import pandas as pd
 
 class Reinforce(object):
 
@@ -10,12 +11,17 @@ class Reinforce(object):
         self.env = env
         self.memory = []
         self.memsize=memsize
+        self.reward_trace = []
 
 
     def learn(self,iters=100):
         for k in range(iters):
             self.env.board.reset()
             self.play_game(k)
+
+        reward_smooth = pd.DataFrame(self.reward_trace)
+        reward_smooth.rolling(window=10, min_periods=0).mean().plot()
+
         return Game.from_board(self.env.board)
 
     def play_game(self,k):
@@ -54,6 +60,8 @@ class Reinforce(object):
                 reward = self.env.get_material_value()
             self.memory.append([state,(move_from, move_to),reward,new_state])
             self.update_agent()
+
+        self.reward_trace.append(reward)
 
         return self.env.board
 
