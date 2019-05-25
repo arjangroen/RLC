@@ -8,5 +8,5 @@ setup(
     license='MIT',
     author='a.groen',
     author_email='arjanmartengroen@gmail.com',
-    description='Collection of reinforcement learning algorithms, all applied to game or game-related problems'
+    description='Collection of reinforcement learning algorithms, all applied to chess or chess related problems'
 )
