@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='RLC',
     version='0.1',
-    packages=['RLC', 'RLC.shortest_path'],
+    packages=['RLC', 'RLC.shortest_path', 'RLC.random_chess'],
     url='https://github.com/arjangroen/RLC',
     license='MIT',
     author='a.groen',
