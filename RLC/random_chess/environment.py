@@ -84,7 +84,7 @@ class Board(object):
         pawns = 1 * np.sum(self.layer_board[0,:])
         rooks = 5 * np.sum(self.layer_board[1,:])
         minor = 3 * np.sum(self.layer_board[2:4,:])
-        queen = 9 * np,sum(self.layer_board[4,:])
+        queen = 9 * np.sum(self.layer_board[4,:])
         return pawns + rooks + minor + queen
 
 
