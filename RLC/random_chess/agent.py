@@ -1,7 +1,8 @@
 from keras.models import Model
-from keras.layers import Input, Conv2D, Dense, Reshape
+from keras.layers import Input, Conv2D, Dense, Reshape, Flatten, Dot
 from keras.optimizers import SGD
 import numpy as np
+import tensorflow as tf
 
 class Agent(object):
 
@@ -14,7 +15,7 @@ class Agent(object):
 
 
     def init_network(self):
-        self.init_naive_network()
+        self.init_conv_network()
 
     def init_naive_network(self):
         optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
@@ -28,13 +29,15 @@ class Agent(object):
     def init_conv_network(self):
         optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
-        intermediate = Conv2D(16,(2,2))(input_layer)  # 16,7,7
-        intermediate = Conv2D(32,(2,2))(intermediate)  # 32,6,6
-        intermediate = Conv2D(64,(2,2))(intermediate)  # 64,5,5
-        intermediate = Conv2D(128,(2,2))(intermediate)  # 128,4,4
-        intermediate = Conv2D(256, (2, 2))(intermediate)  # 256,3,3
-        intermediate = Dense(1024)(intermediate)
-        output_layer = Dense(4096)(intermediate)
+        inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
+        inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
+
+        flat_1 = Reshape(target_shape=(1, 64))(inter_layer_1)
+        flat_2 = Reshape(target_shape=(1, 64))(inter_layer_2)
+
+        output_dot_layer = Dot(axes=1)([flat_1, flat_2])
+        output_layer = Reshape(target_shape=(4096,))(output_dot_layer)
+
         self.model = Model(inputs=[input_layer], outputs=[output_layer])
         self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
 
