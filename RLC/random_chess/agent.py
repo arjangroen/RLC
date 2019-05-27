@@ -5,7 +5,7 @@ import numpy as np
 
 class Agent(object):
 
-    def __init__(self,alpha=0.05,lamb=0.9,gamma=0.9,epsilon=0.5):
+    def __init__(self,alpha=0.05,lamb=0.9,gamma=0.95,epsilon=0.5):
         self.alpha = alpha
         self.lamb = lamb
         self.gamma = gamma
@@ -34,7 +34,7 @@ class Agent(object):
         self.model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
 
     def init_conv_network(self):
-        optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
+        optimizer = SGD(lr=0.01, momentum=0.0, decay=0.0, nesterov=False)
         #optimizer = Adagrad()
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
@@ -49,7 +49,7 @@ class Agent(object):
         self.model = Model(inputs=[input_layer], outputs=[output_layer])
         self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
 
-    def network_update(self,minibatch,gamma=0.9):
+    def network_update(self,minibatch):
         states, moves, rewards, new_states = [],[],[],[]
         for sample in minibatch:
             states.append(sample[0])
@@ -57,7 +57,7 @@ class Agent(object):
             rewards.append(sample[2])
             new_states.append(sample[3])
 
-        q_targets = np.array(rewards) + gamma * np.max(self.fixed_model.predict(np.stack(new_states,axis=0)),axis=1)  # Max value of actions in new state
+        q_targets = np.array(rewards) + self.gamma * np.max(self.fixed_model.predict(np.stack(new_states,axis=0)),axis=1)  # Max value of actions in new state
         q_state = self.fixed_model.predict(np.stack(states,axis=0))  # batch x 64 x 64
         q_state = np.reshape(q_state,(len(minibatch),64,64))
         for idx, move in enumerate(moves):
