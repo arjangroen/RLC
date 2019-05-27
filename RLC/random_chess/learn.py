@@ -14,12 +14,15 @@ class Reinforce(object):
         self.reward_trace = []
 
 
-    def learn(self,iters=100):
+    def learn(self,iters=100,c=5):
         for k in range(iters):
-            self.env.board.reset()
+            print(k)
+            if k % c == 0:
+                self.agent.fix_model()
             self.play_game(k)
+            self.env.board.reset()
 
-        reward_smooth = pd.DataFraçme(self.reward_trace)
+        reward_smooth = pd.DataFrame(self.reward_trace)
         reward_smooth.rolling(window=10, min_periods=0).mean().plot()
 
         return Game.from_board(self.env.board)
@@ -32,7 +35,7 @@ class Reinforce(object):
         maxiter=100
         episode_end = False
         turncount = 0
-        eps = max(0.1,(1/1+k))
+        eps = max(0.1,1/(1+(k/10)))
         while not episode_end:
             state = self.env.layer_board
             explore = np.random.uniform(0,1) < eps
@@ -41,14 +44,22 @@ class Reinforce(object):
                 move_from = move.from_square
                 move_to = move.to_square
             else:
-                action_values = self.agent.get_action_values(state)
-                action_values = np.reshape(action_values,(64,64))
+                action_values = self.agent.get_action_values(np.expand_dims(state,axis=0))
+                action_values = np.reshape(np.squeeze(action_values),(64,64))
                 action_space = self.env.project_legal_moves()
                 action_values = np.multiply(action_values,action_space)
-                move_from = np.argmax(action_values,axis=1)
-                move_to = np.argmax(action_values,axis=0)
-                move = [x for x in self.env.board.generate_legal_moves() if\
+                move_from = np.argmax(action_values,axis=None) // 64
+                move_to = np.argmax(action_values,axis=None) % 64
+                moves = [x for x in self.env.board.generate_legal_moves() if\
                         x.from_square == move_from and x.to_square == move_to]
+                if len(moves) == 0:
+                    print(np.max(action_values))
+                    move = self.env.get_random_action()
+                    move_from = move.from_square
+                    move_to = move.to_square
+                else:
+                    move = moves[0]
+
             episode_end, reward = self.env.step(move)
             new_state = self.env.layer_board
             if len(self.memory) > self.memsize:

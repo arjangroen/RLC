@@ -1,4 +1,4 @@
-from keras.models import Model
+from keras.models import Model, clone_model
 from keras.layers import Input, Conv2D, Dense, Reshape, Flatten, Dot
 from keras.optimizers import SGD, Adagrad
 import numpy as np
@@ -16,6 +16,13 @@ class Agent(object):
     def init_network(self):
         self.init_conv_network()
 
+    def fix_model(self):
+        optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
+        self.fixed_model = clone_model(self.model)
+        self.fixed_model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
+        self.fixed_model.set_weights(self.model.get_weights())
+
+
     def init_naive_network(self):
         optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
 
@@ -27,8 +34,8 @@ class Agent(object):
         self.model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
 
     def init_conv_network(self):
-        #optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
-        optimizer = Adagrad()
+        optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
+        #optimizer = Adagrad()
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
@@ -50,8 +57,8 @@ class Agent(object):
             rewards.append(sample[2])
             new_states.append(sample[3])
 
-        q_targets = np.array(rewards) + gamma * np.max(self.model.predict(np.stack(new_states,axis=0)),axis=1)  # Max value of actions in new state
-        q_state = self.model.predict(np.stack(states,axis=0))  # batch x 64 x 64
+        q_targets = np.array(rewards) + gamma * np.max(self.fixed_model.predict(np.stack(new_states,axis=0)),axis=1)  # Max value of actions in new state
+        q_state = self.fixed_model.predict(np.stack(states,axis=0))  # batch x 64 x 64
         q_state = np.reshape(q_state,(len(minibatch),64,64))
         for idx, move in enumerate(moves):
             q_state[idx,move[0],move[1]] = q_targets[idx]
