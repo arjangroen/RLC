@@ -19,7 +19,7 @@ class Reinforce(object):
             self.env.board.reset()
             self.play_game(k)
 
-        reward_smooth = pd.DataFrame(self.reward_trace)
+        reward_smooth = pd.DataFraçme(self.reward_trace)
         reward_smooth.rolling(window=10, min_periods=0).mean().plot()
 
         return Game.from_board(self.env.board)
@@ -45,8 +45,8 @@ class Reinforce(object):
                 action_values = np.reshape(action_values,(64,64))
                 action_space = self.env.project_legal_moves()
                 action_values = np.multiply(action_values,action_space)
-                move_from = np.argmax(action_space,axis=1)
-                move_to = np.argmax(action_space,axis=0)
+                move_from = np.argmax(action_values,axis=1)
+                move_to = np.argmax(action_values,axis=0)
                 move = [x for x in self.env.board.generate_legal_moves() if\
                         x.from_square == move_from and x.to_square == move_to]
             episode_end, reward = self.env.step(move)

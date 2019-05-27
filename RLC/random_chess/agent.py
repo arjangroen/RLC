@@ -1,8 +1,7 @@
 from keras.models import Model
 from keras.layers import Input, Conv2D, Dense, Reshape, Flatten, Dot
-from keras.optimizers import SGD
+from keras.optimizers import SGD, Adagrad
 import numpy as np
-import tensorflow as tf
 
 class Agent(object):
 
@@ -19,6 +18,7 @@ class Agent(object):
 
     def init_naive_network(self):
         optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
+
         input_layer = Input(shape=(8,8,8),name='board_layer')
         reshape_input = Reshape((512,))(input_layer)
         #intermediate = Dense(1028)(reshape_input)
@@ -27,7 +27,8 @@ class Agent(object):
         self.model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
 
     def init_conv_network(self):
-        optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
+        #optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
+        optimizer = Adagrad()
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
