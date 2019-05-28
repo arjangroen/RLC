@@ -20,7 +20,7 @@ class Reinforce(object):
             if k % c == 0:
                 self.agent.fix_model()
             self.play_game(k)
-            self.env.board.reset()
+            self.env.reset()
 
         reward_smooth = pd.DataFrame(self.reward_trace)
         reward_smooth.rolling(window=10, min_periods=0).mean().plot()
