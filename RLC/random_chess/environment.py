@@ -17,8 +17,12 @@ mapper["K"] = 5
 
 class Board(object):
 
-    def __init__(self):
-        self.board = chess.Board()
+    def __init__(self,FEN="k7/p1p1p1p1/1p1p1p1p/8/8/8/8/RNBQKBNR"):
+        if FEN:
+            self.board = chess.Board(FEN)
+        else:
+            self.board = chess.Board()
+        self.FEN = FEN
         self.init_action_space()
         self.init_layer_board()
 
@@ -101,6 +105,6 @@ class Board(object):
     #    self.layer_board[7, :, :] = 1 if self.board.can_claim_draw() else 0
 
     def reset(self):
-        self.board = chess.Board()
+        self.board = chess.Board(self.FEN)
         self.init_layer_board()
         self.init_action_space()
