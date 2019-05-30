@@ -70,23 +70,25 @@ class Reinforce(object):
                 episode_end = True
                 reward = self.env.get_material_value()
             self.memory.append([state,(move_from, move_to),reward,new_state])
-            self.update_agent()
+            self.update_agent(turncount)
 
             self.reward_trace.append(reward)
 
         return self.env.board
 
-    def sample_memory(self):
+    def sample_memory(self,turncount):
         minibatch = []
-        indices = np.random.choice(range(len(self.memory)),min(64,len(self.memory)),replace=False)
+        memory = self.memory[:-turncount]
+        indices = np.random.choice(range(len(memory)),min(64,len(memory)),replace=False)
         for i in indices:
             minibatch.append(self.memory[i])
 
         return minibatch
 
-    def update_agent(self):
-        minibatch = self.sample_memory()
-        self.agent.network_update(minibatch)
+    def update_agent(self,turncount):
+        if turncount < len(self.memory):
+            minibatch = self.sample_memory(turncount)
+            self.agent.network_update(minibatch)
 
 
 
