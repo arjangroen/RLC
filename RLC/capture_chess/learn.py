@@ -72,7 +72,7 @@ class Reinforce(object):
             self.memory.append([state,(move_from, move_to),reward,new_state])
             self.update_agent()
 
-        self.reward_trace.append(reward)
+            self.reward_trace.append(reward)
 
         return self.env.board
 
