@@ -34,7 +34,7 @@ class Agent(object):
         self.model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
 
     def init_conv_network(self):
-        optimizer = SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
+        optimizer = SGD(lr=0.01, momentum=0.0, decay=0.0, nesterov=False)
         #optimizer = Adagrad()
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
