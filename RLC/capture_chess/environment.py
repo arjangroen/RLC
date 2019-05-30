@@ -48,24 +48,30 @@ class Board(object):
             self.layer_board[7, :, :] = 1
 
     def step(self,action):
+        piece_balance_before = self.get_material_value()
         self.board.push(action)
         if self.board.result() == "*":
             opponent_move = self.get_random_action()
             self.board.push(opponent_move)
             self.init_layer_board()
+            piece_balance_after = self.get_material_value()
+            capture_reward = piece_balance_after - piece_balance_before
             if self.board.result() == "*":
-                reward = 0
+                reward = 0 + capture_reward
                 episode_end = False
             else:
-                reward = -100
+                reward = -100 + capture_reward
                 episode_end = True
         else:
             self.init_layer_board()
-            reward = 100
+            piece_balance_after = self.get_material_value()
+            capture_reward = piece_balance_after - piece_balance_before
+            reward = 100 + capture_reward
             episode_end = True
         if self.board.is_game_over(claim_draw=True):
-            reward = 0
+            reward = 0 + capture_reward
             episode_end = True
+        print("reward for capture:",capture_reward)
         return episode_end, reward
 
     def get_random_action(self):

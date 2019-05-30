@@ -57,11 +57,11 @@ class Agent(object):
             rewards.append(sample[2])
             new_states.append(sample[3])
 
-        q_targets = np.array(rewards) + self.gamma * np.max(self.fixed_model.predict(np.stack(new_states,axis=0)),axis=1)  # Max value of actions in new state
+        q_target = np.array(rewards) + self.gamma * np.max(self.fixed_model.predict(np.stack(new_states,axis=0)),axis=1)  # Max value of actions in new state
         q_state = self.fixed_model.predict(np.stack(states,axis=0))  # batch x 64 x 64
         q_state = np.reshape(q_state,(len(minibatch),64,64))
         for idx, move in enumerate(moves):
-            q_state[idx,move[0],move[1]] = q_targets[idx]
+            q_state[idx,move[0],move[1]] = q_target[idx]
         q_state = np.reshape(q_state,(len(minibatch),4096))
         self.model.fit(x=np.stack(states,axis=0),y=q_state,epochs=1)
 

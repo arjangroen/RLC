@@ -1,5 +1,5 @@
-from RLC.random_chess.agent import Agent
-from RLC.random_chess.environment import Board
+from RLC.capture_chess.agent import Agent
+from RLC.capture_chess.environment import Board
 import numpy as np
 from chess.pgn import Game
 import pandas as pd
@@ -14,7 +14,7 @@ class Reinforce(object):
         self.reward_trace = []
 
 
-    def learn(self,iters=100,c=5):
+    def learn(self,iters=100,c=3):
         for k in range(iters):
             print(k)
             if k % c == 0:
