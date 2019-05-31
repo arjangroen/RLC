@@ -5,7 +5,7 @@ import numpy as np
 
 class Agent(object):
 
-    def __init__(self,alpha=0.05,lamb=0.9,gamma=0.95,epsilon=0.5):
+    def __init__(self,alpha=0.05,lamb=0.9,gamma=0.6,epsilon=0.5):
         self.alpha = alpha
         self.lamb = lamb
         self.gamma = gamma
