@@ -57,7 +57,7 @@ class Agent(object):
             moves.append(sample[1])
             rewards.append(sample[2])
             new_states.append(sample[3])
-            if sample[3] == sample[3] * 0:
+            if np.array_equal(sample[3], sample[3] * 0):
                 episode_ends.append(0)
                 print('episode end')
             else:
