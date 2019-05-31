@@ -17,14 +17,14 @@ class Agent(object):
         self.init_naive_network()
 
     def fix_model(self):
-        optimizer = SGD(lr=0.03, momentum=0.0, decay=0.0, nesterov=False)
+        optimizer = SGD(lr=0.01, momentum=0.0, decay=0.0, nesterov=False)
         self.fixed_model = clone_model(self.model)
         self.fixed_model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
         self.fixed_model.set_weights(self.model.get_weights())
 
 
     def init_naive_network(self):
-        optimizer = SGD(lr=0.03, momentum=0.0, decay=0.0, nesterov=False)
+        optimizer = SGD(lr=0.01, momentum=0.0, decay=0.0, nesterov=False)
 
         input_layer = Input(shape=(8,8,8),name='board_layer')
         reshape_input = Reshape((512,))(input_layer)
