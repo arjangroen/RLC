@@ -60,13 +60,13 @@ class Board(object):
                 reward = 0 + capture_reward
                 episode_end = False
             else:
-                reward = -100 + capture_reward
+                reward = -10 + capture_reward
                 episode_end = True
         else:
             self.init_layer_board()
             piece_balance_after = self.get_material_value()
             capture_reward = piece_balance_after - piece_balance_before
-            reward = 100 + capture_reward
+            reward = 10 + capture_reward
             episode_end = True
         if self.board.is_game_over(claim_draw=True):
             reward = 0 + self.get_material_value()
