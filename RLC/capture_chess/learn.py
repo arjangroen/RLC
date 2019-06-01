@@ -19,8 +19,8 @@ class Reinforce(object):
             print(k)
             if k % c == 0:
                 self.agent.fix_model()
-            self.env.reset()
             self.play_game(k)
+            self.env.reset()
 
 
         reward_smooth = pd.DataFrame(self.reward_trace)
