@@ -13,8 +13,11 @@ class Agent(object):
         self.init_network()
 
 
-    def init_network(self):
-        self.init_naive_network()
+    def init_network(self,network='linreg'):
+        if network == 'linreg':
+            self.init_naive_network()
+        elif network == 'conv':
+            self.init_conv_network()
 
     def fix_model(self):
         optimizer = SGD(lr=0.01, momentum=0.0, decay=0.0, nesterov=False)
