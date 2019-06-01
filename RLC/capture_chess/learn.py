@@ -20,13 +20,14 @@ class Reinforce(object):
             if k % c == 0:
                 self.agent.fix_model()
             self.play_game(k)
+            pgn = Game.from_board(self.env.board)
             self.env.reset()
 
 
         reward_smooth = pd.DataFrame(self.reward_trace)
         reward_smooth.rolling(window=10, min_periods=0).mean().plot()
 
-        return Game.from_board(self.env.board)
+        return pgn
 
     def play_game(self,k):
         """
