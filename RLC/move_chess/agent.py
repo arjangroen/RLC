@@ -4,12 +4,11 @@ import pprint
 
 class Piece(object):
 
-    def __init__(self, env, piece='king', k_max=32, synchronous=True, lamb=0.9):
+    def __init__(self, env, piece='king', k_max=32):
         self.env = env
         self.piece = piece
         self.k_max = k_max
         self.synchronous = synchronous
-        self.lamb = lamb
         self.init_actionspace()
         self.value_function = np.zeros(shape=env.reward_space.shape)
         self.N = np.zeros(self.value_function.shape)
@@ -17,6 +16,7 @@ class Piece(object):
         self.action_function = np.zeros(shape=(env.reward_space.shape[0],
                                                env.reward_space.shape[1],
                                                len(self.action_space)))
+        self.E = np.zeros(shape=self.action_function.shape)
         self.policy = np.zeros(shape=self.action_function.shape)
         self.policy_old = self.policy.copy()
 
@@ -68,8 +68,13 @@ class Piece(object):
                 self.action_space.append((-amplitude, amplitude))  # north-west
                 self.action_space.append((amplitude, amplitude))  # south-west
                 self.action_space.append((amplitude, -amplitude))  # south-east
-                self.action_space.append((-amplitude, -amplitude))  # nort
+                self.action_space.append((-amplitude, -amplitude))  # north
 
+    def evaluate_policy(self):
+        self.value_function_old = self.value_function.copy()  # For synchronous updates
+        for row in range(self.value_function.shape[0]):
+            for col in range(self.value_function.shape[1]):
+                self.value_function[row, col] = self.evaluate_state((row, col))
 
 
     def visualize_policy(self):
