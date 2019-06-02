@@ -70,7 +70,7 @@ class Reinforce(object):
             if turncount > maxiter:
                 # After more than maxiter moves, we take the piece balance as the result
                 episode_end = True
-                reward = self.env.get_material_value()
+                reward = 0
             if episode_end:
                 new_state = new_state * 0
             self.memory.append([state,(move_from, move_to),reward,new_state])
