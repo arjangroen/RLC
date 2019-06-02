@@ -37,7 +37,7 @@ class Reinforce(object):
         maxiter=50
         episode_end = False
         turncount = 0
-        eps = max(0.05,1/(1+(k/10)))
+        eps = max(0.05,1/(1+(k/50)))
         while not episode_end:
             state = self.env.layer_board
             explore = np.random.uniform(0,1) < eps
