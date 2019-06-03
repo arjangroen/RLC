@@ -29,12 +29,11 @@ class Reinforce(object):
 
         return pgn
 
-    def play_game(self,k):
+    def play_game(self,k,maxiter=25):
         """
         make
         :return:
         """
-        maxiter=50
         episode_end = False
         turncount = 0
         eps = max(0.05,1/(1+(k/50)))
