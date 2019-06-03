@@ -1,5 +1,5 @@
 # RLC
-Arjan Groen
+Arjan Groen  
 June 3rd, 2019
 
 # Reinforcement Learning Chess
