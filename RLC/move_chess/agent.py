@@ -5,7 +5,6 @@ import pprint
 class Piece(object):
 
     def __init__(self,piece='king', k_max=32):
-        self.env = env
         self.piece = piece
         self.k_max = k_max
         self.synchronous = synchronous
@@ -77,33 +76,4 @@ class Piece(object):
                 self.value_function[row, col] = self.evaluate_state((row, col))
 
 
-    def visualize_policy(self):
-        greedy_policy = self.policy.argmax(axis=2)
-        policy_visualization = {}
-        if self.piece == 'king':
-            arrows = "↑ ↗ → ↘ ↓ ↙ ← ↖"
-            visual_row = ["[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]"]
-        elif self.piece == 'knight':
-            arrows = "↑↗ ↗→ →↘ ↓↘ ↙↓ ←↙ ←↖ ↖↑"
-            visual_row = ["[  ]", "[  ]", "[  ]", "[  ]", "[  ]", "[  ]", "[  ]", "[  ]"]
-        elif self.piece == 'bishop':
-            arrows = "↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖"
-            visual_row = ["[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]"]
-        elif self.piece == 'rook':
-            arrows = "↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ←"
-            visual_row = ["[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]"]
-        arrowlist = arrows.split(" ")
-        for idx, arrow in enumerate(arrowlist):
-            policy_visualization[idx] = arrow
-        visual_board = []
-        for c in range(8):
-            visual_board.append(visual_row.copy())
 
-        for row in range(greedy_policy.shape[0]):
-            for col in range(greedy_policy.shape[1]):
-                idx = greedy_policy[row, col]
-
-                visual_board[row][col] = policy_visualization[idx]
-
-        visual_board[self.env.terminal_state[0]][self.env.terminal_state[1]] = "Q"
-        pprint.pprint(visual_board)
