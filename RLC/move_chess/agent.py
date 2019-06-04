@@ -4,7 +4,7 @@ import pprint
 
 class Piece(object):
 
-    def __init__(self, env, piece='king', k_max=32):
+    def __init__(self,piece='king', k_max=32):
         self.env = env
         self.piece = piece
         self.k_max = k_max
