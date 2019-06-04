@@ -274,6 +274,12 @@ class Reinforce(object):
                 successor_state_value = self.agent.value_function[self.env.state]
             state_value += (prob * (reward + lamb * successor_state_value))
         return state_value
+    
+    def evaluate_policy(self,lamb=0.9,synchronous=True):
+        self.value_function_old = self.value_function.copy()  # For synchronous updates
+        for row in range(self.value_function.shape[0]):
+            for col in range(self.value_function.shape[1]):
+                self.value_function[row, col] = self.evaluate_state((row, col),lamb=lamb,synchronous=synchronous)
 
     def improve_policy(self):
         self.agent.policy_old = self.agent.policy.copy()
@@ -290,7 +296,7 @@ class Reinforce(object):
                 for idx in max_indices:
                     self.agent.policy[row,col,idx] = 1
 
-    def policy_iteration(self, eps=0.1, iteration=1, k_max=32):
+    def policy_iteration(self, eps=0.1,lamb=0.9 iteration=1, k_max=32, synchronous=True):
         policy_stable = True
         print("\n\n______iteration:", iteration, "______")
         print("\n policy:")
@@ -299,7 +305,7 @@ class Reinforce(object):
         print("")
         value_delta_max = 0
         for k in range(k_max):
-            self.agent.evaluate_policy()
+            self.agent.evaluate_policy(lamb=lamb,synchronous=synchronous)
             value_delta = np.max(np.abs(self.agent.value_function_old - self.agent.value_function))
             value_delta_max = max(value_delta_max, value_delta)
             if value_delta_max < eps:
