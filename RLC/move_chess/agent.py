@@ -67,11 +67,7 @@ class Piece(object):
                 self.action_space.append((amplitude, -amplitude))  # south-east
                 self.action_space.append((-amplitude, -amplitude))  # north
 
-    def evaluate_policy(self):
-        self.value_function_old = self.value_function.copy()  # For synchronous updates
-        for row in range(self.value_function.shape[0]):
-            for col in range(self.value_function.shape[1]):
-                self.value_function[row, col] = self.evaluate_state((row, col))
+
 
 
 
