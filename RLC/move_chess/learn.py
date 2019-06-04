@@ -319,3 +319,34 @@ class Reinforce(object):
             print("Optimal policy found in", iteration, "steps of policy evaluation")
         else:
             print("failed to converge.")
+            
+    def visualize_policy(self):
+        greedy_policy = self.agent.policy.argmax(axis=2)
+        policy_visualization = {}
+        if self.agent.piece == 'king':
+            arrows = "↑ ↗ → ↘ ↓ ↙ ← ↖"
+            visual_row = ["[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]"]
+        elif self.agent.piece == 'knight':
+            arrows = "↑↗ ↗→ →↘ ↓↘ ↙↓ ←↙ ←↖ ↖↑"
+            visual_row = ["[  ]", "[  ]", "[  ]", "[  ]", "[  ]", "[  ]", "[  ]", "[  ]"]
+        elif self.agent.piece == 'bishop':
+            arrows = "↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖ ↗ ↘ ↙ ↖"
+            visual_row = ["[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]"]
+        elif self.agent.piece == 'rook':
+            arrows = "↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ← ↑ → ↓ ←"
+            visual_row = ["[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]", "[ ]"]
+        arrowlist = arrows.split(" ")
+        for idx, arrow in enumerate(arrowlist):
+            policy_visualization[idx] = arrow
+        visual_board = []
+        for c in range(8):
+            visual_board.append(visual_row.copy())
+
+        for row in range(greedy_policy.shape[0]):
+            for col in range(greedy_policy.shape[1]):
+                idx = greedy_policy[row, col]
+
+                visual_board[row][col] = policy_visualization[idx]
+
+        visual_board[self.env.terminal_state[0]][self.env.terminal_state[1]] = "F"
+        pprint.pprint(visual_board)
