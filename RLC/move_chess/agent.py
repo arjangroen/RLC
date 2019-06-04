@@ -7,13 +7,11 @@ class Piece(object):
     def __init__(self,piece='king'):
         self.piece = piece
         self.init_actionspace()
-        self.value_function = np.zeros(shape=env.reward_space.shape)
-        self.N = np.zeros(self.value_function.shape)
-        self.E = np.zeros(shape=self.action_function.shape)
+        self.value_function = np.zeros(shape=(8,8))
+        self.N = np.zeros(shape=(8,8))
+        self.E = np.zeros(shape=(8,8))
         self.Returns = {}
-        self.action_function = np.zeros(shape=(env.reward_space.shape[0],
-                                               env.reward_space.shape[1],
-                                               len(self.action_space)))
+        self.action_function = np.zeros(shape=(8,8,len(self.action_space)))
         self.policy = np.zeros(shape=self.action_function.shape)
         self.policy_old = self.policy.copy()
 
