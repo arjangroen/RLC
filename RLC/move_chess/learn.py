@@ -1,4 +1,5 @@
 import numpy as np
+import pprint
 
 class Reinforce(object):
 
@@ -39,7 +40,7 @@ class Reinforce(object):
 
         return states, actions, rewards
 
-    def sarsa_td(self, n_episodes=1e3, alpha=0.01, gamma=0.9):
+    def sarsa_td(self, n_episodes=1000, alpha=0.01, gamma=0.9):
         """
         Run the sarsa control algorithm (TD0), finding the optimal policy and action function
         :param n_episodes: int, amount of episodes to train
@@ -259,7 +260,17 @@ class Reinforce(object):
             if count_steps > max_steps:
                 episode_end = True
 
-    def evaluate_state(self, state, lamb=0.9, synchronous=True):
+    def evaluate_state(self, state, gamma=0.9, synchronous=True):
+        """
+        Calculates the value of a state based on the successor states and the immediate rewards
+        Args:
+            state: tuple of 2 integers 0-7 representing the state
+            gamma: float, discount factor
+            synchronous: Boolean
+
+        Returns: The expected value of the state under the current policy.
+
+        """
         greedy_action_value = np.max(self.agent.policy[state[0], state[1], :])
         greedy_indices = [i for i, a in enumerate(self.agent.policy[state[0], state[1], :]) if
                           a == greedy_action_value]
@@ -272,14 +283,14 @@ class Reinforce(object):
                 successor_state_value = self.agent.value_function_old[self.env.state]
             else:
                 successor_state_value = self.agent.value_function[self.env.state]
-            state_value += (prob * (reward + lamb * successor_state_value))
+            state_value += (prob * (reward + gamma * successor_state_value))
         return state_value
     
-    def evaluate_policy(self,lamb=0.9,synchronous=True):
-        self.value_function_old = self.value_function.copy()  # For synchronous updates
-        for row in range(self.value_function.shape[0]):
-            for col in range(self.value_function.shape[1]):
-                self.value_function[row, col] = self.evaluate_state((row, col),lamb=lamb,synchronous=synchronous)
+    def evaluate_policy(self,gamma=0.9,synchronous=True):
+        self.agent.value_function_old = self.agent.value_function.copy()  # For synchronous updates
+        for row in range(self.agent.value_function.shape[0]):
+            for col in range(self.agent.value_function.shape[1]):
+                self.agent.value_function[row, col] = self.evaluate_state((row, col),gamma=gamma,synchronous=synchronous)
 
     def improve_policy(self):
         self.agent.policy_old = self.agent.policy.copy()
@@ -296,7 +307,19 @@ class Reinforce(object):
                 for idx in max_indices:
                     self.agent.policy[row,col,idx] = 1
 
-    def policy_iteration(self, eps=0.1,lamb=0.9 iteration=1, k_max=32, synchronous=True):
+    def policy_iteration(self, eps=0.1,lamb=0.9, iteration=1, k_max=32, synchronous=True):
+        """
+        Finds the optimal policy
+        Args:
+            eps: float, exploration rate
+            lamb:
+            iteration:
+            k_max:
+            synchronous:
+
+        Returns:
+
+        """
         policy_stable = True
         print("\n\n______iteration:", iteration, "______")
         print("\n policy:")
@@ -327,6 +350,11 @@ class Reinforce(object):
             print("failed to converge.")
             
     def visualize_policy(self):
+        """
+        Gives you are very ugly visualization of the policy
+        Returns: None
+
+        """
         greedy_policy = self.agent.policy.argmax(axis=2)
         policy_visualization = {}
         if self.agent.piece == 'king':
