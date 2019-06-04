@@ -4,18 +4,16 @@ import pprint
 
 class Piece(object):
 
-    def __init__(self,piece='king', k_max=32):
+    def __init__(self,piece='king'):
         self.piece = piece
-        self.k_max = k_max
-        self.synchronous = synchronous
         self.init_actionspace()
         self.value_function = np.zeros(shape=env.reward_space.shape)
         self.N = np.zeros(self.value_function.shape)
+        self.E = np.zeros(shape=self.action_function.shape)
         self.Returns = {}
         self.action_function = np.zeros(shape=(env.reward_space.shape[0],
                                                env.reward_space.shape[1],
                                                len(self.action_space)))
-        self.E = np.zeros(shape=self.action_function.shape)
         self.policy = np.zeros(shape=self.action_function.shape)
         self.policy_old = self.policy.copy()
 
