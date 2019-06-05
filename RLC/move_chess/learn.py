@@ -330,7 +330,7 @@ class Reinforce(object):
         for k in range(k_max):
             self.evaluate_policy(gamma=gamma,synchronous=synchronous)
             value_delta = np.max(np.abs(self.agent.value_function_prev - self.agent.value_function))
-            value_delta_max = max(value_delta)
+            value_delta_max = value_delta
             if value_delta_max < eps:
                 break
         print("Value function for this policy:")
