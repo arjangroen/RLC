@@ -8,12 +8,13 @@ class Piece(object):
         self.piece = piece
         self.init_actionspace()
         self.value_function = np.zeros(shape=(8,8))
+        self.value_function_prev = self.value_function.copy()
         self.N = np.zeros(shape=(8,8))
         self.E = np.zeros(shape=(8,8))
         self.Returns = {}
         self.action_function = np.zeros(shape=(8,8,len(self.action_space)))
         self.policy = np.zeros(shape=self.action_function.shape)
-        self.policy_old = self.policy.copy()
+        self.policy_prev = self.policy.copy()
 
     def apply_policy(self,state,epsilon):
         greedy_action_value = np.max(self.policy[state[0], state[1], :])
@@ -25,7 +26,7 @@ class Piece(object):
         return action_index
 
     def compare_policies(self):
-        return np.sum(np.abs(self.policy - self.policy_old))
+        return np.sum(np.abs(self.policy - self.policy_prev))
 
 
     def init_actionspace(self):
