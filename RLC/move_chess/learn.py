@@ -323,7 +323,7 @@ class Reinforce(object):
         policy_stable = True
         print("\n\n______iteration:", iteration, "______")
         print("\n policy:")
-        self.agent.visualize_policy()
+        self.visualize_policy()
 
         print("")
         value_delta_max = 0
