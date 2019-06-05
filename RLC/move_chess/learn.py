@@ -280,20 +280,20 @@ class Reinforce(object):
             self.env.state = state  # reset state to the one being evaluated
             reward, episode_end = self.env.step(self.agent.action_space[i])
             if synchronous:
-                successor_state_value = self.agent.value_function_old[self.env.state]
+                successor_state_value = self.agent.value_function_prev[self.env.state]
             else:
                 successor_state_value = self.agent.value_function[self.env.state]
             state_value += (prob * (reward + gamma * successor_state_value))
         return state_value
     
     def evaluate_policy(self,gamma=0.9,synchronous=True):
-        self.agent.value_function_old = self.agent.value_function.copy()  # For synchronous updates
+        self.agent.value_function_prev = self.agent.value_function.copy()  # For synchronous updates
         for row in range(self.agent.value_function.shape[0]):
             for col in range(self.agent.value_function.shape[1]):
                 self.agent.value_function[row, col] = self.evaluate_state((row, col),gamma=gamma,synchronous=synchronous)
 
     def improve_policy(self):
-        self.agent.policy_old = self.agent.policy.copy()
+        self.agent.policy_prev = self.agent.policy.copy()
         for row in range(self.agent.action_function.shape[0]):
             for col in range(self.agent.action_function.shape[1]):
                 for action in range(self.agent.action_function.shape[2]):
@@ -329,13 +329,13 @@ class Reinforce(object):
         value_delta_max = 0
         for k in range(k_max):
             self.agent.evaluate_policy(lamb=lamb,synchronous=synchronous)
-            value_delta = np.max(np.abs(self.agent.value_function_old - self.agent.value_function))
+            value_delta = np.max(np.abs(self.agent.value_function_prev - self.agent.value_function))
             value_delta_max = max(value_delta_max, value_delta)
             if value_delta_max < eps:
                 break
         print("Value function for this policy:")
         print(self.agent.value_function.round().astype(int))
-        action_function_old = self.agent.action_function.copy()
+        action_function_prev = self.agent.action_function.copy()
         print("\n Improving policy:")
         self.agent.improve_policy()
         policy_stable = self.agent.compare_policies() < 1
