@@ -262,7 +262,7 @@ class Reinforce(object):
 
     def evaluate_state(self, state, gamma=0.9, synchronous=True):
         """
-        Calculates the value of a state based on the successor states and the immediate rewards
+        Calculates the value of a state based on the successor states and the immediate rewards in a deterministic environment.
         Args:
             state: tuple of 2 integers 0-7 representing the state
             gamma: float, discount factor
@@ -273,8 +273,8 @@ class Reinforce(object):
         """
         greedy_action_value = np.max(self.agent.policy[state[0], state[1], :])
         greedy_indices = [i for i, a in enumerate(self.agent.policy[state[0], state[1], :]) if
-                          a == greedy_action_value]
-        prob = 1 / len(greedy_indices)
+                          a == greedy_action_value]  # List of all greedy actions
+        prob = 1 / len(greedy_indices)  # probability of an action occuring
         state_value = 0
         for i in greedy_indices:
             self.env.state = state  # reset state to the one being evaluated
@@ -283,7 +283,7 @@ class Reinforce(object):
                 successor_state_value = self.agent.value_function_prev[self.env.state]
             else:
                 successor_state_value = self.agent.value_function[self.env.state]
-            state_value += (prob * (reward + gamma * successor_state_value))
+            state_value += (prob * (reward + gamma * successor_state_value)) # sum up rewards and discounted successor state value
         return state_value
     
     def evaluate_policy(self,gamma=0.9,synchronous=True):
