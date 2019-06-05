@@ -307,7 +307,7 @@ class Reinforce(object):
                 for idx in max_indices:
                     self.agent.policy[row,col,idx] = 1
 
-    def policy_iteration(self, eps=0.1,lamb=0.9, iteration=1, k_max=32, synchronous=True):
+    def policy_iteration(self, eps=0.1,gamma=0.9, iteration=1, k_max=32, synchronous=True):
         """
         Finds the optimal policy
         Args:
@@ -328,7 +328,7 @@ class Reinforce(object):
         print("")
         value_delta_max = 0
         for k in range(k_max):
-            self.agent.evaluate_policy(lamb=lamb,synchronous=synchronous)
+            self.agent.evaluate_policy(gamma=gamma,synchronous=synchronous)
             value_delta = np.max(np.abs(self.agent.value_function_prev - self.agent.value_function))
             value_delta_max = max(value_delta_max, value_delta)
             if value_delta_max < eps:
