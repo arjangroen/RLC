@@ -328,7 +328,7 @@ class Reinforce(object):
         print("")
         value_delta_max = 0
         for k in range(k_max):
-            self.agent.evaluate_policy(gamma=gamma,synchronous=synchronous)
+            self.evaluate_policy(gamma=gamma,synchronous=synchronous)
             value_delta = np.max(np.abs(self.agent.value_function_prev - self.agent.value_function))
             value_delta_max = max(value_delta)
             if value_delta_max < eps:
@@ -337,7 +337,7 @@ class Reinforce(object):
         print(self.agent.value_function.round().astype(int))
         action_function_prev = self.agent.action_function.copy()
         print("\n Improving policy:")
-        self.agent.improve_policy()
+        self.improve_policy()
         policy_stable = self.agent.compare_policies() < 1
         print("policy diff:",policy_stable)
 
