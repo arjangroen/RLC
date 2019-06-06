@@ -262,7 +262,7 @@ class Reinforce(object):
 
     def evaluate_state(self, state, gamma=0.9, synchronous=True):
         """
-        Calculates the value of a state based on the successor states and the immediate rewards in a deterministic environment.
+        Calculates the value of a state based on the successor states and the immediate rewards.
         Args:
             state: tuple of 2 integers 0-7 representing the state
             gamma: float, discount factor

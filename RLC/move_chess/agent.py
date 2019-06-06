@@ -5,6 +5,11 @@ import pprint
 class Piece(object):
 
     def __init__(self,piece='king'):
+        """
+        A Chess agent
+        Args:
+            piece: (str) king, knight, bishop or rook
+        """
         self.piece = piece
         self.init_actionspace()
         self.value_function = np.zeros(shape=(8,8))
@@ -17,6 +22,16 @@ class Piece(object):
         self.policy_prev = self.policy.copy()
 
     def apply_policy(self,state,epsilon):
+        """
+        Apply the policy of the agent
+        Args:
+            state: tuple of length 2
+            epsilon: exploration probability, 0 for greedy behavior, 1 for pure exploration
+
+        Returns:
+            the selected action for the state under the current policy
+
+        """
         greedy_action_value = np.max(self.policy[state[0], state[1], :])
         greedy_indices = [i for i, a in enumerate(self.policy[state[0], state[1], :]) if
                        a == greedy_action_value]
