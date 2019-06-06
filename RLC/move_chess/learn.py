@@ -293,6 +293,10 @@ class Reinforce(object):
                 self.agent.value_function[row, col] = self.evaluate_state((row, col),gamma=gamma,synchronous=synchronous)
 
     def improve_policy(self):
+        """
+        Finds the greedy policy w.r.t. the current value function
+        """
+        
         self.agent.policy_prev = self.agent.policy.copy()
         for row in range(self.agent.action_function.shape[0]):
             for col in range(self.agent.action_function.shape[1]):
@@ -307,15 +311,15 @@ class Reinforce(object):
                 for idx in max_indices:
                     self.agent.policy[row,col,idx] = 1
 
-    def policy_iteration(self, eps=0.1,gamma=0.9, iteration=1, k_max=32, synchronous=True):
+    def policy_iteration(self, eps=0.1,gamma=0.9, iteration=1, k=32, synchronous=True):
         """
         Finds the optimal policy
         Args:
             eps: float, exploration rate
-            lamb:
-            iteration:
-            k_max:
-            synchronous:
+            gamma: float, discount factor
+            iteration: the iteration number
+            k: (int) maximum amount of policy evaluation iterations
+            synchronous: (Boolean) whether to use synchronous are asynchronous back-ups 
 
         Returns:
 
@@ -327,7 +331,7 @@ class Reinforce(object):
 
         print("")
         value_delta_max = 0
-        for k in range(k_max):
+        for _ in range(k):
             self.evaluate_policy(gamma=gamma,synchronous=synchronous)
             value_delta = np.max(np.abs(self.agent.value_function_prev - self.agent.value_function))
             value_delta_max = value_delta
