@@ -341,7 +341,7 @@ class Reinforce(object):
         policy_stable = self.agent.compare_policies() < 1
         print("policy diff:",policy_stable)
 
-        if not policy_stable and iteration < 20:
+        if not policy_stable and iteration < 1000:
             iteration += 1
             self.policy_iteration(iteration=iteration)
         elif policy_stable:
