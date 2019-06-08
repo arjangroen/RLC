@@ -31,11 +31,7 @@ RLC works three chess variants:
 ```
 
     Collecting git+https://github.com/arjangroen/RLC.git
-      Cloning https://github.com/arjangroen/RLC.git to /private/var/folders/kw/5gm0lng13pbf8ccm0xg74qj00000gn/T/pip-req-build-2m_9voyp
-    Requirement already satisfied (use --upgrade to upgrade): RLC==0.1 from git+https://github.com/arjangroen/RLC.git in /Users/a.groen/.conda/envs/RLC/lib/python3.7/site-packages
-    Building wheels for collected packages: RLC
-      Building wheel for RLC (setup.py) ... [?25ldone
-    [?25h  Stored in directory: /private/var/folders/kw/5gm0lng13pbf8ccm0xg74qj00000gn/T/pip-ephem-wheel-cache-c6tl4x_y/wheels/04/68/a5/cb835cd3d76a49de696a942739c71a56bfe66d0d8ea7b4b446
+      ...
     Successfully built RLC
     
 # Running Policy Iteration on Move Chess
