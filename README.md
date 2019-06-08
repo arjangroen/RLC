@@ -37,6 +37,21 @@ RLC works three chess variants:
       Building wheel for RLC (setup.py) ... [?25ldone
     [?25h  Stored in directory: /private/var/folders/kw/5gm0lng13pbf8ccm0xg74qj00000gn/T/pip-ephem-wheel-cache-c6tl4x_y/wheels/04/68/a5/cb835cd3d76a49de696a942739c71a56bfe66d0d8ea7b4b446
     Successfully built RLC
+    
+# Running Policy Iteration on Move Chess
+
+```python
+from RLC.move_chess.environment import Board
+from RLC.move_chess.agent import Piece
+from RLC.move_chess.learn import Reinforce
+
+env = Board()
+p = Piece(piece='rook')
+r = Reinforce(p,env)
+
+r.policy_iteration(k=1,gamma=1,synchronous=True)
+```
+
 
 # References
 
