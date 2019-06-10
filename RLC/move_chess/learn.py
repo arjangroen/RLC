@@ -164,7 +164,8 @@ class Reinforce(object):
                 self.agent.Returns[(state, action_index)].append(r)
             else:
                 self.agent.Returns[(state,action_index)] = [r]
-            self.agent.action_function[state[0],state[1],action_index] = np.mean(self.agent.Returns[(state,action_index)])
+            self.agent.action_function[state[0],state[1],action_index] = \
+                np.mean(self.agent.Returns[(state,action_index)])
             first_visits.append((state,action_index))
         # Update the policy. In Monte Carlo Control, this is greedy behavior with respect to the action function
         self.agent.policy = self.agent.action_function.copy()
