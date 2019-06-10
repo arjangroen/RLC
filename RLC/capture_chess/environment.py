@@ -43,7 +43,7 @@ class Board(object):
             layer = mapper[piece.symbol()]
             self.layer_board[layer, row, col] = sign
         if self.board.turn:
-            self.layer_board[6, :, :] = 1
+            self.layer_board[6, :, :] = self.board.fullmove_number
         if self.board.can_claim_draw():
             self.layer_board[7, :, :] = 1
 
