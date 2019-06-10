@@ -4,20 +4,20 @@
 
 
 
-RLC works three chess variants:
+RLC works in three chess environments:
 
-#### 1. Move Chess 
+#### 1. Move Chess (Simple)
 - Goal: Learn to find the shortest path between 2 squares on a chess board  
 - Motivation: Move Chess has a small statespace, which allows us to tackle this with simple RL algorithms.
 - Concepts: Dynamic Programming, Policy Evaluation, Policy Improvement, Policy Iteration, Value Iteration, Synchronous & Asynchronous back-ups, Monte Carlo (MC) Prediction, MC Control, Temporal Difference (TD) Learning, TD control, TD-lambda, SARSA(-max)
 
-#### 2. Capture Chess
+#### 2. Capture Chess (Intermediate)
 - Goal: Capture as many pieces from the opponent within n fullmoves
 - Motivation: Piece captures happen more frequently than win-lose-draw events. This give the algorithm more information to learn from.
 - Concepts: Q-learning, value function approximation, experience replay, fixed-q-targets
 
 
-#### 3. Real Chess (a.k.a. chess)
+#### 3. Real Chess (Hard)
 - Goal: Play chess competitively against a human beginner
 - Motivation: An actual RL chess AI, how cool is that?
 - Concepts: Deep Q learning, policy gradients, actor-critic model and maybe more. 
