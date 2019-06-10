@@ -144,7 +144,7 @@ class Reinforce(object):
 
     def monte_carlo_learning(self,epsilon=0.1):
         """
-        Learn move chess through monte carlo
+        Learn move chess through monte carlo control
         :param epsilon: exploration rate
         :return:
         """
@@ -159,11 +159,11 @@ class Reinforce(object):
             action_index = actions[idx]
             if (state,action_index) in first_visits:
                 continue
-            R = np.sum(rewards[idx:])
+            r = np.sum(rewards[idx:])
             if (state,action_index) in self.agent.Returns.keys():
-                self.agent.Returns[(state, action_index)].append(R)
+                self.agent.Returns[(state, action_index)].append(r)
             else:
-                self.agent.Returns[(state,action_index)] = [R]
+                self.agent.Returns[(state,action_index)] = [r]
             self.agent.action_function[state[0],state[1],action_index] = np.mean(self.agent.Returns[(state,action_index)])
             first_visits.append((state,action_index))
         # Update the policy. In Monte Carlo Control, this is greedy behavior with respect to the action function
