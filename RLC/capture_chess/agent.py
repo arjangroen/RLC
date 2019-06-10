@@ -1,6 +1,6 @@
 from keras.models import Model, clone_model
-from keras.layers import Input, Conv2D, Dense, Reshape, Flatten, Dot
-from keras.optimizers import SGD, Adagrad
+from keras.layers import Input, Conv2D, Dense, Reshape, Dot, Add
+from keras.optimizers import SGD
 import numpy as np
 
 class Agent(object):
