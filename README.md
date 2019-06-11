@@ -24,13 +24,9 @@ RLC works in three chess environments:
 
 
 # Installation
-```python
-!pip install git+https://github.com/arjangroen/RLC.git
+```bash
+pip install git+https://github.com/arjangroen/RLC.git
 ```
-
-    Collecting git+https://github.com/arjangroen/RLC.git
-      ...
-    Successfully built RLC
     
 # Usage
     
