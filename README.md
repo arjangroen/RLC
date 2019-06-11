@@ -24,8 +24,6 @@ RLC works in three chess environments:
 
 
 # Installation
-
-
 ```python
 !pip install git+https://github.com/arjangroen/RLC.git
 ```
@@ -34,7 +32,9 @@ RLC works in three chess environments:
       ...
     Successfully built RLC
     
-# Running Policy Iteration on Move Chess
+# Usage
+    
+#### 1. Move Chess x Policy Iteration
 
 ```python
 from RLC.move_chess.environment import Board
@@ -47,6 +47,21 @@ r = Reinforce(p,env)
 
 r.policy_iteration(k=1,gamma=1,synchronous=True)
 ```
+
+##### 2. Move Chess x Q-learning
+
+```python
+p = Piece(piece='king')
+env = Board()
+r = Reinforce(p,env)
+r.q_learning(n_episodes=1000,alpha=0.2,gamma=0.9)
+r.visualize_policy()
+r.agent.action_function.max(axis=2).round().astype(int)
+```
+
+# Kaggle kernels
+https://www.kaggle.com/arjanso/reinforcement-learning-chess-1-policy-iteration
+https://www.kaggle.com/arjanso/reinforcement-learning-chess-2-model-free-methods 
 
 
 # References
