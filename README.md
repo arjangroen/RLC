@@ -34,7 +34,7 @@ RLC works in three chess environments:
     
 # Usage
     
-#### 1. Move Chess x Policy Iteration
+#### 1. Move Chess | Policy Iteration
 
 ```python
 from RLC.move_chess.environment import Board
@@ -48,7 +48,7 @@ r = Reinforce(p,env)
 r.policy_iteration(k=1,gamma=1,synchronous=True)
 ```
 
-##### 2. Move Chess x Q-learning
+##### 2. Move Chess | Q-learning
 
 ```python
 p = Piece(piece='king')
