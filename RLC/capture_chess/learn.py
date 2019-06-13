@@ -12,6 +12,7 @@ class Reinforce(object):
         self.memory = []
         self.memsize=memsize
         self.reward_trace = []
+        self.sampling_probs = []
 
 
     def learn(self,iters=100,c=3):
@@ -73,6 +74,7 @@ class Reinforce(object):
             if episode_end:
                 new_state = new_state * 0
             self.memory.append([state,(move_from, move_to),reward,new_state])
+            self.sampling_probs.append(1)
             self.update_agent(turncount)
 
             self.reward_trace.append(reward)
@@ -82,16 +84,23 @@ class Reinforce(object):
     def sample_memory(self,turncount):
         minibatch = []
         memory = self.memory[:-turncount]
-        indices = np.random.choice(range(len(memory)),min(64,len(memory)),replace=False)
+        probs = [self.sampling_probs[n]/np.sum(self.sampling_probs) for n in range(len(self.sampling_probs))]
+        indices = np.random.choice(range(len(memory)),min(64,len(memory)),replace=False,p=probs)
         for i in indices:
             minibatch.append(self.memory[i])
 
-        return minibatch
+        return minibatch, indices
 
     def update_agent(self,turncount):
         if turncount < len(self.memory):
-            minibatch = self.sample_memory(turncount)
-            self.agent.network_update(minibatch)
+            minibatch,indices = self.sample_memory(turncount)
+            td_errors = self.agent.network_update(minibatch)
+            print(np.min(td_errors),np.max(td_errors),np.mean(td_errors))
+            for n,i in enumerate(indices):
+                self.sampling_probs[i] = td_errors[n]
+
+
+
 
 
 

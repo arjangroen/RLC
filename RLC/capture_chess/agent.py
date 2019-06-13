@@ -56,6 +56,7 @@ class Agent(object):
 
     def network_update(self,minibatch):
         states, moves, rewards, new_states = [],[],[],[]
+        td_errors = []
         episode_ends = []
         for sample in minibatch:
             states.append(sample[0])
@@ -72,9 +73,11 @@ class Agent(object):
         q_state = self.fixed_model.predict(np.stack(states,axis=0))  # batch x 64 x 64
         q_state = np.reshape(q_state,(len(minibatch),64,64))
         for idx, move in enumerate(moves):
+            td_errors.append(np.abs(q_state[idx,move[0],move[1]] - q_target[idx]))
             q_state[idx,move[0],move[1]] = q_target[idx]
         q_state = np.reshape(q_state,(len(minibatch),4096))
         self.model.fit(x=np.stack(states,axis=0),y=q_state,epochs=1)
+        return td_errors
 
     def get_action_values(self,state):
         return self.model.predict(state)
