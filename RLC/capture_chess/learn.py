@@ -98,7 +98,7 @@ class Reinforce(object):
             td_errors = self.agent.network_update(minibatch)
             print(np.min(td_errors),np.max(td_errors),np.mean(td_errors))
             for n,i in enumerate(indices):
-                self.sampling_probs[i] = td_errors[n]
+                self.sampling_probs[i] = np.abs(td_errors[n])
 
 
 

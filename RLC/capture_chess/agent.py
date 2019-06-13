@@ -73,7 +73,7 @@ class Agent(object):
         q_state = self.model.predict(np.stack(states,axis=0))  # batch x 64 x 64
         q_state = np.reshape(q_state,(len(minibatch),64,64))
         for idx, move in enumerate(moves):
-            td_errors.append(np.abs(q_state[idx,move[0],move[1]] - q_target[idx]))
+            td_errors.append(q_state[idx,move[0],move[1]] - q_target[idx])
             q_state[idx,move[0],move[1]] = q_target[idx]
         q_state = np.reshape(q_state,(len(minibatch),4096))
         self.model.fit(x=np.stack(states,axis=0),y=q_state,epochs=1)
