@@ -68,7 +68,7 @@ class Board(object):
             reward = 10 + capture_reward
             episode_end = True
         if self.board.is_game_over(claim_draw=True):
-            reward = 0 + self.get_material_value()
+            reward = 0 #+ self.get_material_value()
             episode_end = True
         print("reward for capture:",capture_reward)
         return episode_end, reward

@@ -26,6 +26,9 @@ class Agent(object):
         self.fixed_model = clone_model(self.model)
         self.fixed_model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
         self.fixed_model.set_weights(self.model.get_weights())
+        print(self.model.get_weights()[0].shape)
+        print(self.model.get_weights()[2].shape)
+        print(np.round(np.dot(self.model.get_weights()[0][0,0,:,:],-1*self.model.get_weights()[2][0,0,:,:].T),2))
 
 
     def init_linear_network(self):

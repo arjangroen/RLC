@@ -75,9 +75,11 @@ class Reinforce(object):
                 new_state = new_state * 0
             self.memory.append([state,(move_from, move_to),reward,new_state])
             self.sampling_probs.append(1)
-            self.update_agent(turncount)
+
 
             self.reward_trace.append(reward)
+
+        self.update_agent(turncount)
 
         return self.env.board
 
