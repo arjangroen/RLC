@@ -84,10 +84,11 @@ class Reinforce(object):
     def sample_memory(self,turncount):
         minibatch = []
         memory = self.memory[:-turncount]
-        probs = [self.sampling_probs[n]/np.sum(self.sampling_probs) for n in range(len(self.sampling_probs))]
-        indices = np.random.choice(range(len(memory)),min(64,len(memory)),replace=False,p=probs)
+        probs = self.sampling_probs[:-turncount]
+        sample_probs = [probs[n]/np.sum(probs) for n in range(len(probs))]
+        indices = np.random.choice(range(len(memory)),min(64,len(memory)),replace=False,p=sample_probs)
         for i in indices:
-            minibatch.append(self.memory[i])
+            minibatch.append(memory[i])
 
         return minibatch, indices
 
