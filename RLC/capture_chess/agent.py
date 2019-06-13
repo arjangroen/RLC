@@ -80,7 +80,7 @@ class Agent(object):
         return td_errors
 
     def get_action_values(self,state):
-        return self.model.predict(state)
+        return self.fixed_model.predict(state)
 
 
 
