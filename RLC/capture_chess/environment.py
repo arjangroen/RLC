@@ -24,8 +24,6 @@ class Board(object):
         self.init_layer_board()
 
     def init_action_space(self):
-        old_squares = list(range(64))
-        new_squares = list(range(64))
         self.action_space = np.zeros(shape=(64,64))
 
     def init_layer_board(self):

@@ -79,7 +79,7 @@ class Reinforce(object):
 
             self.reward_trace.append(reward)
 
-        self.update_agent(turncount)
+            self.update_agent(turncount)
 
         return self.env.board
 
