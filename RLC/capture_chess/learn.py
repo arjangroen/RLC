@@ -66,6 +66,7 @@ class Reinforce(object):
             new_state = self.env.layer_board
             if len(self.memory) > self.memsize:
                 self.memory.pop(0)
+                self.sampling_probs.pop(0)
             turncount += 1
             if turncount > maxiter:
                 # After more than maxiter moves, we take the piece balance as the result
