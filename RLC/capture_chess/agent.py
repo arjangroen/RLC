@@ -26,9 +26,9 @@ class Agent(object):
         self.fixed_model = clone_model(self.model)
         self.fixed_model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
         self.fixed_model.set_weights(self.model.get_weights())
-        print(self.model.get_weights()[0].shape)
-        print(self.model.get_weights()[2].shape)
-        print(np.round(np.dot(self.model.get_weights()[0][0,0,:,:],-1*self.model.get_weights()[2][0,0,:,:].T),2))
+        #print(self.model.get_weights()[0].shape)
+        #print(self.model.get_weights()[2].shape)
+        #print(np.round(np.dot(self.model.get_weights()[0][0,0,:,:],-1*self.model.get_weights()[2][0,0,:,:].T),2))
 
 
     def init_linear_network(self):
@@ -68,7 +68,7 @@ class Agent(object):
             new_states.append(sample[3])
             if np.array_equal(sample[3], sample[3] * 0):
                 episode_ends.append(0)
-                print('episode end')
+                #print('episode end')
             else:
                 episode_ends.append(1)
 
@@ -79,7 +79,14 @@ class Agent(object):
             td_errors.append(q_state[idx,move[0],move[1]] - q_target[idx])
             q_state[idx,move[0],move[1]] = q_target[idx]
         q_state = np.reshape(q_state,(len(minibatch),4096))
+
+        old_weights = self.model.get_weights()
         self.model.fit(x=np.stack(states,axis=0),y=q_state,epochs=1)
+        new_weights = self.model.get_weights()
+        #print('\n\nold weights',old_weights)
+        #print('\nnew weights',new_weights)
+
+
         return td_errors
 
     def get_action_values(self,state):

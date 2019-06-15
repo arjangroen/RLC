@@ -6,7 +6,7 @@ import pandas as pd
 
 class Reinforce(object):
 
-    def __init__(self,agent,env,memsize=10000):
+    def __init__(self,agent,env,memsize=1000):
         self.agent = agent
         self.env = env
         self.memory = []
@@ -88,7 +88,7 @@ class Reinforce(object):
         memory = self.memory[:-turncount]
         probs = self.sampling_probs[:-turncount]
         sample_probs = [probs[n]/np.sum(probs) for n in range(len(probs))]
-        indices = np.random.choice(range(len(memory)),min(64,len(memory)),replace=False,p=sample_probs)
+        indices = np.random.choice(range(len(memory)),min(640,len(memory)),replace=False,p=sample_probs)
         for i in indices:
             minibatch.append(memory[i])
 
