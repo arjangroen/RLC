@@ -20,7 +20,8 @@ class Reinforce(object):
             print(k)
             if k % c == 0:
                 self.agent.fix_model()
-            self.play_game(k)
+            greedy = True if k == iters-1 else False
+            self.play_game(k,greedy=greedy)
             pgn = Game.from_board(self.env.board)
             self.env.reset()
 
@@ -30,14 +31,14 @@ class Reinforce(object):
 
         return pgn
 
-    def play_game(self,k,maxiter=25):
+    def play_game(self,k,greedy=False,maxiter=25):
         """
         make
         :return:
         """
         episode_end = False
         turncount = 0
-        eps = max(0.05,1/(1+(k/250)))
+        eps = max(0.05,1/(1+(k/250))) if not greedy else 0.
         while not episode_end:
             state = self.env.layer_board
             explore = np.random.uniform(0,1) < eps
