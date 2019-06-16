@@ -1,6 +1,6 @@
 from keras.models import Model, clone_model
 from keras.layers import Input, Conv2D, Dense, Reshape, Dot, Add
-from keras.optimizers import SGD
+from keras.optimizers import SGD, Adadelta
 import numpy as np
 
 class Agent(object):
@@ -22,7 +22,8 @@ class Agent(object):
             self.init_conv_network()
 
     def fix_model(self):
-        optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
+        #optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
+        optimizer = Adadelta()
         self.fixed_model = clone_model(self.model)
         self.fixed_model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
         self.fixed_model.set_weights(self.model.get_weights())
@@ -42,8 +43,8 @@ class Agent(object):
         self.model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
 
     def init_conv_network(self):
-        optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
-        #optimizer = Adagrad()
+        #optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
+        optimizer = Adadelta()
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8

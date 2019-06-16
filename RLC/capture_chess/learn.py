@@ -15,7 +15,7 @@ class Reinforce(object):
         self.sampling_probs = []
 
 
-    def learn(self,iters=100,c=3):
+    def learn(self,iters=100,c=10):
         for k in range(iters):
             print(k)
             if k % c == 0:
@@ -37,7 +37,7 @@ class Reinforce(object):
         """
         episode_end = False
         turncount = 0
-        eps = max(0.05,1/(1+(k/250)))
+        eps = max(0.05,1/(1+(k/1000)))
         while not episode_end:
             state = self.env.layer_board
             explore = np.random.uniform(0,1) < eps
