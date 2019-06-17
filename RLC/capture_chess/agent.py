@@ -82,7 +82,7 @@ class Agent(object):
         q_state = np.reshape(q_state,(len(minibatch),4096))
 
         old_weights = self.model.get_weights()
-        self.model.fit(x=np.stack(states,axis=0),y=q_state,epochs=1)
+        self.model.fit(x=np.stack(states,axis=0),y=q_state,epochs=1,verbose=0)
         new_weights = self.model.get_weights()
         #print('\n\nold weights',old_weights)
         #print('\nnew weights',new_weights)
