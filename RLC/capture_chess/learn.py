@@ -17,7 +17,6 @@ class Reinforce(object):
 
     def learn(self,iters=100,c=10):
         for k in range(iters):
-            print(k)
             if k % c == 0:
                 self.agent.fix_model()
             greedy = True if k == iters-1 else False
@@ -56,7 +55,6 @@ class Reinforce(object):
                 moves = [x for x in self.env.board.generate_legal_moves() if\
                         x.from_square == move_from and x.to_square == move_to]
                 if len(moves) == 0:
-                    print(np.max(action_values))
                     move = self.env.get_random_action()
                     move_from = move.from_square
                     move_to = move.to_square
@@ -102,14 +100,3 @@ class Reinforce(object):
             td_errors = self.agent.network_update(minibatch)
             for n,i in enumerate(indices):
                 self.sampling_probs[i] = np.abs(td_errors[n])
-
-
-
-
-
-
-
-
-
-
-
