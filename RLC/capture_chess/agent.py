@@ -3,9 +3,10 @@ from keras.layers import Input, Conv2D, Dense, Reshape, Dot
 from keras.optimizers import SGD
 import numpy as np
 
+
 class Agent(object):
 
-    def __init__(self,gamma=0.5, network='linear',lr=0.01):
+    def __init__(self, gamma=0.5, network='linear', lr=0.01):
         """
         Agent that plays the white pieces in capture chess
         Args:
@@ -20,7 +21,6 @@ class Agent(object):
         self.network = network
         self.lr = lr
         self.init_network()
-
 
     def init_network(self):
         """
@@ -40,9 +40,8 @@ class Agent(object):
         """
         optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
         self.fixed_model = clone_model(self.model)
-        self.fixed_model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
+        self.fixed_model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
         self.fixed_model.set_weights(self.model.get_weights())
-
 
     def init_linear_network(self):
         """
@@ -51,11 +50,11 @@ class Agent(object):
 
         """
         optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
-        input_layer = Input(shape=(8,8,8),name='board_layer')
+        input_layer = Input(shape=(8, 8, 8), name='board_layer')
         reshape_input = Reshape((512,))(input_layer)
         output_layer = Dense(4096)(reshape_input)
-        self.model = Model(inputs=[input_layer],outputs=[output_layer])
-        self.model.compile(optimizer=optimizer,loss='mse',metrics=['mae'])
+        self.model = Model(inputs=[input_layer], outputs=[output_layer])
+        self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
 
     def init_conv_network(self):
         """
@@ -74,7 +73,7 @@ class Agent(object):
         self.model = Model(inputs=[input_layer], outputs=[output_layer])
         self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
 
-    def network_update(self,minibatch):
+    def network_update(self, minibatch):
         """
         Update the Q-network using samples from the minibatch
         Args:
@@ -88,7 +87,7 @@ class Agent(object):
         """
 
         # Prepare separate lists
-        states, moves, rewards, new_states = [],[],[],[]
+        states, moves, rewards, new_states = [], [], [], []
         td_errors = []
         episode_ends = []
         for sample in minibatch:
@@ -104,24 +103,25 @@ class Agent(object):
                 episode_ends.append(1)
 
         # The Q target
-        q_target = np.array(rewards) + np.array(episode_ends) * self.gamma * np.max(self.fixed_model.predict(np.stack(new_states,axis=0)),axis=1)  # Max value of actions in new state
+        q_target = np.array(rewards) + np.array(episode_ends) * self.gamma * np.max(
+            self.fixed_model.predict(np.stack(new_states, axis=0)), axis=1)
 
         # The Q value for the remaining actions
-        q_state = self.model.predict(np.stack(states,axis=0))  # batch x 64 x 64
+        q_state = self.model.predict(np.stack(states, axis=0))  # batch x 64 x 64
 
         # Combine the Q target with the other Q values.
-        q_state = np.reshape(q_state,(len(minibatch),64,64))
+        q_state = np.reshape(q_state, (len(minibatch), 64, 64))
         for idx, move in enumerate(moves):
-            td_errors.append(q_state[idx,move[0],move[1]] - q_target[idx])
-            q_state[idx,move[0],move[1]] = q_target[idx]
-        q_state = np.reshape(q_state,(len(minibatch),4096))
+            td_errors.append(q_state[idx, move[0], move[1]] - q_target[idx])
+            q_state[idx, move[0], move[1]] = q_target[idx]
+        q_state = np.reshape(q_state, (len(minibatch), 4096))
 
         # Perform a step of minibatch Gradient Descent.
-        self.model.fit(x=np.stack(states,axis=0),y=q_state,epochs=1,verbose=0)
+        self.model.fit(x=np.stack(states, axis=0), y=q_state, epochs=1, verbose=0)
 
         return td_errors
 
-    def get_action_values(self,state):
+    def get_action_values(self, state):
         """
         Get action values of a state
         Args:
@@ -133,19 +133,3 @@ class Agent(object):
 
         """
         return self.fixed_model.predict(state)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
