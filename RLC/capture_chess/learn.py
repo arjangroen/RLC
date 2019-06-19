@@ -7,24 +7,41 @@ import pandas as pd
 class Reinforce(object):
 
     def __init__(self,agent,env,memsize=1000):
+        """
+        Reinforce object to learn capture chess
+        Args:
+            agent: The agent playing the chess game as white
+            env: The environment including the python-chess board
+            memsize: maximum amount of games to retain in-memory
+        """
         self.agent = agent
         self.env = env
         self.memory = []
-        self.memsize=memsize
+        self.memsize = memsize
         self.reward_trace = []
         self.sampling_probs = []
 
 
     def learn(self,iters=100,c=10):
+        """
+        Run the Q-learning algorithm
+        Args:
+            iters: int
+                amount of games to train
+            c: int
+                update the network every c games
+
+        Returns:
+
+        """
         for k in range(iters):
             if k % c == 0:
                 self.agent.fix_model()
             greedy = True if k == iters-1 else False
-            self.play_game(k,greedy=greedy)
-            pgn = Game.from_board(self.env.board)
             self.env.reset()
+            self.play_game(k,greedy=greedy)
 
-
+        pgn = Game.from_board(self.env.board)
         reward_smooth = pd.DataFrame(self.reward_trace)
         reward_smooth.rolling(window=10, min_periods=0).mean().plot()
 
