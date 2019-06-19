@@ -24,14 +24,15 @@ class Reinforce(object):
 
     def learn(self,iters=100,c=10):
         """
-        Run the Q-learning algorithm
+        Run the Q-learning algorithm. Play greedy on the final iter
         Args:
             iters: int
                 amount of games to train
             c: int
                 update the network every c games
 
-        Returns:
+        Returns: pgn (str)
+            pgn string describing final game
 
         """
         for k in range(iters):
@@ -49,15 +50,28 @@ class Reinforce(object):
 
     def play_game(self,k,greedy=False,maxiter=25):
         """
-        make
-        :return:
+        Play a game of capture chess
+        Args:
+            k: int
+                game count, determines epsilon (exploration rate)
+            greedy: Boolean
+                if greedy, no exploration is done
+            maxiter: int
+                Maximum amount of steps per game
+
+        Returns:
+
         """
         episode_end = False
         turncount = 0
+
+        # Here we determine the exploration rate. k is divided by 250 to slow down the exploration rate decay.
         eps = max(0.05,1/(1+(k/250))) if not greedy else 0.
+
+        # Play a game of chess
         while not episode_end:
             state = self.env.layer_board
-            explore = np.random.uniform(0,1) < eps
+            explore = np.random.uniform(0,1) < eps  # determine whether to explore
             if explore:
                 move = self.env.get_random_action()
                 move_from = move.from_square
@@ -65,18 +79,19 @@ class Reinforce(object):
             else:
                 action_values = self.agent.get_action_values(np.expand_dims(state,axis=0))
                 action_values = np.reshape(np.squeeze(action_values),(64,64))
-                action_space = self.env.project_legal_moves()
+                action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
                 action_values = np.multiply(action_values,action_space)
                 move_from = np.argmax(action_values,axis=None) // 64
                 move_to = np.argmax(action_values,axis=None) % 64
                 moves = [x for x in self.env.board.generate_legal_moves() if\
                         x.from_square == move_from and x.to_square == move_to]
                 if len(moves) == 0:
+                    print("Warning: no legal moves found")
                     move = self.env.get_random_action()
                     move_from = move.from_square
                     move_to = move.to_square
                 else:
-                    move = moves[0]
+                    move = moves[0]  # If there are multiple max-moves, pick the first one.
 
             episode_end, reward = self.env.step(move)
             new_state = self.env.layer_board
@@ -85,7 +100,6 @@ class Reinforce(object):
                 self.sampling_probs.pop(0)
             turncount += 1
             if turncount > maxiter:
-                # After more than maxiter moves, we take the piece balance as the result
                 episode_end = True
                 reward = 0
             if episode_end:
@@ -101,17 +115,36 @@ class Reinforce(object):
         return self.env.board
 
     def sample_memory(self,turncount):
+        """
+        Get a sample from memory for experience replay
+        Args:
+            turncount: int
+                turncount limits the size of the minibatch
+
+        Returns: tuple
+            a mini-batch of experiences (list)
+            indices of chosen experiences
+
+        """
         minibatch = []
         memory = self.memory[:-turncount]
         probs = self.sampling_probs[:-turncount]
         sample_probs = [probs[n]/np.sum(probs) for n in range(len(probs))]
-        indices = np.random.choice(range(len(memory)),min(640,len(memory)),replace=False,p=sample_probs)
+        indices = np.random.choice(range(len(memory)),min(1028,len(memory)),replace=False,p=sample_probs)
         for i in indices:
             minibatch.append(memory[i])
 
         return minibatch, indices
 
     def update_agent(self,turncount):
+        """
+        Update the agent using experience replay. Set the sampling probs with the td error
+        Args:
+            turncount: int
+                Amount of turns played. Only sample the memory of there are sufficient samples
+        Returns:
+
+        """
         if turncount < len(self.memory):
             minibatch,indices = self.sample_memory(turncount)
             td_errors = self.agent.network_update(minibatch)
