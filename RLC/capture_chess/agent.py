@@ -5,17 +5,29 @@ import numpy as np
 
 class Agent(object):
 
-    def __init__(self,alpha=0.05,lamb=0.9,gamma=0.5,epsilon=0.5,network='linear',lr=0.01):
-        self.alpha = alpha
-        self.lamb = lamb
+    def __init__(self,gamma=0.5, network='linear',lr=0.01):
+        """
+        Agent that plays the white pieces in capture chess
+        Args:
+            gamma: float
+                Temporal discount factor
+            network: str
+                'linear' or 'conv'
+            lr: float
+                Learning rate, ideally around 0.1
+        """
         self.gamma = gamma
-        self.epsilon = epsilon
         self.network = network
         self.lr = lr
         self.init_network()
 
 
     def init_network(self):
+        """
+        Initialize the network
+        Returns:
+
+        """
         if self.network == 'linear':
             self.init_linear_network()
         elif self.network == 'conv':
