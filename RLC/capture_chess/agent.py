@@ -122,6 +122,16 @@ class Agent(object):
         return td_errors
 
     def get_action_values(self,state):
+        """
+        Get action values of a state
+        Args:
+            state: np.ndarray with shape (8,8,8)
+                layer_board representation
+
+        Returns:
+            action values
+
+        """
         return self.fixed_model.predict(state)
 
 
