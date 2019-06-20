@@ -85,8 +85,7 @@ class Reinforce(object):
                 move_to = np.argmax(action_values,axis=None) % 64
                 moves = [x for x in self.env.board.generate_legal_moves() if\
                         x.from_square == move_from and x.to_square == move_to]
-                if len(moves) == 0:
-                    print("Warning: no legal moves found")
+                if len(moves) == 0:  # If all legal moves have negative action value, explore.
                     move = self.env.get_random_action()
                     move_from = move.from_square
                     move_to = move.to_square
