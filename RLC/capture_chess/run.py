@@ -10,7 +10,7 @@ import os
 import RLC
 
 from RLC.capture_chess.environment import Board
-from RLC.capture_chess.learn import Reinforce
+from RLC.capture_chess.learn import Q_learning
 from RLC.capture_chess.agent import Agent
 FEN = "k7/p1p1p1p1/1p1p1p1p/8/8/8/8/RNBQKBNR"
 
@@ -19,5 +19,5 @@ board = Board(FEN=FEN)
 
 agent = Agent()
 
-R = Reinforce(agent,board)
+R = Q_learning(agent, board)
 R.learn(iters=2)

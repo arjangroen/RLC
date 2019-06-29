@@ -47,6 +47,10 @@ r.policy_iteration(k=1,gamma=1,synchronous=True)
 ##### 2. Move Chess | Q-learning
 
 ```python
+from RLC.move_chess.environment import Board
+from RLC.move_chess.agent import Piece
+from RLC.move_chess.learn import Reinforce
+
 p = Piece(piece='king')
 env = Board()
 r = Reinforce(p,env)
@@ -58,12 +62,12 @@ r.agent.action_function.max(axis=2).round().astype(int)
 #### 3. Capture Chess | Q-learning with value function approximation
 ```python
 from RLC.capture_chess.environment import Board
-from RLC.capture_chess.learn import Reinforce
+from RLC.capture_chess.learn import Q_learning
 from RLC.capture_chess.agent import Agent
 
 board = Board()
 agent = Agent(network='conv',gamma=0.1,lr=0.07)
-R = Reinforce(agent,board)
+R = Q_learning(agent,board)
 pgn = R.learn(iters=750)
 ```
 

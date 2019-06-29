@@ -4,7 +4,7 @@ import numpy as np
 from chess.pgn import Game
 import pandas as pd
 
-class Reinforce(object):
+class Q_learning(object):
 
     def __init__(self,agent,env,memsize=1000):
         """
@@ -149,3 +149,11 @@ class Reinforce(object):
             td_errors = self.agent.network_update(minibatch)
             for n,i in enumerate(indices):
                 self.sampling_probs[i] = np.abs(td_errors[n])
+
+
+class reinforce(object):
+
+    def __init__(self):
+        pass
+
+
