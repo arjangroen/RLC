@@ -55,10 +55,22 @@ r.visualize_policy()
 r.agent.action_function.max(axis=2).round().astype(int)
 ```
 
+#### 3. Capture Chess | Q-learning with value function approximation
+```python
+from RLC.capture_chess.environment import Board
+from RLC.capture_chess.learn import Reinforce
+from RLC.capture_chess.agent import Agent
+
+board = Board()
+agent = Agent(network='conv',gamma=0.1,lr=0.07)
+R = Reinforce(agent,board)
+pgn = R.learn(iters=750)
+```
+
 # Kaggle kernels
 https://www.kaggle.com/arjanso/reinforcement-learning-chess-1-policy-iteration
 https://www.kaggle.com/arjanso/reinforcement-learning-chess-2-model-free-methods 
-
+https://www.kaggle.com/arjanso/reinforcement-learning-chess-3-q-networks
 
 # References
 
