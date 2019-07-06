@@ -153,7 +153,107 @@ class Q_learning(object):
 
 class reinforce(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, agent, env, memsize=1000):
+        """
+        Reinforce object to learn capture chess
+        Args:
+            agent: The agent playing the chess game as white
+            env: The environment including the python-chess board
+            memsize: maximum amount of games to retain in-memory
+        """
+        self.agent = agent
+        self.env = env
+
+    def learn(self, iters=100, c=10):
+        """
+        Run the Q-learning algorithm. Play greedy on the final iter
+        Args:
+            iters: int
+                amount of games to train
+            c: int
+                update the network every c games
+
+        Returns: pgn (str)
+            pgn string describing final game
+
+        """
+        for k in range(iters):
+            self.env.reset()
+            states, actions, rewards = self.play_game(k)
+
+
+        pgn = Game.from_board(self.env.board)
+        reward_smooth = pd.DataFrame(self.reward_trace)
+        reward_smooth.rolling(window=10, min_periods=0).mean().plot()
+
+        return pgn
+
+    def play_game(self, k, maxiter=25):
+        """
+        Play a game of capture chess
+        Args:
+            k: int
+                game count, determines epsilon (exploration rate)
+            greedy: Boolean
+                if greedy, no exploration is done
+            maxiter: int
+                Maximum amount of steps per game
+
+        Returns:
+
+        """
+        episode_end = False
+        turncount = 0
+
+        states = []
+        actions = []
+        rewards = []
+
+        # Play a game of chess
+        while not episode_end:
+            state = self.env.layer_board
+            action_values = self.agent.get_action_values(np.expand_dims(state, axis=0))
+            action_values = np.reshape(np.squeeze(action_values), (64, 64))
+            action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
+            action_values = np.multiply(action_values, action_space)
+            move_from = np.argmax(action_values, axis=None) // 64
+            move_to = np.argmax(action_values, axis=None) % 64
+            moves = [x for x in self.env.board.generate_legal_moves() if \
+                     x.from_square == move_from and x.to_square == move_to]
+            if len(moves) == 0:  # If all legal moves have negative action value, explore.
+                move = self.env.get_random_action()
+                move_from = move.from_square
+                move_to = move.to_square
+            else:
+                move = moves[0]  # If there are multiple max-moves, pick the first one.
+
+            episode_end, reward = self.env.step(move)
+            new_state = self.env.layer_board
+            turncount += 1
+            if turncount > maxiter:
+                episode_end = True
+                reward = 0
+            if episode_end:
+                new_state = new_state * 0
+
+        states.append(state)
+        actions.append((move_from,move_to))
+        rewards.append(reward)
+
+        return states, actions, rewards
+
+
+    def reinforce_agent(self, states, actions, rewards):
+        """
+        Update the agent using experience replay. Set the sampling probs with the td error
+        Args:
+            turncount: int
+                Amount of turns played. Only sample the memory of there are sufficient samples
+        Returns:
+
+        """
+        self.agent.reinforce(states,actions,rewards)
+
+
 
 

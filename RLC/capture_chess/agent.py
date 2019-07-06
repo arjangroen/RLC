@@ -2,6 +2,12 @@ from keras.models import Model, clone_model
 from keras.layers import Input, Conv2D, Dense, Reshape, Dot
 from keras.optimizers import SGD
 import numpy as np
+import keras.backend as K
+
+
+def policy_gradient_loss(action, action_probs, Returns):
+    return K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns
+
 
 
 class Agent(object):
@@ -73,6 +79,29 @@ class Agent(object):
         self.model = Model(inputs=[input_layer], outputs=[output_layer])
         self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
 
+    def init_conv_reinforceable(self):
+        """
+        Convnet net for policy gradients
+        Returns:
+
+        """
+
+
+        optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
+        input_layer = Input(shape=(8, 8, 8), name='board_layer')
+        R = Input(name='Rewards for loss function')
+        true_action = Input(name='action_taken')
+        inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
+        inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
+        flat_1 = Reshape(target_shape=(1, 64))(inter_layer_1)
+        flat_2 = Reshape(target_shape=(1, 64))(inter_layer_2)
+        output_dot_layer = Dot(axes=1,activation='softmax')([flat_1, flat_2])
+        output_layer = Reshape(target_shape=(4096,))(output_dot_layer)
+        self.model = Model(inputs=[input_layer], outputs=[output_layer])
+        self.model.add_loss(policy_gradient_loss(true_action,output_layer,R))
+        self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
+
+
     def network_update(self, minibatch):
         """
         Update the Q-network using samples from the minibatch
@@ -133,3 +162,24 @@ class Agent(object):
 
         """
         return self.fixed_model.predict(state)
+
+
+    def reinforce(self,states, actions, rewards):
+        """
+        Update parameters with Monte Carlo Policy Gradient algorithm
+        Args:
+            states: (list of tuples) state sequence in episode
+            actions: action sequence in episode
+            rewards: rewards sequence in episode
+
+        Returns:
+
+        """
+        n_steps = len(states)
+        Returns = []
+        for t in range(n_steps):
+            R = np.sum([r * self.gamma**i for i,r in enumerate(rewards[t:])])
+            Returns.append(R)
+
+
+
