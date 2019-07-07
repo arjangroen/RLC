@@ -1,5 +1,5 @@
 from keras.models import Model, clone_model
-from keras.layers import Input, Conv2D, Dense, Reshape, Dot
+from keras.layers import Input, Conv2D, Dense, Reshape, Dot, Activation
 from keras.optimizers import SGD
 import numpy as np
 import keras.backend as K
@@ -91,14 +91,15 @@ class Agent(object):
 
         optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
-        R = Input(name='Rewards for loss function')
-        true_action = Input(name='action_taken')
+        R = Input(shape=(1,),name='Rewards')
+        true_action = Input(shape=(4096,),name='action_taken')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         flat_1 = Reshape(target_shape=(1, 64))(inter_layer_1)
         flat_2 = Reshape(target_shape=(1, 64))(inter_layer_2)
-        output_dot_layer = Dot(axes=1,activation='softmax')([flat_1, flat_2])
+        output_dot_layer = Dot(axes=1)([flat_1, flat_2])
         output_layer = Reshape(target_shape=(4096,))(output_dot_layer)
+        output_layer = Activation('softmax')(output_layer)
         self.model = Model(inputs=[input_layer,R,true_action], outputs=[output_layer])
         self.model.add_loss(policy_gradient_loss(true_action,output_layer,R))
         self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
@@ -185,7 +186,7 @@ class Agent(object):
             action = actions[t]
             targets[t,action[0],action[1]] = 1
         targets = targets.reshape((n_steps,4096))
-        self.model.train_on_batch([np.stack(states,axis=0),np.stack(Returns,action=0),np.stack(targets,axis=0)])
+        self.model.train_on_batch([np.stack(states,axis=0),np.stack(Returns,axis=0),np.stack(targets,axis=0)],np.zeros((n_steps,4096)))
 
 
 

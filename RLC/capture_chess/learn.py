@@ -78,11 +78,11 @@ class Q_learning(object):
                 move_to = move.to_square
             else:
                 action_values = self.agent.get_action_values(np.expand_dims(state,axis=0))
-                action_values = np.reshape(np.squeeze(action_values),(64,64))
                 action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
                 action_values = np.multiply(action_values,action_space)
-                move_from = np.argmax(action_values,axis=None) // 64
-                move_to = np.argmax(action_values,axis=None) % 64
+                selected_action = np.random.choice(range(4096),p=[action_values])
+                move_from = selected_action // 64
+                move_to = move_to % 64
                 moves = [x for x in self.env.board.generate_legal_moves() if\
                         x.from_square == move_from and x.to_square == move_to]
                 if len(moves) == 0:  # If all legal moves have negative action value, explore.
@@ -163,6 +163,7 @@ class Reinforce(object):
         """
         self.agent = agent
         self.env = env
+        self.reward_trace = []
 
     def learn(self, iters=100, c=10):
         """
@@ -180,6 +181,7 @@ class Reinforce(object):
         for k in range(iters):
             self.env.reset()
             states, actions, rewards = self.play_game(k)
+            self.reinforce_agent(states,actions, rewards)
 
 
         pgn = Game.from_board(self.env.board)
@@ -212,10 +214,12 @@ class Reinforce(object):
         # Play a game of chess
         while not episode_end:
             state = self.env.layer_board
-            action_values = self.agent.get_action_values(np.expand_dims(state, axis=0))
-            action_values = np.reshape(np.squeeze(action_values), (64, 64))
+            action_probs = self.agent.model.predict([np.expand_dims(state, axis=0),
+                                                     np.zeros((1,1)),
+                                                     np.zeros((1,4096))])
             action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
-            action_values = np.multiply(action_values, action_space)
+            action_values = np.multiply(action_probs, action_space.reshape(1,4096))
+
             move_from = np.argmax(action_values, axis=None) // 64
             move_to = np.argmax(action_values, axis=None) % 64
             moves = [x for x in self.env.board.generate_legal_moves() if \
@@ -236,9 +240,11 @@ class Reinforce(object):
             if episode_end:
                 new_state = new_state * 0
 
-        states.append(state)
-        actions.append((move_from,move_to))
-        rewards.append(reward)
+            states.append(state)
+            actions.append((move_from,move_to))
+            rewards.append(reward)
+
+        self.reward_trace.append(np.sum(rewards))
 
         return states, actions, rewards
 
