@@ -6,7 +6,8 @@ import keras.backend as K
 
 
 def policy_gradient_loss(action, action_probs, Returns):
-    return -K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns
+    action_probs = action * action_probs
+    return -(K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns)
 
 
 
