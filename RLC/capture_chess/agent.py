@@ -38,6 +38,8 @@ class Agent(object):
             self.init_linear_network()
         elif self.network == 'conv':
             self.init_conv_network()
+        elif self.network == 'conv_pg':
+            self.init_conv_pg()
 
     def fix_model(self):
         """
@@ -79,7 +81,7 @@ class Agent(object):
         self.model = Model(inputs=[input_layer], outputs=[output_layer])
         self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
 
-    def init_conv_reinforceable(self):
+    def init_conv_pg(self):
         """
         Convnet net for policy gradients
         Returns:
@@ -97,7 +99,7 @@ class Agent(object):
         flat_2 = Reshape(target_shape=(1, 64))(inter_layer_2)
         output_dot_layer = Dot(axes=1,activation='softmax')([flat_1, flat_2])
         output_layer = Reshape(target_shape=(4096,))(output_dot_layer)
-        self.model = Model(inputs=[input_layer], outputs=[output_layer])
+        self.model = Model(inputs=[input_layer,R,true_action], outputs=[output_layer])
         self.model.add_loss(policy_gradient_loss(true_action,output_layer,R))
         self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
 
@@ -163,8 +165,7 @@ class Agent(object):
         """
         return self.fixed_model.predict(state)
 
-
-    def reinforce(self,states, actions, rewards):
+    def policy_gradient_update(self,states, actions, rewards):
         """
         Update parameters with Monte Carlo Policy Gradient algorithm
         Args:
@@ -177,9 +178,17 @@ class Agent(object):
         """
         n_steps = len(states)
         Returns = []
+        targets = np.zeros((n_steps,64,64))
         for t in range(n_steps):
             R = np.sum([r * self.gamma**i for i,r in enumerate(rewards[t:])])
             Returns.append(R)
+            action = actions[t]
+            targets[t,action[0],action[1]] = 1
+        targets = targets.reshape((n_steps,4096))
+        self.model.train_on_batch([np.stack(states,axis=0),np.stack(Returns,action=0),np.stack(targets,axis=0)])
+
+
+
 
 
 

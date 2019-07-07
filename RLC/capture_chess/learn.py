@@ -153,7 +153,7 @@ class Q_learning(object):
 
 class reinforce(object):
 
-    def __init__(self, agent, env, memsize=1000):
+    def __init__(self, agent, env):
         """
         Reinforce object to learn capture chess
         Args:
@@ -252,7 +252,7 @@ class reinforce(object):
         Returns:
 
         """
-        self.agent.reinforce(states,actions,rewards)
+        self.agent.policy_gradient_update(states,actions,rewards)
 
 
 
