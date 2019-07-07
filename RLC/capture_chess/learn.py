@@ -151,7 +151,7 @@ class Q_learning(object):
                 self.sampling_probs[i] = np.abs(td_errors[n])
 
 
-class reinforce(object):
+class Reinforce(object):
 
     def __init__(self, agent, env):
         """
