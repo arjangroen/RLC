@@ -101,8 +101,8 @@ class Agent(object):
         output_layer = Reshape(target_shape=(4096,))(output_dot_layer)
         output_layer = Activation('softmax')(output_layer)
         self.model = Model(inputs=[input_layer,R,true_action], outputs=[output_layer])
-        self.model.add_loss(policy_gradient_loss(true_action,output_layer,R))
-        self.model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
+        self.model.add_loss(policy_gradient_loss(true_action, output_layer, R))
+        self.model.compile(optimizer=optimizer)
 
 
     def network_update(self, minibatch):
