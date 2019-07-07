@@ -6,7 +6,7 @@ import keras.backend as K
 
 
 def policy_gradient_loss(action, action_probs, Returns):
-    return K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns
+    return -K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns
 
 
 
@@ -186,7 +186,7 @@ class Agent(object):
             action = actions[t]
             targets[t,action[0],action[1]] = 1
         targets = targets.reshape((n_steps,4096))
-        self.model.train_on_batch([np.stack(states,axis=0),np.stack(Returns,axis=0),np.stack(targets,axis=0)],np.zeros((n_steps,4096)))
+        self.model.fit([np.stack(states,axis=0),np.stack(Returns,axis=0),np.stack(targets,axis=0)],epochs=1)
 
 
 
