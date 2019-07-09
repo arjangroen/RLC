@@ -5,9 +5,13 @@ import numpy as np
 import keras.backend as K
 
 
-def policy_gradient_loss(action, action_probs, Returns):
-    action_probs = action * action_probs
-    return -(K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns)
+def policy_gradient_loss(Returns):
+    def modified_crossentropy(action,action_probs):
+        #action_probs = action * action_probs
+        cost = (K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns)
+        print(cost)
+        return -cost
+    return modified_crossentropy
 
 
 
@@ -28,6 +32,7 @@ class Agent(object):
         self.network = network
         self.lr = lr
         self.init_network()
+        self.weight_memory = []
 
     def init_network(self):
         """
@@ -93,7 +98,7 @@ class Agent(object):
         optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
         R = Input(shape=(1,),name='Rewards')
-        true_action = Input(shape=(4096,),name='action_taken')
+        #true_action = Input(shape=(4096,),name='action_taken')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         flat_1 = Reshape(target_shape=(1, 64))(inter_layer_1)
@@ -101,9 +106,9 @@ class Agent(object):
         output_dot_layer = Dot(axes=1)([flat_1, flat_2])
         output_layer = Reshape(target_shape=(4096,))(output_dot_layer)
         output_layer = Activation('softmax')(output_layer)
-        self.model = Model(inputs=[input_layer,R,true_action], outputs=[output_layer])
-        self.model.add_loss(policy_gradient_loss(true_action, output_layer, R))
-        self.model.compile(optimizer=optimizer)
+        self.model = Model(inputs=[input_layer,R], outputs=[output_layer])
+        #self.model.add_loss(policy_gradient_loss(true_action, output_layer, R))
+        self.model.compile(optimizer=optimizer,loss=policy_gradient_loss(R))
 
 
     def network_update(self, minibatch):
@@ -183,11 +188,18 @@ class Agent(object):
         targets = np.zeros((n_steps,64,64))
         for t in range(n_steps):
             R = np.sum([r * self.gamma**i for i,r in enumerate(rewards[t:])])
+            print(R)
             Returns.append(R)
             action = actions[t]
             targets[t,action[0],action[1]] = 1
+        mean_return = np.mean(Returns)
+
+
         targets = targets.reshape((n_steps,4096))
-        self.model.fit([np.stack(states,axis=0),np.stack(Returns,axis=0),np.stack(targets,axis=0)],epochs=1)
+        self.weight_memory.append(self.model.get_weights())
+        self.model.fit(x=[np.stack(states,axis=0),
+                            np.stack(Returns,axis=0)-mean_return],
+                            y=[np.stack(targets,axis=0)])
 
 
 

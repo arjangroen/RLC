@@ -164,6 +164,7 @@ class Reinforce(object):
         self.agent = agent
         self.env = env
         self.reward_trace = []
+        self.action_value_mem = []
 
     def learn(self, iters=100, c=10):
         """
@@ -215,10 +216,11 @@ class Reinforce(object):
         while not episode_end:
             state = self.env.layer_board
             action_probs = self.agent.model.predict([np.expand_dims(state, axis=0),
-                                                     np.zeros((1,1)),
-                                                     np.zeros((1,4096))])
+                                                     np.zeros((1,1))])
             action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
             action_values = np.multiply(action_probs, action_space.reshape(1,4096))
+            self.action_value_mem.append(action_values)
+
 
             move_from = np.argmax(action_values, axis=None) // 64
             move_to = np.argmax(action_values, axis=None) % 64
@@ -229,7 +231,7 @@ class Reinforce(object):
                 move_from = move.from_square
                 move_to = move.to_square
             else:
-                move = moves[0]  # If there are multiple max-moves, pick the first one.
+                move = np.random.choice(moves)  # If there are multiple max-moves, pick a random one.
 
             episode_end, reward = self.env.step(move)
             new_state = self.env.layer_board
