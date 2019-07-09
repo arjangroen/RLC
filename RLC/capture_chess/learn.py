@@ -78,11 +78,11 @@ class Q_learning(object):
                 move_to = move.to_square
             else:
                 action_values = self.agent.get_action_values(np.expand_dims(state,axis=0))
+                action_values = np.reshape(np.squeeze(action_values),(64,64))
                 action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
                 action_values = np.multiply(action_values,action_space)
-                selected_action = np.random.choice(range(4096),p=[action_values])
-                move_from = selected_action // 64
-                move_to = move_to % 64
+                move_from = np.argmax(action_values,axis=None) // 64
+                move_to = np.argmax(action_values,axis=None) % 64
                 moves = [x for x in self.env.board.generate_legal_moves() if\
                         x.from_square == move_from and x.to_square == move_to]
                 if len(moves) == 0:  # If all legal moves have negative action value, explore.

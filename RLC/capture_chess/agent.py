@@ -2,13 +2,13 @@ from keras.models import Model, clone_model
 from keras.layers import Input, Conv2D, Dense, Reshape, Dot, Activation
 from keras.optimizers import SGD
 import numpy as np
-import keras.backend as K
+from keras.losses import categorical_crossentropy
 
 
 def policy_gradient_loss(Returns):
     def modified_crossentropy(action,action_probs):
         #action_probs = action * action_probs
-        cost = (K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns)
+        cost = (categorical_crossentropy(action,action_probs) * Returns)
         print(cost)
         return -cost
     return modified_crossentropy
