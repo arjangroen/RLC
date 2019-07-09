@@ -33,6 +33,7 @@ class Agent(object):
         self.lr = lr
         self.init_network()
         self.weight_memory = []
+        self.long_term_mean = []
 
     def init_network(self):
         """
@@ -188,17 +189,18 @@ class Agent(object):
         targets = np.zeros((n_steps,64,64))
         for t in range(n_steps):
             R = np.sum([r * self.gamma**i for i,r in enumerate(rewards[t:])])
-            print(R)
             Returns.append(R)
             action = actions[t]
             targets[t,action[0],action[1]] = 1
         mean_return = np.mean(Returns)
+        self.long_term_mean.append(mean_return)
+
 
 
         targets = targets.reshape((n_steps,4096))
         self.weight_memory.append(self.model.get_weights())
         self.model.fit(x=[np.stack(states,axis=0),
-                            np.stack(Returns,axis=0)-mean_return],
+                            np.stack(Returns,axis=0)-np.mean(self.long_term_mean)],
                             y=[np.stack(targets,axis=0)])
 
 
