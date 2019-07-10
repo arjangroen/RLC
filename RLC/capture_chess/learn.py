@@ -225,7 +225,6 @@ class Reinforce(object):
             move = np.random.choice(range(4096),p=np.squeeze(action_probs))
             move_from = move // 64
             move_to = move % 64
-            print(move_from, move_to)
             moves = [x for x in self.env.board.generate_legal_moves() if \
                      x.from_square == move_from and x.to_square == move_to]
             assert len(moves) > 0  # should not be possible
