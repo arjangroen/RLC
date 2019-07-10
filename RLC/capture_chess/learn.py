@@ -221,7 +221,7 @@ class Reinforce(object):
                                                      np.zeros((1,1)),
                                                      action_space.reshape(1,4096)])
             self.action_value_mem.append(action_probs)
-            move = np.random.choice(range(4096),p=[np.squeeze(action_probs)])
+            move = np.random.choice(range(4096),p=np.squeeze(action_probs))
             move_from = move // 64
             move_to = move % 64
             moves = [x for x in self.env.board.generate_legal_moves() if \
