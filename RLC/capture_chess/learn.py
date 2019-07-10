@@ -231,6 +231,8 @@ class Reinforce(object):
             assert len(moves) > 0  # should not be possible
             if len(moves) > 1:
                 move = np.random.choice(moves)  # If there are multiple max-moves, pick a random one.
+            elif len(moves) == 1:
+                move = moves[0]
 
             episode_end, reward = self.env.step(move)
             new_state = self.env.layer_board
