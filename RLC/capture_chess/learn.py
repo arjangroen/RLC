@@ -181,8 +181,8 @@ class Reinforce(object):
         """
         for k in range(iters):
             self.env.reset()
-            states, actions, rewards = self.play_game(k)
-            self.reinforce_agent(states,actions, rewards)
+            states, actions, rewards, action_spaces = self.play_game(k)
+            self.reinforce_agent(states,actions, rewards, action_spaces)
 
 
         pgn = Game.from_board(self.env.board)
@@ -211,26 +211,23 @@ class Reinforce(object):
         states = []
         actions = []
         rewards = []
+        action_spaces = []
 
         # Play a game of chess
         while not episode_end:
             state = self.env.layer_board
-            action_probs = self.agent.model.predict([np.expand_dims(state, axis=0),
-                                                     np.zeros((1,1))])
             action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
-            action_values = np.multiply(action_probs, action_space.reshape(1,4096))
-            self.action_value_mem.append(action_values)
-
-
-            move_from = np.argmax(action_values, axis=None) // 64
-            move_to = np.argmax(action_values, axis=None) % 64
+            action_probs = self.agent.model.predict([np.expand_dims(state, axis=0),
+                                                     np.zeros((1,1)),
+                                                     action_space])
+            self.action_value_mem.append(action_probs)
+            move = np.random.choice(range(4096),p=[np.squeeze(action_probs)])
+            move_from = move // 64
+            move_to = move % 64
             moves = [x for x in self.env.board.generate_legal_moves() if \
                      x.from_square == move_from and x.to_square == move_to]
-            if len(moves) == 0:  # If all legal moves have negative action value, explore.
-                move = self.env.get_random_action()
-                move_from = move.from_square
-                move_to = move.to_square
-            else:
+            assert len(moves) > 0  # should not be possible
+            if len(moves) > 1:
                 move = np.random.choice(moves)  # If there are multiple max-moves, pick a random one.
 
             episode_end, reward = self.env.step(move)
@@ -245,13 +242,14 @@ class Reinforce(object):
             states.append(state)
             actions.append((move_from,move_to))
             rewards.append(reward)
+            action_spaces.append(action_space)
 
         self.reward_trace.append(np.sum(rewards))
 
-        return states, actions, rewards
+        return states, actions, rewards, action_spaces
 
 
-    def reinforce_agent(self, states, actions, rewards):
+    def reinforce_agent(self, states, actions, rewards, action_spaces):
         """
         Update the agent using experience replay. Set the sampling probs with the td error
         Args:
@@ -260,8 +258,6 @@ class Reinforce(object):
         Returns:
 
         """
-        self.agent.policy_gradient_update(states,actions,rewards)
+        self.agent.policy_gradient_update(states, actions,rewards, action_spaces)
 
-
-
-
+        
