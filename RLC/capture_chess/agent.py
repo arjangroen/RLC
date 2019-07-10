@@ -193,19 +193,11 @@ class Agent(object):
             targets[t,action[0],action[1]] = 1
         mean_return = np.mean(Returns)
         self.long_term_mean.append(mean_return)
-
-
-
         targets = targets.reshape((n_steps,4096))
         self.weight_memory.append(self.model.get_weights())
         self.model.fit(x=[np.stack(states,axis=0),
                           np.stack(Returns,axis=0)-np.mean(self.long_term_mean),
-                          np.stack(action_spaces,axis=0)
+                          np.concatenate(action_spaces,axis=0)
                          ],
-                            y=[np.stack(targets,axis=0)])
-
-
-
-
-
+                       y=[np.stack(targets,axis=0)])
 
