@@ -219,7 +219,7 @@ class Reinforce(object):
             action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
             action_probs = self.agent.model.predict([np.expand_dims(state, axis=0),
                                                      np.zeros((1,1)),
-                                                     action_space])
+                                                     action_space.reshape(4096,)])
             self.action_value_mem.append(action_probs)
             move = np.random.choice(range(4096),p=[np.squeeze(action_probs)])
             move_from = move // 64
