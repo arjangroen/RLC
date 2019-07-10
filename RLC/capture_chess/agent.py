@@ -106,7 +106,7 @@ class Agent(object):
         output_layer = Reshape(target_shape=(4096,))(output_dot_layer)
         legal_output_layer = legal_moves * output_layer  # Select legal moves
         softmax_layer = Activation('softmax')(legal_output_layer)
-        self.model = Model(inputs=[input_layer,R], outputs=[softmax_layer])
+        self.model = Model(inputs=[input_layer,R,legal_moves], outputs=[softmax_layer])
         #self.model.add_loss(policy_gradient_loss(true_action, output_layer, R))
         self.model.compile(optimizer=optimizer,loss=policy_gradient_loss(R))
 
@@ -172,7 +172,7 @@ class Agent(object):
         """
         return self.fixed_model.predict(state)
 
-    def policy_gradient_update(self,states, actions, rewards):
+    def policy_gradient_update(self,states, actions, rewards, action_spaces):
         """
         Update parameters with Monte Carlo Policy Gradient algorithm
         Args:
@@ -199,7 +199,9 @@ class Agent(object):
         targets = targets.reshape((n_steps,4096))
         self.weight_memory.append(self.model.get_weights())
         self.model.fit(x=[np.stack(states,axis=0),
-                            np.stack(Returns,axis=0)-np.mean(self.long_term_mean)],
+                          np.stack(Returns,axis=0)-np.mean(self.long_term_mean),
+                          np.stack(action_spaces,axis=0)
+                         ],
                             y=[np.stack(targets,axis=0)])
 
 
