@@ -246,7 +246,7 @@ class Reinforce(object):
             states.append(state)
             actions.append((move_from,move_to))
             rewards.append(reward)
-            action_spaces.append(action_space)
+            action_spaces.append(action_space.reshape(1,4096))
 
         self.reward_trace.append(np.sum(rewards))
 
