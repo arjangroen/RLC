@@ -1,5 +1,5 @@
 from keras.models import Model, clone_model
-from keras.layers import Input, Conv2D, Dense, Reshape, Dot, Activation
+from keras.layers import Input, Conv2D, Dense, Reshape, Dot, Activation, Multiply
 from keras.optimizers import SGD
 import numpy as np
 import keras.backend as K
@@ -104,7 +104,7 @@ class Agent(object):
         flat_2 = Reshape(target_shape=(1, 64))(inter_layer_2)
         output_dot_layer = Dot(axes=1)([flat_1, flat_2])
         output_layer = Reshape(target_shape=(4096,))(output_dot_layer)
-        legal_output_layer = legal_moves * output_layer  # Select legal moves
+        legal_output_layer = Multiply()([legal_moves,output_layer])  # Select legal moves
         softmax_layer = Activation('softmax')(legal_output_layer)
         self.model = Model(inputs=[input_layer,R,legal_moves], outputs=[softmax_layer])
         #self.model.add_loss(policy_gradient_loss(true_action, output_layer, R))
