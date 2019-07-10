@@ -96,7 +96,7 @@ class Agent(object):
         optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
         R = Input(shape=(1,),name='Rewards')
-        legal_moves = Input(shape=4096,name='legal_move_mask')
+        legal_moves = Input(shape=(4096,),name='legal_move_mask')
         #true_action = Input(shape=(4096,),name='action_taken')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
