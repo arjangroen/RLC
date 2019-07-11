@@ -1,16 +1,15 @@
 from keras.models import Model, clone_model
-from keras.layers import Input, Conv2D, Dense, Reshape, Dot, Activation
+from keras.layers import Input, Conv2D, Dense, Reshape, Dot, Activation, Multiply
 from keras.optimizers import SGD
 import numpy as np
-from keras.losses import categorical_crossentropy
+import keras.backend as K
 
 
 def policy_gradient_loss(Returns):
     def modified_crossentropy(action,action_probs):
         #action_probs = action * action_probs
-        cost = (categorical_crossentropy(action,action_probs) * Returns)
-        print(cost)
-        return -cost
+        cost = (K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns)
+        return cost
     return modified_crossentropy
 
 
@@ -94,11 +93,10 @@ class Agent(object):
         Returns:
 
         """
-
-
         optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
         R = Input(shape=(1,),name='Rewards')
+        legal_moves = Input(shape=(4096,),name='legal_move_mask')
         #true_action = Input(shape=(4096,),name='action_taken')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
@@ -106,8 +104,9 @@ class Agent(object):
         flat_2 = Reshape(target_shape=(1, 64))(inter_layer_2)
         output_dot_layer = Dot(axes=1)([flat_1, flat_2])
         output_layer = Reshape(target_shape=(4096,))(output_dot_layer)
-        output_layer = Activation('softmax')(output_layer)
-        self.model = Model(inputs=[input_layer,R], outputs=[output_layer])
+        softmax_layer = Activation('softmax')(output_layer)
+        legal_softmax_layer = Multiply()([legal_moves,softmax_layer])  # Select legal moves
+        self.model = Model(inputs=[input_layer,R,legal_moves], outputs=[legal_softmax_layer])
         #self.model.add_loss(policy_gradient_loss(true_action, output_layer, R))
         self.model.compile(optimizer=optimizer,loss=policy_gradient_loss(R))
 
@@ -173,7 +172,7 @@ class Agent(object):
         """
         return self.fixed_model.predict(state)
 
-    def policy_gradient_update(self,states, actions, rewards):
+    def policy_gradient_update(self,states, actions, rewards, action_spaces):
         """
         Update parameters with Monte Carlo Policy Gradient algorithm
         Args:
@@ -194,17 +193,11 @@ class Agent(object):
             targets[t,action[0],action[1]] = 1
         mean_return = np.mean(Returns)
         self.long_term_mean.append(mean_return)
-
-
-
         targets = targets.reshape((n_steps,4096))
         self.weight_memory.append(self.model.get_weights())
         self.model.fit(x=[np.stack(states,axis=0),
-                            np.stack(Returns,axis=0)-np.mean(self.long_term_mean)],
-                            y=[np.stack(targets,axis=0)])
-
-
-
-
-
+                          np.stack(Returns,axis=0)-np.mean(self.long_term_mean),
+                          np.concatenate(action_spaces,axis=0)
+                         ],
+                       y=[np.stack(targets,axis=0)])
 
