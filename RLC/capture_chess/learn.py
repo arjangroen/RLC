@@ -90,7 +90,7 @@ class Q_learning(object):
                     move_from = move.from_square
                     move_to = move.to_square
                 else:
-                    move = moves[0]  # If there are multiple max-moves, pick the first one.
+                    move = np.random.choice(moves)  # If there are multiple max-moves, pick a random one.
 
             episode_end, reward = self.env.step(move)
             new_state = self.env.layer_board
