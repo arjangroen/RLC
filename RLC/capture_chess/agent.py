@@ -16,7 +16,7 @@ def policy_gradient_loss(Returns):
 
 class Agent(object):
 
-    def __init__(self, gamma=0.5, network='linear', lr=0.01):
+    def __init__(self, gamma=0.5, network='linear', lr=0.01,verbose=0):
         """
         Agent that plays the white pieces in capture chess
         Args:
@@ -30,6 +30,7 @@ class Agent(object):
         self.gamma = gamma
         self.network = network
         self.lr = lr
+        self.verbose = verbose
         self.init_network()
         self.weight_memory = []
         self.long_term_mean = []
@@ -199,5 +200,7 @@ class Agent(object):
                           np.stack(Returns,axis=0)-np.mean(self.long_term_mean),
                           np.concatenate(action_spaces,axis=0)
                          ],
-                       y=[np.stack(targets,axis=0)])
+                       y=[np.stack(targets,axis=0)],
+                       verbose = self.verbose
+                      )
 
