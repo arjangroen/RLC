@@ -71,11 +71,27 @@ R = Q_learning(agent,board)
 pgn = R.learn(iters=750)
 ```
 
-# Kaggle kernels
-https://www.kaggle.com/arjanso/reinforcement-learning-chess-1-policy-iteration
-https://www.kaggle.com/arjanso/reinforcement-learning-chess-2-model-free-methods 
-https://www.kaggle.com/arjanso/reinforcement-learning-chess-3-q-networks
+#### 4. Capture Chess | Policy Gradients - REINFORCE
+```python
+import chess
+board = chess.Board()
+from RLC.capture_chess.environment import Board
+from RLC.capture_chess.learn import Reinforce
+from RLC.capture_chess.agent import Agent, policy_gradient_loss
 
+board = Board()
+agent = Agent(network='conv_pg',lr=0.3)
+R = Reinforce(agent,board)
+pgn = R.learn(iters=3000)
+
+```
+
+# Kaggle kernels
+https://www.kaggle.com/arjanso/reinforcement-learning-chess-1-policy-iteration  
+https://www.kaggle.com/arjanso/reinforcement-learning-chess-2-model-free-methods  
+https://www.kaggle.com/arjanso/reinforcement-learning-chess-3-q-networks  
+https://www.kaggle.com/arjanso/reinforcement-learning-chess-4-policy-gradients  
+  
 # References
 
 1. Reinforcement Learning: An Introduction  
@@ -84,4 +100,6 @@ https://www.kaggle.com/arjanso/reinforcement-learning-chess-3-q-networks
    MIT Press, march 1998
 2. RL Course by David Silver: Lecture playlist  
    https://www.youtube.com/watch?v=2pWv7GOvuf0&list=PLqYmG7hTraZDM-OYHWgPebj2MfCFzFObQ
-
+3. Notes on Policy Gradients in autodiff frameworks  
+   Aleksis Pirinen  
+   https://aleksispi.github.io/assets/pg_autodiff.pdf, May 2018 

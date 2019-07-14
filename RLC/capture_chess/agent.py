@@ -7,7 +7,6 @@ import keras.backend as K
 
 def policy_gradient_loss(Returns):
     def modified_crossentropy(action,action_probs):
-        #action_probs = action * action_probs
         cost = (K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns)
         return cost
     return modified_crossentropy
@@ -98,7 +97,6 @@ class Agent(object):
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
         R = Input(shape=(1,),name='Rewards')
         legal_moves = Input(shape=(4096,),name='legal_move_mask')
-        #true_action = Input(shape=(4096,),name='action_taken')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         flat_1 = Reshape(target_shape=(1, 64))(inter_layer_1)
@@ -108,7 +106,6 @@ class Agent(object):
         softmax_layer = Activation('softmax')(output_layer)
         legal_softmax_layer = Multiply()([legal_moves,softmax_layer])  # Select legal moves
         self.model = Model(inputs=[input_layer,R,legal_moves], outputs=[legal_softmax_layer])
-        #self.model.add_loss(policy_gradient_loss(true_action, output_layer, R))
         self.model.compile(optimizer=optimizer,loss=policy_gradient_loss(R))
 
 
