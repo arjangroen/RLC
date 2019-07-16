@@ -14,7 +14,7 @@ RLC works in three chess environments:
 #### 2. Capture Chess (Intermediate)
 - Goal: Capture as many pieces from the opponent within n fullmoves
 - Motivation: Piece captures happen more frequently than win-lose-draw events. This give the algorithm more information to learn from.
-- Concepts: Q-learning, value function approximation, experience replay, fixed-q-targets
+- Concepts: Q-learning, value function approximation, experience replay, fixed-q-targets, policy gradients, REINFORCE.
 
 
 #### 3. Real Chess (Hard)
