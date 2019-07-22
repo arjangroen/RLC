@@ -357,7 +357,7 @@ class ActorCritic(object):
             if episode_end:
                 new_state = new_state * 0
 
-            self.memory.append([state,(move_from, move_to),reward,new_state,action_space])
+            self.memory.append([state,(move_from, move_to),reward,new_state,action_space.reshape(1,4096)])
             self.sampling_probs.append(1)
             self.reward_trace.append(reward)
             self.update_actorcritic(turncount)
@@ -401,7 +401,7 @@ class ActorCritic(object):
             states = [x[0] for x in minibatch]
             actions = [x[1] for x in minibatch]
             Q_est = self.critic.get_action_values(np.stack(states,axis=0))
-            action_spaces = [x[3] for x in minibatch]
+            action_spaces = [x[4] for x in minibatch]
 
             self.actor.policy_gradient_update(states, actions, Q_est, action_spaces)
 
