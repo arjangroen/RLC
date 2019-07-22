@@ -19,6 +19,7 @@ class Q_learning(object):
         self.memory = []
         self.memsize = memsize
         self.reward_trace = []
+        self.memory = []
         self.sampling_probs = []
 
 
@@ -245,7 +246,7 @@ class Reinforce(object):
             states.append(state)
             actions.append((move_from,move_to))
             rewards.append(reward)
-            action_spaces.append(action_space.reshape(1,4096))
+            action_spaces.append(action_space)
 
         self.reward_trace.append(np.sum(rewards))
 
@@ -266,18 +267,22 @@ class Reinforce(object):
 
 class ActorCritic(object):
 
-    def __init__(self, agent, env):
+    def __init__(self, actor, critic, env):
         """
         ActorCritic object to learn capture chess
         Args:
-            agent: The agent playing the chess game as white
+            actor: Policy Gradient Agent
+            critic: Q-learning Agent
             env: The environment including the python-chess board
             memsize: maximum amount of games to retain in-memory
         """
-        self.agent = agent
+        self.actor = actor
+        self.critic = critic
         self.env = env
         self.reward_trace = []
         self.action_value_mem = []
+        self.memory = []
+        self.sampling_probs = []
 
     def learn(self, iters=100, c=10):
         """
@@ -293,9 +298,10 @@ class ActorCritic(object):
 
         """
         for k in range(iters):
+            if k % c == 0:
+                self.critic.fix_model()
             self.env.reset()
-            states, actions, rewards, action_spaces = self.play_game(k)
-            self.reinforce_agent(states,actions, rewards, action_spaces)
+            end_state = self.play_game(k)
 
 
         pgn = Game.from_board(self.env.board)
@@ -304,7 +310,7 @@ class ActorCritic(object):
 
         return pgn
 
-    def play_game(self, k, maxiter=25):
+    def play_game(self,k,greedy=False,maxiter=25):
         """
         Play a game of capture chess
         Args:
@@ -321,21 +327,17 @@ class ActorCritic(object):
         episode_end = False
         turncount = 0
 
-        states = []
-        actions = []
-        rewards = []
-        action_spaces = []
-
         # Play a game of chess
+        state = self.env.layer_board
         while not episode_end:
             state = self.env.layer_board
             action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
-            action_probs = self.agent.model.predict([np.expand_dims(state, axis=0),
-                                                     np.zeros((1,1)),
-                                                     action_space.reshape(1,4096)])
+            action_probs = self.actor.model.predict([np.expand_dims(state, axis=0),
+                                                     np.zeros((1, 1)),
+                                                     action_space.reshape(1, 4096)])
             self.action_value_mem.append(action_probs)
-            action_probs = action_probs/action_probs.sum()
-            move = np.random.choice(range(4096),p=np.squeeze(action_probs))
+            action_probs = action_probs / action_probs.sum()
+            move = np.random.choice(range(4096), p=np.squeeze(action_probs))
             move_from = move // 64
             move_to = move % 64
             moves = [x for x in self.env.board.generate_legal_moves() if \
@@ -355,17 +357,64 @@ class ActorCritic(object):
             if episode_end:
                 new_state = new_state * 0
 
-            states.append(state)
-            actions.append((move_from,move_to))
-            rewards.append(reward)
-            action_spaces.append(action_space.reshape(1,4096))
+            self.memory.append([state,(move_from, move_to),reward,new_state,action_space])
+            self.sampling_probs.append(1)
+            self.reward_trace.append(reward)
+            self.update_actorcritic(turncount)
 
-        self.reward_trace.append(np.sum(rewards))
+        return self.env.board
 
-        return states, actions, rewards, action_spaces
+    def sample_memory(self,turncount):
+        """
+        Get a sample from memory for experience replay
+        Args:
+            turncount: int
+                turncount limits the size of the minibatch
+
+        Returns: tuple
+            a mini-batch of experiences (list)
+            indices of chosen experiences
+
+        """
+        minibatch = []
+        memory = self.memory[:-turncount]
+        probs = self.sampling_probs[:-turncount]
+        sample_probs = [probs[n]/np.sum(probs) for n in range(len(probs))]
+        indices = np.random.choice(range(len(memory)),min(1028,len(memory)),replace=False,p=sample_probs)
+        for i in indices:
+            minibatch.append(memory[i])
+
+        return minibatch, indices
+
+    def update_actorcritic(self, turncount):
+        """Actor critic"""
+
+        if turncount < len(self.memory):
+
+            # Get a sampple
+            minibatch, indices = self.sample_memory(turncount)
+
+            # Update critic and find td errors for prioritized experience replay
+            td_errors = self.critic.network_update(minibatch)
+
+            # Get a Q value from the critic
+            states = [x[0] for x in minibatch]
+            actions = [x[1] for x in minibatch]
+            Q_est = self.critic.get_action_values(np.stack(states,axis=0))
+            action_spaces = [x[3] for x in minibatch]
+
+            self.actor.policy_gradient_update(states, actions, Q_est, action_spaces)
+
+            # Update sampling probs
+            for n, i in enumerate(indices):
+                self.sampling_probs[i] = np.abs(td_errors[n])
 
 
-    def reinforce_agent(self, states, actions, rewards, action_spaces):
+        # update_critic
+
+        # update actor
+
+    def update_critic(self,turncount):
         """
         Update the agent using experience replay. Set the sampling probs with the td error
         Args:
@@ -374,6 +423,15 @@ class ActorCritic(object):
         Returns:
 
         """
-        self.agent.policy_gradient_update(states, actions,rewards, action_spaces)
+        if turncount < len(self.memory):
+            minibatch, indices = self.sample_memory(turncount)
+            td_errors = self.critic.network_update(minibatch)
+
+            for n, i in enumerate(indices):
+                self.sampling_probs[i] = np.abs(td_errors[n])
+
+
+
+
 
         

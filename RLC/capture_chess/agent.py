@@ -170,7 +170,7 @@ class Agent(object):
         """
         return self.fixed_model.predict(state)
 
-    def policy_gradient_update(self,states, actions, rewards, action_spaces):
+    def policy_gradient_update(self,states, actions, rewards, action_spaces,actor_critic=False):
         """
         Update parameters with Monte Carlo Policy Gradient algorithm
         Args:
@@ -185,17 +185,26 @@ class Agent(object):
         Returns = []
         targets = np.zeros((n_steps,64,64))
         for t in range(n_steps):
-            R = np.sum([r * self.gamma**i for i,r in enumerate(rewards[t:])])
+            if actor_critic:
+                R = rewards[t]
+            else:
+                R = np.sum([r * self.gamma**i for i,r in enumerate(rewards[t:])])
             Returns.append(R)
             action = actions[t]
             targets[t,action[0],action[1]] = 1
+
+        print(len(action_spaces))
+        print(np.stack(action_spaces,axis=0).shape)
+        print(action_spaces.shape)
+
+
         mean_return = np.mean(Returns)
         self.long_term_mean.append(mean_return)
         targets = targets.reshape((n_steps,4096))
         self.weight_memory.append(self.model.get_weights())
         self.model.fit(x=[np.stack(states,axis=0),
                           np.stack(Returns,axis=0)-np.mean(self.long_term_mean),
-                          np.concatenate(action_spaces,axis=0)
+                          np.stack(action_spaces,axis=0).reshape(n_steps,4096)
                          ],
                        y=[np.stack(targets,axis=0)],
                        verbose = self.verbose
