@@ -360,7 +360,8 @@ class ActorCritic(object):
             self.memory.append([state,(move_from, move_to),reward,new_state,action_space.reshape(1,4096)])
             self.sampling_probs.append(1)
             self.reward_trace.append(reward)
-            self.update_actorcritic(turncount)
+        
+        self.update_actorcritic(turncount)
 
         return self.env.board
 
