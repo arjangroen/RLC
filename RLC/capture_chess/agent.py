@@ -185,21 +185,26 @@ class Agent(object):
         Returns = []
         targets = np.zeros((n_steps,64,64))
         for t in range(n_steps):
+            action = actions[t]
+            targets[t,action[0],action[1]] = 1
             if actor_critic:
-                R = rewards[t]
+                R = rewards[t,action[0]*64+action[1]]
             else:
                 R = np.sum([r * self.gamma**i for i,r in enumerate(rewards[t:])])
             Returns.append(R)
-            action = actions[t]
-            targets[t,action[0],action[1]] = 1
 
 
-        mean_return = np.mean(Returns)
-        self.long_term_mean.append(mean_return)
+        if not actor_critic:
+            mean_return = np.mean(Returns)
+            self.long_term_mean.append(mean_return)
+            train_returns = np.stack(Returns,axis=0)-np.mean(self.long_term_mean)
+        else:
+            train_returns = np.stack(Returns,axis=0)
+        #print(train_returns.shape)
         targets = targets.reshape((n_steps,4096))
         self.weight_memory.append(self.model.get_weights())
         self.model.fit(x=[np.stack(states,axis=0),
-                          np.stack(Returns,axis=0)-np.mean(self.long_term_mean),
+                          train_returns,
                           np.concatenate(action_spaces,axis=0)
                          ],
                        y=[np.stack(targets,axis=0)],

@@ -336,6 +336,8 @@ class ActorCritic(object):
                                                      np.zeros((1, 1)),
                                                      action_space.reshape(1, 4096)])
             self.action_value_mem.append(action_probs)
+            #print(action_probs)
+            #print(np.max(action_probs))
             action_probs = action_probs / action_probs.sum()
             move = np.random.choice(range(4096), p=np.squeeze(action_probs))
             move_from = move // 64
@@ -404,16 +406,12 @@ class ActorCritic(object):
             Q_est = self.critic.get_action_values(np.stack(states,axis=0))
             action_spaces = [x[4] for x in minibatch]
 
-            self.actor.policy_gradient_update(states, actions, Q_est, action_spaces)
+            self.actor.policy_gradient_update(states, actions, Q_est, action_spaces,actor_critic=True)
 
             # Update sampling probs
             for n, i in enumerate(indices):
                 self.sampling_probs[i] = np.abs(td_errors[n])
 
-
-        # update_critic
-
-        # update actor
 
     def update_critic(self,turncount):
         """
