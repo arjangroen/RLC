@@ -14,13 +14,13 @@ RLC works in three chess environments:
 #### 2. Capture Chess (Intermediate)
 - Goal: Capture as many pieces from the opponent within n fullmoves
 - Motivation: Piece captures happen more frequently than win-lose-draw events. This give the algorithm more information to learn from.
-- Concepts: Q-learning, value function approximation, experience replay, fixed-q-targets, policy gradients, REINFORCE.
+- Concepts: Q-learning, value function approximation, experience replay, fixed-q-targets, policy gradients, REINFORCE, Actor-Critic.
 
 
 #### 3. Real Chess (Hard)
 - Goal: Play chess competitively against a human beginner
 - Motivation: An actual RL chess AI, how cool is that?
-- Concepts: Deep Q learning, policy gradients, actor-critic model and maybe more. 
+- Concepts: Deep Q learning, Monte Carlo Tree Search 
 
 
 # Installation
@@ -83,6 +83,24 @@ board = Board()
 agent = Agent(network='conv_pg',lr=0.3)
 R = Reinforce(agent,board)
 pgn = R.learn(iters=3000)
+
+```
+
+#### 5. Capture Chess | Policy Gradients - Actor Critic
+```python
+import chess
+from chess.pgn import Game
+import RLC
+from RLC.capture_chess.environment import Board
+from RLC.capture_chess.learn import ActorCritic
+from RLC.capture_chess.agent import Agent
+
+board = Board()
+critic = Agent(network='conv',lr=0.1)
+critic.fix_model()
+actor = Agent(network='conv_pg',lr=0.3)
+R = ActorCritic(actor, critic,board)
+pgn = R.learn(iters=1000)
 
 ```
 
