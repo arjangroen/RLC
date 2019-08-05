@@ -1,15 +1,13 @@
+class Node(object):
 
-class GameNode(object):
-
-    def __init__(self,board):
-        self.node = board.fen()
+    def __init__(self, board):
+        self.fen = board.fen()
         self.children = []
         self.n_visits = 0
+        self.value = 0
 
-    def add_child(self,board):
-        self.children.append(GameNode(board))
-
-
+    def add_node(self, board):
+        self.children.append(Node(board))
 
 class  MCTS(object):
 
@@ -18,17 +16,13 @@ class  MCTS(object):
         self.env = env
         self.gamma = gamma
         self.lamb = lamb
-        self.
 
-    def search_tree(self,board,breadth=5):
+    def search_tree(self,board,iters=10):
         """
         Search Monte Carlo Style
         Returns:
 
         """
-        #get action values
-
-
 
 
         if board.result()=="*":
