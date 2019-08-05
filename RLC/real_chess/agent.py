@@ -39,7 +39,7 @@ class Agent(object):
         dense4 = Dense(32)(dropout3)
         dropout4 = Dropout(0.2)(dense4,training=True)
 
-        value_head = Dense(1)(dropout4)
+        value_head = Dense(1,activation='tanh')(dropout4)
         self.network = Model(inputs=layer_state,
                                outputs=[value_head])
         self.network.compile(optimizer=optimizer,
