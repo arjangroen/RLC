@@ -1,20 +1,33 @@
 
-class TreeSearch(object):
+class GameNode(object):
+
+    def __init__(self,board):
+        self.node = board.fen()
+        self.children = []
+        self.n_visits = 0
+
+    def add_child(self,board):
+        self.children.append(GameNode(board))
+
+
+
+class  MCTS(object):
 
     def __init__(self,agent,env,gamma,lamb):
         self.agent = agent
         self.env = env
         self.gamma = gamma
         self.lamb = lamb
+        self.
 
-    def search_tree(self,board):
+    def search_tree(self,board,breadth=5):
         """
         Search Monte Carlo Style
         Returns:
 
         """
         #get action values
-        #select greedy action and uniform random action
+
 
 
 
