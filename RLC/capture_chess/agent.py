@@ -8,7 +8,7 @@ import keras.backend as K
 def policy_gradient_loss(Returns):
     def modified_crossentropy(action,action_probs):
         cost = (K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns)
-        return cost
+        return K.mean(cost)
     return modified_crossentropy
 
 
