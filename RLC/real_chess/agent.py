@@ -31,7 +31,7 @@ class Agent(object):
         flat_board = Flatten()(board1)
         flat_board3 = Flatten()(board3)
 
-        dense1 = Concatenate(name='dense_1')([flat_file,flat_rank,flat_quarters,flat_large,flat_board,flat_board3])
+        dense1 = Concatenate(name='dense_bass')([flat_file,flat_rank,flat_quarters,flat_large,flat_board,flat_board3])
         dropout1 = Dropout(0.2)(dense1)
         dense2 = Dense(128)(dropout1)
         dense3 = Dense(64)(dense2)

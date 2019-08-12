@@ -72,7 +72,6 @@ class Board(object):
         self.layer_board[piece_index,from_row, from_col] = 0
 
 
-
     def step(self,action):
         """
         Run a step
