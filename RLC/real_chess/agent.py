@@ -2,7 +2,7 @@ from keras.layers import Input, Dense, Flatten, Concatenate, Conv2D, Dropout
 from keras.losses import mean_squared_error
 from keras.models import Model
 from keras.optimizers import Adam
-
+import numpy as np
 
 class Agent(object):
 
@@ -45,6 +45,33 @@ class Agent(object):
         self.network.compile(optimizer=optimizer,
                              loss=[mean_squared_error]
                             )
+
+    def predict_distribution(self,states,batch_size=256):
+        """
+        :param states: list of distinct states
+        :param n:  each state is predicted n times
+        :return:
+        """
+        predictions_per_state = int(batch_size / len(states))
+        state_batch = []
+        for state in states:
+            state_batch = state_batch + [state for x in range(predictions_per_state)]
+
+        state_batch = np.stack(state_batch,axis=0)
+        predictions = self.network.predict(state_batch)
+        predictions = predictions.reshape(len(states),predictions_per_state)
+        mean_pred = np.mean(predictions_per_state,axis=1)
+        std_pred = np.std(predictions_per_state,axis=1)
+        upper_bound = mean_pred + 2*std_pred
+
+        return mean_pred, std_pred, upper_bound
+
+
+
+
+
+
+
 
 
 
