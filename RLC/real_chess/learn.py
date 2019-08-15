@@ -5,7 +5,7 @@ def softmax(x):
     return np.exp(x) / np.sum(np.exp(x))
 
 
-class DummyModel(object):
+class RandomModel(object):
 
     def __init__(self):
         pass
@@ -33,6 +33,7 @@ class Node(object):
         self.gamma = gamma
 
     def estimate_child_values(self, model):
+        """Remove?"""
         value_predictions = []
         for child in self.children.values():
             for i in range(self.value_iters):
@@ -79,34 +80,33 @@ class Node(object):
         else:
             return self
 
-    def simulate(self, model, board, depth=0):
-        if board.is_game_over() or depth > 50:
+    def simulate(self, model, env, depth=0):
+        if env.board.is_game_over() or depth > 50:
             result = 0
             return result
-        if board.turn:
+        if env.board.turn:
             successor_values = []
-            for move in board.generate_legal_moves():
-                board.push(move)
-                if board.result == "1-0":
+            for move in env.board.generate_legal_moves():
+                env.board.push(move)
+                if env.board.result == "1-0":
                     result = 1
                     return result
-                successor_values.append(model.predict())
-                board.pop()
+                successor_values.append(model.predict(env.board_layer))
+                env.board.pop()
             move_probas = softmax(np.array(successor_values))
-            move = np.random.choice([x for x in board.generate_legal_moves()], p=move_probas)
-            board.push(move)
+            move = np.random.choice([x for x in env.board.generate_legal_moves()], p=move_probas)
+            env.board.push(move)
         else:
-            for move in board.generate_legal_moves():
-                board.push(move)
-                if board.result == "0-1":
+            for move in env.board.generate_legal_moves():
+                env.board.push(move)
+                if env.board.result == "0-1":
                     result = -1
                     return result
-                board.pop()
-            move = np.random.choice([x for x in board.generate_legal_moves()])
-            board.push(move)
+                env.board.pop()
+            move = np.random.choice([x for x in env.board.generate_legal_moves()])
+            env.board.push(move)
 
         if depth == 0:
-            print(board)
             board_copy = board.copy()
 
         result = self.gamma * self.simulate(model, board, depth=depth + 1)
@@ -125,14 +125,10 @@ class lambda_search(object):
         self.gamma = gamma
         self.E = np.array()
 
-    def play_game(self,k,greedy=False,maxiter=50):
+    def play_game(self,maxiter=50):
         """
         Play a game of capture chess
         Args:
-            k: int
-                game count, determines epsilon (exploration rate)
-            greedy: Boolean
-                if greedy, no exploration is done
             maxiter: int
                 Maximum amount of steps per game
 
@@ -141,6 +137,7 @@ class lambda_search(object):
         """
         episode_end = False
         turncount = 0
+        node = Node(self.env.board)
         # Play a game of chess
         while not episode_end:
             state = self.env.layer_board

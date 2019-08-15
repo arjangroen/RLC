@@ -68,6 +68,7 @@ class Board(object):
         to_row = move.to_square // 8
         to_col = move.to_col % 8
         piece_index = np.argmax(np.abs(self.layer_board))
+        self._prev_layer_board = self.layer_board.copy
         self.layer_board[piece_index,to_row, to_col] = self.layer_board[piece_index,from_row, from_col]
         self.layer_board[piece_index,from_row, from_col] = 0
 
@@ -92,7 +93,7 @@ class Board(object):
         if self.board.result() == "*":
             opponent_move = self.get_random_action()
             self.board.push(opponent_move)
-            self.init_layer_board()
+            self.update_layer_board()
             capture_reward = piece_balance_after - piece_balance_before
             if self.board.result() == "*":
                 reward = 0 + capture_reward
