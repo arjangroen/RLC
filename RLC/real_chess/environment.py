@@ -68,9 +68,13 @@ class Board(object):
         to_row = move.to_square // 8
         to_col = move.to_col % 8
         piece_index = np.argmax(np.abs(self.layer_board))
-        self._prev_layer_board = self.layer_board.copy
+        self._prev_layer_board = self.layer_board.copy()
         self.layer_board[piece_index,to_row, to_col] = self.layer_board[piece_index,from_row, from_col]
         self.layer_board[piece_index,from_row, from_col] = 0
+
+    def pop_layer_board(self):
+        self.layer_board = self._prev_layer_board.copy()
+        self._prev_layer_board = None
 
 
     def step(self,action):
@@ -88,24 +92,17 @@ class Board(object):
         """
         piece_balance_before = self.get_material_value()
         self.board.push(action)
-        self.init_layer_board()
-        piece_balance_after = self.get_material_value()
+        self.update_layer_board()
         if self.board.result() == "*":
-            opponent_move = self.get_random_action()
-            self.board.push(opponent_move)
-            self.update_layer_board()
-            capture_reward = piece_balance_after - piece_balance_before
-            if self.board.result() == "*":
-                reward = 0 + capture_reward
-                episode_end = False
-            else:
-                reward = 0 + capture_reward
-                episode_end = True
-        else:
-            capture_reward = piece_balance_after - piece_balance_before
-            reward = 0 + capture_reward
+            reward = 0
+            episode_end = False
+        elif self.board.result() == "1-0":
+            reward = 1
             episode_end = True
-        if self.board.is_game_over():
+        elif self.board.result() == "0-1":
+            reward = -1
+            episode_end = True
+        elif self.board.is_game_over():
             reward = 0
             episode_end = True
         return episode_end, reward

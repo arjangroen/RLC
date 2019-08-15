@@ -121,6 +121,7 @@ class lambda_search(object):
     def __init__(self,env,agent,lamb=0.9, gamma=0.9):
         self.env = env
         self.agent = agent
+        self.tree = Node(self.env)
         self.lamb = lamb
         self.gamma = gamma
         self.E = np.array()
@@ -140,7 +141,8 @@ class lambda_search(object):
         node = Node(self.env.board)
         # Play a game of chess
         while not episode_end:
-            state = self.env.layer_board
+
+            node = self.mcts(node,self.env,self.)
 
             action_values = self.agent.get_action_values(np.expand_dims(state,axis=0))
             action_values = np.reshape(np.squeeze(action_values),(64,64))
@@ -181,7 +183,7 @@ class lambda_search(object):
 
 
 
-    def mcts(node,board, model,timelimit=30):
+    def mcts(self,node,env, model,timelimit=30):
         """
         Return best node
         :param node:
@@ -189,8 +191,6 @@ class lambda_search(object):
         :param model:
         :return:
         """
-        node.add_children()
-        node.estimate_child_values(model)
         starttime = time.time()
         timelimit = 30
         while starttime + timelimit > time.time():
