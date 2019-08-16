@@ -6,7 +6,12 @@ import numpy as np
 
 
 class RandomAgent(object):
-    pass
+
+    def __init__(self):
+        pass
+
+    def predict(self):
+        return np.random.randint(-5,5)
 
 class Agent(object):
 
@@ -15,7 +20,7 @@ class Agent(object):
         self.init_network()
 
     def init_network(self):
-        optimizer=Adam()
+        optimizer = Adam()
         layer_state = Input(shape=(8,8,8),name='state')
 
         openfile = Conv2D(3,(8,1),padding='valid',activation='relu',name='fileconv')(layer_state)  # 3,8,1
@@ -64,8 +69,8 @@ class Agent(object):
         state_batch = np.stack(state_batch,axis=0)
         predictions = self.network.predict(state_batch)
         predictions = predictions.reshape(len(states),predictions_per_state)
-        mean_pred = np.mean(predictions_per_state,axis=1)
-        std_pred = np.std(predictions_per_state,axis=1)
+        mean_pred = np.mean(predictions,axis=1)
+        std_pred = np.std(predictions,axis=1)
         upper_bound = mean_pred + 2*std_pred
 
         return mean_pred, std_pred, upper_bound
