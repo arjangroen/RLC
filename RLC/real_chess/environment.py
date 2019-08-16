@@ -26,17 +26,9 @@ class Board(object):
         """
         self.FEN = FEN
         self.board = chess.Board(self.FEN) if self.FEN else chess.Board()
-        self.init_action_space()
         self.layer_board = np.zeros(shape=(8, 8, 8))
         self.init_layer_board()
 
-    def init_action_space(self):
-        """
-        Initialize the action space
-        Returns:
-
-        """
-        self.action_space = np.zeros(shape=(64,64))
 
     def init_layer_board(self):
         """

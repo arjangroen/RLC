@@ -57,6 +57,7 @@ class Node(object):
         self.upper_bound = self.mean_value + 2 * self.std_value
 
     def add_children(self):
+        print("this function should be removed")
         for move in self.board.generate_legal_moves():
             self.board.push(move)
             self.children[move] = Node(self.board.copy(), parent=self)
@@ -88,28 +89,35 @@ class Node(object):
             successor_values = []
             for move in env.board.generate_legal_moves():
                 env.board.push(move)
+                env.update_layer_board(move)
                 if env.board.result == "1-0":
                     result = 1
                     return result
                 successor_values.append(model.predict(env.board_layer))
                 env.board.pop()
+                env.pop_layer_board()
             move_probas = softmax(np.array(successor_values))
             move = np.random.choice([x for x in env.board.generate_legal_moves()], p=move_probas)
-            env.board.push(move)
+            env.step(move)
         else:
             for move in env.board.generate_legal_moves():
                 env.board.push(move)
+                env.update_layer_board(move)
                 if env.board.result == "0-1":
                     result = -1
                     return result
                 env.board.pop()
+                env.pop_layer_board()
             move = np.random.choice([x for x in env.board.generate_legal_moves()])
             env.board.push(move)
 
         if depth == 0:
-            board_copy = board.copy()
+            board_copy = env.board.copy()
 
-        result = self.gamma * self.simulate(model, board, depth=depth + 1)
+        result = self.gamma * self.simulate(model, env, depth=depth + 1)
+
+        env.board = board_copy
+        env.init_layer_board()
 
         if depth == 0:
             return result, board_copy, move
@@ -138,11 +146,23 @@ class lambda_search(object):
         """
         episode_end = False
         turncount = 0
-        node = Node(self.env.board)
+        tree = Node(self.env.board)
         # Play a game of chess
         while not episode_end:
 
-            node = self.mcts(node,self.env,self.)
+            # Populate the tree with Monte Carlo Tree Search
+            tree = self.mcts(tree)
+
+            # Predict the current value
+
+            # Select the best move
+
+            # Predict the successor value
+
+            # Target = (reward + gamma * successor_value)
+
+            # Target-1 =
+
 
             action_values = self.agent.get_action_values(np.expand_dims(state,axis=0))
             action_values = np.reshape(np.squeeze(action_values),(64,64))
@@ -181,14 +201,10 @@ class lambda_search(object):
         return self.env.board
 
 
-
-
-    def mcts(self,node,env, model,timelimit=30):
+    def mcts(self,node,timelimit=30):
         """
         Return best node
         :param node:
-        :param board:
-        :param model:
         :return:
         """
         starttime = time.time()
@@ -200,7 +216,7 @@ class lambda_search(object):
                     node = new_node
                     break
                 node = new_node
-            result, board_copy, move = node.simulate(model,node.board.copy())
+            result, board_copy, move = node.simulate(self.agent,node)
             if move not in node.children.keys():
                 node.children[move] = Node(board_copy.copy(),parent=node)
 
