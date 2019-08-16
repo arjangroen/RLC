@@ -17,7 +17,7 @@ mapper["K"] = 5
 
 class Board(object):
 
-    def __init__(self,FEN=None):
+    def __init__(self,opposing_agent,FEN=None):
         """
         Chess Board Environment
         Args:

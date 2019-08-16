@@ -4,6 +4,10 @@ from keras.models import Model
 from keras.optimizers import Adam
 import numpy as np
 
+
+class RandomAgent(object):
+    pass
+
 class Agent(object):
 
     def __init__(self):

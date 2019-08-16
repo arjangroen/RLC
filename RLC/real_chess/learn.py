@@ -124,7 +124,8 @@ class Node(object):
         else:
             return result
 
-class lambda_search(object):
+
+class TD_search(object):
 
     def __init__(self,env,agent,lamb=0.9, gamma=0.9):
         self.env = env
@@ -155,13 +156,17 @@ class lambda_search(object):
 
             # Predict the current value
 
-            # Select the best move
+            # Step the best move
+
+            # Get reward, successor state
 
             # Predict the successor value
 
-            # Target = (reward + gamma * successor_value)
+            # Target = reward + successor value
 
-            # Target-1 =
+            # construct training sample state, prediction, error
+
+            #
 
 
             action_values = self.agent.get_action_values(np.expand_dims(state,axis=0))
