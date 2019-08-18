@@ -49,9 +49,8 @@ class TD_search(object):
 
             # White's turn
             if self.env.board.turn:
-                print(self.env.board)
                 tree = self.mcts(tree)
-                print(self.env.board)
+                self.env.layer_board = state  # restore layer board
 
                 # Step the best move
                 max_move = None
@@ -67,11 +66,12 @@ class TD_search(object):
                 max_value = -1
                 for move in self.env.board.generate_legal_moves():
                     self.env.step(move)
-                    successor_state_value_opponent = self.env.oppossing_agent.predict(self.env.layer_board)
+                    successor_state_value_opponent = self.env.opposing_agent.predict(self.env.layer_board)
                     if successor_state_value_opponent > max_value:
                         max_move = move
                         max_value = successor_state_value_opponent
-
+                    self.env.board.pop()
+                    self.env.pop_layer_board()
 
             episode_end, reward = self.env.step(max_move)
 
@@ -95,7 +95,10 @@ class TD_search(object):
         return self.env.board
 
     def update_agent(self):
+        if len(self.memory) < 3:
+            return
         choice_indices, minibatch = self.get_minibatch()
+        print(minibatch)
         td_errors = self.agent.network_update(minibatch,gamma=self.gamma)
         for index, error in zip(choice_indices,td_errors):
             self.memory[index][2] = error
@@ -140,4 +143,4 @@ class TD_search(object):
                 node.backprop(result)
                 node = node.parent
                 node.update()
-        return node.select()
+        return node
