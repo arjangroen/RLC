@@ -1,5 +1,9 @@
 import numpy as np
 
+def softmax(x):
+    return np.exp(x) / np.sum(np.exp(x))
+
+
 class Node(object):
 
     def __init__(self, board=None, parent=None, gamma=0.9):
@@ -76,11 +80,11 @@ class Node(object):
                 if env.board.result == "1-0":
                     result = 1
                     return result
-                successor_values.append(model.predict(env.board_layer))
+                successor_values.append(model.predict(np.expand_dims(env.layer_board,axis=0)))
                 env.board.pop()
                 env.pop_layer_board()
             move_probas = softmax(np.array(successor_values))
-            move = np.random.choice([x for x in env.board.generate_legal_moves()], p=move_probas)
+            move = np.random.choice([x for x in env.board.generate_legal_moves()], p=np.squeeze(move_probas))
             env.step(move)
         else:
             for move in env.board.generate_legal_moves():
@@ -99,10 +103,11 @@ class Node(object):
 
         result = self.gamma * self.simulate(model, env, depth=depth + 1)
 
-        env.board = board_copy
-        env.init_layer_board()
 
         if depth == 0:
+            # restore environment
+            env.board = board_copy
+            env.init_layer_board()
             return result, board_copy, move
         else:
             return result

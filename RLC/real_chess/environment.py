@@ -57,10 +57,10 @@ class Board(object):
 
     def update_layer_board(self,move):
         from_row = move.from_square // 8
-        from_col = move.from_col % 8
+        from_col = move.from_square % 8
         to_row = move.to_square // 8
-        to_col = move.to_col % 8
-        piece_index = np.argmax(np.abs(self.layer_board))
+        to_col = move.to_square % 8
+        piece_index = np.argmax(np.abs(self.layer_board[:,from_row,from_col]))
         self._prev_layer_board = self.layer_board.copy()
         self.layer_board[piece_index,to_row, to_col] = self.layer_board[piece_index,from_row, from_col]
         self.layer_board[piece_index,from_row, from_col] = 0
@@ -74,9 +74,7 @@ class Board(object):
         """
         Run a step
         Args:
-            action: tuple of 2 integers
-                Move from, Move to
-
+            action: python chess move
         Returns:
             epsiode end: Boolean
                 Whether the episode has ended
@@ -85,7 +83,7 @@ class Board(object):
         """
         piece_balance_before = self.get_material_value()
         self.board.push(action)
-        self.update_layer_board()
+        self.update_layer_board(action)
         if self.board.result() == "*":
             reward = 0
             episode_end = False
@@ -143,4 +141,3 @@ class Board(object):
         """
         self.board = chess.Board(self.FEN) if self.FEN else chess.Board()
         self.init_layer_board()
-        self.init_action_space()

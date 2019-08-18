@@ -20,7 +20,7 @@ class RandomAgent(object):
 class Agent(object):
 
     def __init__(self):
-        self.network = Model()
+        self.model = Model()
         self.init_network()
 
     def fix_model(self):
@@ -55,19 +55,19 @@ class Agent(object):
         flat_board3 = Flatten()(board3)
 
         dense1 = Concatenate(name='dense_bass')([flat_file,flat_rank,flat_quarters,flat_large,flat_board,flat_board3])
-        dropout1 = Dropout(0.2)(dense1)
+        dropout1 = Dropout(rate=0.1)(dense1)
         dense2 = Dense(128)(dropout1)
         dense3 = Dense(64)(dense2)
-        dropout3 = Dropout(0.2)(dense3,training=True)
+        dropout3 = Dropout(rate=0.1)(dense3,training=True)
         dense4 = Dense(32)(dropout3)
-        dropout4 = Dropout(0.2)(dense4,training=True)
+        dropout4 = Dropout(rate=0.1)(dense4,training=True)
 
         value_head = Dense(1,activation='tanh')(dropout4)
-        self.network = Model(inputs=layer_state,
-                               outputs=[value_head])
-        self.network.compile(optimizer=optimizer,
-                             loss=[mean_squared_error]
-                            )
+        self.model = Model(inputs=layer_state,
+                           outputs=[value_head])
+        self.model.compile(optimizer=optimizer,
+                           loss=[mean_squared_error]
+                           )
 
     def predict_distribution(self,states,batch_size=256):
         """
@@ -81,7 +81,7 @@ class Agent(object):
             state_batch = state_batch + [state for x in range(predictions_per_state)]
 
         state_batch = np.stack(state_batch,axis=0)
-        predictions = self.network.predict(state_batch)
+        predictions = self.model.predict(state_batch)
         predictions = predictions.reshape(len(states),predictions_per_state)
         mean_pred = np.mean(predictions,axis=1)
         std_pred = np.std(predictions,axis=1)
@@ -90,7 +90,7 @@ class Agent(object):
         return mean_pred, std_pred, upper_bound
 
     def predict(self,board_layer):
-        return self.network.predict(board_layer)
+        return self.model.predict(board_layer)
 
     def network_update(self, minibatch,gamma=0.9):
         """

@@ -2,8 +2,7 @@ import numpy as np
 import time
 from RLC.real_chess.tree import Node
 
-def softmax(x):
-    return np.exp(x) / np.sum(np.exp(x))
+
 
 
 
@@ -41,15 +40,15 @@ class TD_search(object):
         """
         episode_end = False
         turncount = 0
-        tree = Node(self.env.board)
+        tree = Node(self.env.board,gamma=self.gamma)
 
         # Play a game of chess
         while not episode_end:
             state = self.env.layer_board.copy()
-            state_value = self.agent.predict(state)
+            state_value = self.agent.predict(np.expand_dims(state,axis=0))
 
             # White's turn
-            if self.env.board.turn():
+            if self.env.board.turn:
                 tree = self.mcts(tree)
 
                 # Step the best move
@@ -120,7 +119,7 @@ class TD_search(object):
                     node = new_node
                     break
                 node = new_node
-            result, board_copy, move = node.simulate(self.agent,node)
+            result, board_copy, move = node.simulate(self.agent.model,self.env)
             if move not in node.children.keys():
                 node.children[move] = Node(board_copy.copy(),parent=node)
 
