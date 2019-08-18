@@ -10,8 +10,12 @@ class RandomAgent(object):
     def __init__(self):
         pass
 
-    def predict(self):
-        return np.random.randint(-5,5)
+    def predict(self,board_layer):
+        return np.random.randint(-5,5)/5
+
+    def select_move(self,board):
+        moves = [x for x in board.generate_legal_moves()]
+        return np.random.choice(moves)
 
 class Agent(object):
 
@@ -74,6 +78,9 @@ class Agent(object):
         upper_bound = mean_pred + 2*std_pred
 
         return mean_pred, std_pred, upper_bound
+
+    def predict(self,board_layer):
+        return self.network.predict(board_layer)
 
 
 

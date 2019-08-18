@@ -28,6 +28,7 @@ class Board(object):
         self.board = chess.Board(self.FEN) if self.FEN else chess.Board()
         self.layer_board = np.zeros(shape=(8, 8, 8))
         self.init_layer_board()
+        self.opposing_agent = opposing_agent
 
 
     def init_layer_board(self):

@@ -15,6 +15,9 @@ class TD_search(object):
         self.tree = Node(self.env)
         self.lamb = lamb
         self.gamma = gamma
+        self.memory = []
+        self.memsize = 5000
+        self.batch_size = 128
 
     def play_game(self,maxiter=50):
         """
@@ -32,20 +35,32 @@ class TD_search(object):
 
         # Play a game of chess
         while not episode_end:
+            state = self.env.layer_board.copy()
+            state_value = self.agent.predict(state)
 
-            # Populate the tree with Monte Carlo Tree Search
-            tree = self.mcts(tree)
+            # White's turn
+            if self.env.board.turn():
+                tree = self.mcts(tree)
 
-            # Predict the current value
-            state_value = self.agent.predict(self.env.layer_board)
+                # Step the best move
+                max_move = None
+                max_value = -1
+                for move, child in tree.children.items():
+                    if child.mean_value > max_value:
+                        max_value = child.mean_value
+                        max_move = move
 
-            # Step the best move
-            max_move = None
-            max_value = -1
-            for move, child in tree.children.items():
-                if child.mean_value > max_value:
-                    max_value = child.mean_value
-                    max_move = move
+            # Black's turn
+            else:
+                max_move = None
+                max_value = -1
+                for move in self.env.board.generate_legal_moves():
+                    self.env.step(move)
+                    successor_state_value_opponent = self.env.oppossing_agent.predict(self.env.layer_board)
+                    if successor_state_value_opponent > max_value:
+                        max_move = move
+                        max_value = successor_state_value_opponent
+
 
             episode_end, reward = self.env.step(max_move)
 
@@ -53,48 +68,39 @@ class TD_search(object):
             successor_state_value = self.agent.predict(self.env.layer_board)
 
             # Target = reward + successor value
+            target = reward + successor_state_value
 
+            error = target - state_value
 
             # construct training sample state, prediction, error
-
-            #
-
-
-            action_values = self.agent.get_action_values(np.expand_dims(state,axis=0))
-            action_values = np.reshape(np.squeeze(action_values),(64,64))
-            action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
-            action_values = np.multiply(action_values,action_space)
-            move_from = np.argmax(action_values,axis=None) // 64
-            move_to = np.argmax(action_values,axis=None) % 64
-            moves = [x for x in self.env.board.generate_legal_moves() if\
-                    x.from_square == move_from and x.to_square == move_to]
-            if len(moves) == 0:  # If all legal moves have negative action value, explore.
-                move = self.env.get_random_action()
-                move_from = move.from_square
-                move_to = move.to_square
-            else:
-                move = np.random.choice(moves)  # If there are multiple max-moves, pick a random one.
+            self.memory.append([state,target,error])
 
             episode_end, reward = self.env.step(move)
             new_state = self.env.layer_board
             if len(self.memory) > self.memsize:
                 self.memory.pop(0)
-                self.sampling_probs.pop(0)
             turncount += 1
             if turncount > maxiter:
                 episode_end = True
                 reward = 0
-            if episode_end:
-                new_state = new_state * 0
-            self.memory.append([state,(move_from, move_to),reward,new_state])
-            self.sampling_probs.append(1)
 
-
-            self.reward_trace.append(reward)
-
-            self.update_agent(turncount)
+            self.update_agent()
 
         return self.env.board
+
+    def update_agent(self):
+        batch = self.get_minibatch()
+
+
+
+    def get_minibatch(self):
+        sampling_priorities = np.abs(np.array([xp[2] for xp in self.memory]))
+        sampling_probs = sampling_priorities / np.sum(sampling_priorities)
+        sample_indices = [x for x in range(len(self.memory))]
+        choice_indices = np.random.choice(sample_indices,min(len(self.memory),128),p=sampling_probs)
+        minibatch = self.memory[choice_indices]
+
+
 
 
     def mcts(self,node,timelimit=30):
