@@ -78,6 +78,7 @@ class Node(object):
                 env.board.push(move)
                 env.update_layer_board(move)
                 if env.board.result == "1-0":
+                    env.board.pop()
                     result = 1
                     return result
                 successor_values.append(np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
@@ -91,26 +92,31 @@ class Node(object):
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
             env.step(move)
         else:
+            successor_values = []
             for move in env.board.generate_legal_moves():
                 env.board.push(move)
                 env.update_layer_board(move)
                 if env.board.result == "0-1":
+                    env.board.pop()
                     result = -1
                     return result
+                successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
-            move = np.random.choice([x for x in env.board.generate_legal_moves()])
-            env.board.push(move)
-
-        if depth == 0:
-            board_copy = env.board.copy()
+            move_probas = softmax(np.array(successor_values))
+            moves = [x for x in env.board.generate_legal_moves()]
+            if len(moves) == 1:
+                move = moves[0]
+            else:
+                move = np.random.choice(moves, p=np.squeeze(move_probas))
+            env.step(move)
 
         result = self.gamma * self.simulate(model, env, depth=depth + 1)
+        env.board.pop()
 
 
         if depth == 0:
             # restore environment
-            return result, board_copy, move
+            return result, move
         else:
-            env.board.pop()
             return result

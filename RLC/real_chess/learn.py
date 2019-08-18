@@ -121,6 +121,7 @@ class TD_search(object):
         """
         starttime = time.time()
         timelimit = 30
+        board_copy = self.env.board.copy()
         while starttime + timelimit > time.time():
             while node.children:
                 new_node = node.select()
@@ -128,9 +129,9 @@ class TD_search(object):
                     node = new_node
                     break
                 node = new_node
-            result, board_copy, move = node.simulate(self.agent.model,self.env)
+            result, move = node.simulate(self.agent.model,self.env)
             if move not in node.children.keys():
-                node.children[move] = Node(board_copy.copy(),parent=node)
+                node.children[move] = Node(board_copy,parent=node)
 
             node.update_child(move,result)
 
