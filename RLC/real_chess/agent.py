@@ -1,6 +1,6 @@
 from keras.layers import Input, Dense, Flatten, Concatenate, Conv2D, Dropout
 from keras.losses import mean_squared_error
-from keras.models import Model
+from keras.models import Model, clone_model
 from keras.optimizers import Adam
 import numpy as np
 
@@ -22,6 +22,16 @@ class Agent(object):
     def __init__(self):
         self.network = Model()
         self.init_network()
+
+    def fix_model(self):
+        """
+        The fixed model is the model used for bootstrapping
+        Returns:
+        """
+        optimizer = Adam()
+        self.fixed_model = clone_model(self.model)
+        self.fixed_model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
+        self.fixed_model.set_weights(self.model.get_weights())
 
     def init_network(self):
         optimizer = Adam()
@@ -81,6 +91,48 @@ class Agent(object):
 
     def predict(self,board_layer):
         return self.network.predict(board_layer)
+
+    def network_update(self, minibatch,gamma=0.9):
+        """
+        Update the SARSA-network using samples from the minibatch
+        Args:
+            minibatch: list
+                The minibatch contains the states, moves, rewards and new states.
+
+        Returns:
+            td_errors: np.array
+                array of temporal difference errors
+
+        """
+
+        # Prepare separate lists
+        states, rewards, new_states = [], [], []
+        td_errors = []
+        episode_ends = []
+        for sample in minibatch:
+            states.append(sample[0])
+            rewards.append(sample[1])
+            new_states.append(sample[2])
+
+            # Episode end detection
+            if np.array_equal(sample[3], sample[3] * 0):
+                episode_ends.append(0)
+            else:
+                episode_ends.append(1)
+
+        # The V target
+        V_target = np.array(rewards) + np.array(episode_ends) * gamma * self.fixed_model.predict(np.stack(new_states,
+                                                                                                          axis=0))
+
+        # The Q value for the remaining actions
+        V_state = self.model.predict(np.stack(states, axis=0))  # the expected future returns
+        
+        td_errors = V_target - V_state
+
+        # Perform a step of minibatch Gradient Descent.
+        self.model.fit(x=np.stack(states, axis=0), y=V_target, epochs=1, verbose=0)
+
+        return td_errors
 
 
 

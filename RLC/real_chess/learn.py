@@ -18,6 +18,16 @@ class TD_search(object):
         self.memory = []
         self.memsize = 5000
         self.batch_size = 128
+        self.result_trace = []
+
+    def learn(self,iters=100,c=5):
+        for k in range(iters):
+            self.env.reset()
+            if k % c == 0:
+                self.agent.fix_model()
+            self.play_game()
+        return self.env.board
+
 
     def play_game(self,maxiter=50):
         """
@@ -64,19 +74,9 @@ class TD_search(object):
 
             episode_end, reward = self.env.step(max_move)
 
-            # Predict the successor value
-            successor_state_value = self.agent.predict(self.env.layer_board)
-
-            # Target = reward + successor value
-            target = reward + successor_state_value
-
-            error = target - state_value
-
             # construct training sample state, prediction, error
-            self.memory.append([state,target,error])
+            self.memory.append([state,reward,self.env.layer_board])
 
-            episode_end, reward = self.env.step(move)
-            new_state = self.env.layer_board
             if len(self.memory) > self.memsize:
                 self.memory.pop(0)
             turncount += 1
@@ -86,12 +86,15 @@ class TD_search(object):
 
             self.update_agent()
 
+        self.result_trace.append(reward)
+
         return self.env.board
 
     def update_agent(self):
-        batch = self.get_minibatch()
-
-
+        choice_indices, minibatch = self.get_minibatch()
+        td_errors = self.agent.network_update(minibatch,gamma=self.gamma)
+        for index, error in zip(choice_indices,td_errors):
+            self.memory[index][2] = error
 
     def get_minibatch(self):
         sampling_priorities = np.abs(np.array([xp[2] for xp in self.memory]))
@@ -99,8 +102,7 @@ class TD_search(object):
         sample_indices = [x for x in range(len(self.memory))]
         choice_indices = np.random.choice(sample_indices,min(len(self.memory),128),p=sampling_probs)
         minibatch = self.memory[choice_indices]
-
-
+        return choice_indices, minibatch
 
 
     def mcts(self,node,timelimit=30):
