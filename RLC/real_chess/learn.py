@@ -49,7 +49,9 @@ class TD_search(object):
 
             # White's turn
             if self.env.board.turn:
+                print(self.env.board)
                 tree = self.mcts(tree)
+                print(self.env.board)
 
                 # Step the best move
                 max_move = None
@@ -73,8 +75,11 @@ class TD_search(object):
 
             episode_end, reward = self.env.step(max_move)
 
+            new_state_value = self.agent.predict(np.expand_dims(self.env.layer_board,axis=0))
+            error = new_state_value - state_value
+
             # construct training sample state, prediction, error
-            self.memory.append([state,reward,self.env.layer_board])
+            self.memory.append([state,reward,self.env.layer_board,error])
 
             if len(self.memory) > self.memsize:
                 self.memory.pop(0)
@@ -96,15 +101,19 @@ class TD_search(object):
             self.memory[index][2] = error
 
     def get_minibatch(self):
-        sampling_priorities = np.abs(np.array([xp[2] for xp in self.memory]))
-        sampling_probs = sampling_priorities / np.sum(sampling_priorities)
-        sample_indices = [x for x in range(len(self.memory))]
-        choice_indices = np.random.choice(sample_indices,min(len(self.memory),128),p=sampling_probs)
-        minibatch = self.memory[choice_indices]
+        if len(self.memory) == 1:
+            return 0, self.memory[0]
+        else:
+            sampling_priorities = np.abs(np.array([xp[3] for xp in self.memory]))
+            sampling_probs = sampling_priorities / np.sum(sampling_priorities)
+            print(sampling_probs.shape)
+            sample_indices = [x for x in range(len(self.memory))]
+            choice_indices = np.random.choice(sample_indices,min(len(self.memory),128),p=np.squeeze(sampling_probs))
+            minibatch = [self.memory[idx] for idx in choice_indices]
         return choice_indices, minibatch
 
 
-    def mcts(self,node,timelimit=30):
+    def mcts(self,node,timelimit=15):
         """
         Return best node
         :param node:
@@ -130,4 +139,4 @@ class TD_search(object):
                 node.backprop(result)
                 node = node.parent
                 node.update()
-        return node.select(), result
+        return node.select()
