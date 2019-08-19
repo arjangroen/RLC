@@ -2,10 +2,6 @@ import numpy as np
 import time
 from RLC.real_chess.tree import Node
 
-
-
-
-
 class TD_search(object):
 
     def __init__(self,env,agent,lamb=0.9, gamma=0.9):
@@ -36,7 +32,6 @@ class TD_search(object):
                 Maximum amount of steps per game
 
         Returns:
-
         """
         episode_end = False
         turncount = 0
@@ -79,7 +74,7 @@ class TD_search(object):
             error = new_state_value - state_value
 
             # construct training sample state, prediction, error
-            self.memory.append([state,reward,self.env.layer_board,error])
+            self.memory.append([state,reward,self.env.layer_board,np.squeeze(error)])
 
             if len(self.memory) > self.memsize:
                 self.memory.pop(0)
@@ -98,18 +93,17 @@ class TD_search(object):
         if len(self.memory) < 3:
             return
         choice_indices, minibatch = self.get_minibatch()
-        print(minibatch)
-        td_errors = self.agent.network_update(minibatch,gamma=self.gamma)
+
+        td_errors = np.squeeze(self.agent.network_update(minibatch,gamma=self.gamma))
         for index, error in zip(choice_indices,td_errors):
-            self.memory[index][2] = error
+            self.memory[index][3] = error
 
     def get_minibatch(self):
         if len(self.memory) == 1:
-            return 0, self.memory[0]
+            return [0], [self.memory[0]]
         else:
             sampling_priorities = np.abs(np.array([xp[3] for xp in self.memory]))
             sampling_probs = sampling_priorities / np.sum(sampling_priorities)
-            print(sampling_probs.shape)
             sample_indices = [x for x in range(len(self.memory))]
             choice_indices = np.random.choice(sample_indices,min(len(self.memory),128),p=np.squeeze(sampling_probs))
             minibatch = [self.memory[idx] for idx in choice_indices]

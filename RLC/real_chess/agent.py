@@ -121,8 +121,9 @@ class Agent(object):
                 episode_ends.append(1)
 
         # The V target
-        V_target = np.array(rewards) + np.array(episode_ends) * gamma * self.fixed_model.predict(np.stack(new_states,
-                                                                                                          axis=0))
+        suc_state_value = self.fixed_model.predict(np.stack(new_states, axis=0))
+        V_target = np.array(rewards) + np.array(episode_ends) * gamma * np.squeeze(suc_state_value)
+        V_target = np.expand_dims(V_target,axis=-1)
 
         # The Q value for the remaining actions
         V_state = self.model.predict(np.stack(states, axis=0))  # the expected future returns
@@ -130,7 +131,7 @@ class Agent(object):
         td_errors = V_target - V_state
 
         # Perform a step of minibatch Gradient Descent.
-        self.model.fit(x=np.stack(states, axis=0), y=V_target, epochs=1, verbose=0)
+        self.model.fit(x=np.stack(states, axis=0), y=np.stack(V_target,axis=0), epochs=1, verbose=0)
 
         return td_errors
 
