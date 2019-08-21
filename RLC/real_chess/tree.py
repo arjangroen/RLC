@@ -62,6 +62,7 @@ class Node(object):
                     max_upper = child.upper_bound
                     max_move = move
             if max_move:
+                self.board.push(max_move)
                 return self.children[max_move]
             else:
                 return self
