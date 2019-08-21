@@ -117,7 +117,7 @@ class TD_search(object):
         :return:
         """
         starttime = time.time()
-        timelimit = 30
+        timelimit = timelimit
         board_copy = self.env.board.copy()
         while starttime + timelimit > time.time():
             while node.children:
