@@ -54,7 +54,6 @@ class TD_search(object):
                     if child.mean_value > max_value:
                         max_value = child.mean_value
                         max_move = move
-                print("best move for white",max_move)
 
             # Black's turn
             else:
@@ -69,7 +68,6 @@ class TD_search(object):
 
                     self.env.board.pop()
                     self.env.pop_layer_board()
-                print("best move for black", max_move)
 
             episode_end, reward = self.env.step(max_move)
 
@@ -78,7 +76,6 @@ class TD_search(object):
 
             tree = tree.children[max_move]
             tree.parent = None
-            print(tree.board)
 
             new_state_value = self.agent.predict(np.expand_dims(self.env.layer_board,axis=0))
             error = new_state_value - state_value
