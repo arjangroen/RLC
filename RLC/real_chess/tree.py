@@ -69,8 +69,8 @@ class Node(object):
             return self
 
     def simulate(self, model, env, depth=0):
-        if env.board.is_game_over() or depth > 50:
-            result = 0
+        if env.board.is_game_over() or depth > 10:
+            result = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
             return result
         if env.board.turn:
             successor_values = []
