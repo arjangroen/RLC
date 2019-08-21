@@ -119,4 +119,5 @@ class Node(object):
             # restore environment
             return result, move
         else:
-            return result
+            noise = np.random.randn()/1e9
+            return result + noise
