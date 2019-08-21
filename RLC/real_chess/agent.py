@@ -22,6 +22,8 @@ class Agent(object):
     def __init__(self):
         self.model = Model()
         self.init_network()
+        self.has_won = False
+        self.has_lost = False
 
     def fix_model(self):
         """
@@ -115,8 +117,12 @@ class Agent(object):
             new_states.append(sample[2])
 
             # Episode end detection
-            if np.array_equal(sample[3], sample[3] * 0):
+            if sample[1] != 0:
                 episode_ends.append(0)
+                if sample[1] < 0:
+                    self.has_lost = True
+                else:
+                    self.has_won = True
             else:
                 episode_ends.append(1)
 
