@@ -47,7 +47,7 @@ class Node(object):
         print("this function should be removed")
         for move in self.board.generate_legal_moves():
             self.board.push(move)
-            self.children[move] = Node(self.board.copy(), parent=self)
+            self.children[move] = Node(self.board, parent=self)
             self.board.pop()
 
     def backprop(self, result):
