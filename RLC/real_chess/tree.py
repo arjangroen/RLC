@@ -70,7 +70,11 @@ class Node(object):
 
     def simulate(self, model, env, depth=0):
         if env.board.is_game_over() or depth > 10:
-            result = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+            if env.board.is_game_over():
+                result = 0
+                print("monte carlo draw")
+            else:
+                result = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
             return result
         if env.board.turn:
             successor_values = []
@@ -78,6 +82,7 @@ class Node(object):
                 env.board.push(move)
                 env.update_layer_board(move)
                 if env.board.result == "1-0":
+                    print("montecarlo: white wins")
                     env.board.pop()
                     result = 1
                     return result
@@ -97,6 +102,7 @@ class Node(object):
                 env.board.push(move)
                 env.update_layer_board(move)
                 if env.board.result == "0-1":
+                    print("montecarlo: black wins")
                     env.board.pop()
                     result = -1
                     return result

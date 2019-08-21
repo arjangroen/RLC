@@ -45,7 +45,7 @@ class TD_search(object):
             # White's turn
             if self.env.board.turn:
                 tree = self.mcts(tree)
-                self.env.layer_board = state  # restore layer board
+                self.env.init_layer_board()
 
                 # Step the best move
                 max_move = None
@@ -54,6 +54,7 @@ class TD_search(object):
                     if child.mean_value > max_value:
                         max_value = child.mean_value
                         max_move = move
+                print("best move for white",max_move)
 
             # Black's turn
             else:
@@ -65,16 +66,25 @@ class TD_search(object):
                     if successor_state_value_opponent > max_value:
                         max_move = move
                         max_value = successor_state_value_opponent
+
                     self.env.board.pop()
                     self.env.pop_layer_board()
+                print("best move for black", max_move)
 
             episode_end, reward = self.env.step(max_move)
+
+            if max_move not in tree.children.keys():
+                tree.children[max_move] = Node(self.env.board, parent=None)
+
+            tree = tree.children[max_move]
+            tree.parent = None
+            print(tree.board)
 
             new_state_value = self.agent.predict(np.expand_dims(self.env.layer_board,axis=0))
             error = new_state_value - state_value
 
             # construct training sample state, prediction, error
-            self.memory.append([state,reward,self.env.layer_board,np.squeeze(error)])
+            self.memory.append([state.copy(),reward,self.env.layer_board.copy(),np.squeeze(error)])
 
             if len(self.memory) > self.memsize:
                 self.memory.pop(0)
@@ -110,7 +120,7 @@ class TD_search(object):
         return choice_indices, minibatch
 
 
-    def mcts(self,node,timelimit=15):
+    def mcts(self,node,timelimit=5):
         """
         Return best node
         :param node:
