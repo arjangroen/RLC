@@ -85,7 +85,10 @@ class Node(object):
                     print("montecarlo: white wins")
                     env.board.pop()
                     result = 1
-                    return result
+                    if depth > 0:
+                        return result
+                    else:
+                        return result, move
                 successor_values.append(np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
@@ -105,7 +108,10 @@ class Node(object):
                     print("montecarlo: black wins")
                     env.board.pop()
                     result = -1
-                    return result
+                    if depth > 0:
+                        return result
+                    else:
+                        return result, move
                 successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
