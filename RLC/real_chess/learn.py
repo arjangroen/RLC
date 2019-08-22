@@ -134,10 +134,7 @@ class TD_search(object):
                     node = new_node
                     break
                 node = new_node
-            try:
-                result, move = node.simulate(self.agent.model,self.env)
-            except:
-                print(self.env.board)
+            result, move = node.simulate(self.agent.model,self.env)
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board,parent=node)
 
