@@ -137,7 +137,7 @@ class Agent(object):
         td_errors = V_target - V_state
 
         # Perform a step of minibatch Gradient Descent.
-        self.model.fit(x=np.stack(states, axis=0), y=np.stack(V_target,axis=0), epochs=1, verbose=0)
+        self.model.fit(x=np.stack(states, axis=0), y=np.stack(V_target,axis=0), epochs=1, verbose=1)
 
         return td_errors
 
