@@ -49,7 +49,7 @@ class TD_search(object):
 
                 # Step the best move
                 max_move = None
-                max_value = -1
+                max_value = np.NINF
                 for move, child in tree.children.items():
                     if child.mean_value > max_value:
                         max_value = child.mean_value
@@ -58,7 +58,7 @@ class TD_search(object):
             # Black's turn
             else:
                 max_move = None
-                max_value = -1
+                max_value = np.NINF
                 for move in self.env.board.generate_legal_moves():
                     self.env.step(move)
                     successor_state_value_opponent = self.env.opposing_agent.predict(self.env.layer_board)
