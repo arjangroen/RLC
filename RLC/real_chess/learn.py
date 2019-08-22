@@ -14,12 +14,15 @@ class TD_search(object):
         self.memsize = 5000
         self.batch_size = 128
         self.result_trace = []
+        self.ready = False
 
     def learn(self,iters=100,c=5):
         for k in range(iters):
             self.env.reset()
             if k % c == 0:
                 self.agent.fix_model()
+            if k > 3:
+                self.ready=True
             self.play_game()
         return self.env.board
 
@@ -61,7 +64,7 @@ class TD_search(object):
                 max_value = np.NINF
                 for move in self.env.board.generate_legal_moves():
                     self.env.step(move)
-                    successor_state_value_opponent = self.env.opposing_agent.predict(self.env.layer_board)
+                    successor_state_value_opponent = self.env.opposing_agent.predict(np.expand_dims(state,axis=0))
                     if successor_state_value_opponent > max_value:
                         max_move = move
                         max_value = successor_state_value_opponent
@@ -98,7 +101,7 @@ class TD_search(object):
         return self.env.board
 
     def update_agent(self):
-        if self.agent.has_won or self.agent.has_lost:
+        if self.ready:
             choice_indices, minibatch = self.get_minibatch()
 
             td_errors = np.squeeze(self.agent.network_update(minibatch,gamma=self.gamma))

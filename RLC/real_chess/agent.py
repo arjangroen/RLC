@@ -7,8 +7,8 @@ import numpy as np
 
 class RandomAgent(object):
 
-    def __init__(self):
-        pass
+    def __init__(self,color=1):
+        self.color=color
 
     def predict(self,board_layer):
         return np.random.randint(-5,5)/5
@@ -17,13 +17,28 @@ class RandomAgent(object):
         moves = [x for x in board.generate_legal_moves()]
         return np.random.choice(moves)
 
+class GreedyAgent(object):
+
+    def __init__(self,color=-1):
+        self.color = color
+
+    def predict(self,layer_board):
+        layer_board1 = layer_board[0,:,:,:]
+        pawns = 1 * np.sum(layer_board1[0, :, :])
+        rooks = 5 * np.sum(layer_board1[1, :, :])
+        minor = 3 * np.sum(layer_board1[2:4, :, :])
+        queen = 9 * np.sum(layer_board1[4, :, :])
+
+        maxscore = 40
+        material = pawns + rooks + minor + queen
+        board_value = self.color * material/maxscore
+        return board_value
+
 class Agent(object):
 
     def __init__(self):
         self.model = Model()
         self.init_network()
-        self.has_won = False
-        self.has_lost = False
 
     def fix_model(self):
         """
@@ -106,7 +121,7 @@ class Agent(object):
                 array of temporal difference errors
 
         """
-
+        print("updating agent...")
         # Prepare separate lists
         states, rewards, new_states = [], [], []
         td_errors = []
@@ -119,10 +134,6 @@ class Agent(object):
             # Episode end detection
             if sample[1] != 0:
                 episode_ends.append(0)
-                if sample[1] < 0:
-                    self.has_lost = True
-                else:
-                    self.has_won = True
             else:
                 episode_ends.append(1)
 
@@ -137,6 +148,7 @@ class Agent(object):
         td_errors = V_target - V_state
 
         # Perform a step of minibatch Gradient Descent.
+        print("calling fit")
         self.model.fit(x=np.stack(states, axis=0), y=np.stack(V_target,axis=0), epochs=1, verbose=1)
 
         return td_errors
