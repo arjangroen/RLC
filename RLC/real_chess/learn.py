@@ -116,7 +116,7 @@ class TD_search(object):
         return choice_indices, minibatch
 
 
-    def mcts(self,node,timelimit=5):
+    def mcts(self,node,timelimit=1):
         """
         Return best node
         :param node:
@@ -124,7 +124,10 @@ class TD_search(object):
         """
         starttime = time.time()
         timelimit = timelimit
+        sim_count = 0
         while starttime + timelimit > time.time():
+            sim_count+=1
+            print("simulation",sim_count)
             while node.children:
                 new_node = node.select()
                 if new_node == node:
