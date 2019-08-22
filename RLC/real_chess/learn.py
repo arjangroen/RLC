@@ -97,7 +97,7 @@ class TD_search(object):
         return self.env.board
 
     def update_agent(self):
-        if self.agent.has_won and self.agent.has_lost:
+        if self.agent.has_won or self.agent.has_lost:
             choice_indices, minibatch = self.get_minibatch()
 
             td_errors = np.squeeze(self.agent.network_update(minibatch,gamma=self.gamma))
