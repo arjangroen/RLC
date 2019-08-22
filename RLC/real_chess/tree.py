@@ -81,7 +81,7 @@ class Node(object):
             for move in env.board.generate_legal_moves():
                 env.board.push(move)
                 env.update_layer_board(move)
-                if env.board.result == "1-0":
+                if env.board.result() == "1-0":
                     print("montecarlo: white wins")
                     env.board.pop()
                     result = 1
@@ -101,7 +101,7 @@ class Node(object):
             for move in env.board.generate_legal_moves():
                 env.board.push(move)
                 env.update_layer_board(move)
-                if env.board.result == "0-1":
+                if env.board.result() == "0-1":
                     print("montecarlo: black wins")
                     env.board.pop()
                     result = -1
