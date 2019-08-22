@@ -127,7 +127,6 @@ class TD_search(object):
         sim_count = 0
         while starttime + timelimit > time.time():
             sim_count+=1
-            print("simulation",sim_count)
             while node.children:
                 new_node = node.select()
                 if new_node == node:
