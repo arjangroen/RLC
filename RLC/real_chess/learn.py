@@ -93,6 +93,7 @@ class TD_search(object):
             self.update_agent()
 
         self.result_trace.append(reward)
+        print("game ended with result",reward)
 
         return self.env.board
 
