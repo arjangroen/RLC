@@ -1,7 +1,7 @@
 from keras.layers import Input, Dense, Flatten, Concatenate, Conv2D, Dropout
 from keras.losses import mean_squared_error
 from keras.models import Model, clone_model
-from keras.optimizers import Adam
+from keras.optimizers import SGD
 import numpy as np
 
 
@@ -47,13 +47,13 @@ class Agent(object):
         The fixed model is the model used for bootstrapping
         Returns:
         """
-        optimizer = Adam()
+        optimizer = SGD(lr=0.1)
         self.fixed_model = clone_model(self.model)
         self.fixed_model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
         self.fixed_model.set_weights(self.model.get_weights())
 
     def init_network(self):
-        optimizer = Adam()
+        optimizer = SGD(lr=0.1)
         layer_state = Input(shape=(8,8,8),name='state')
 
         openfile = Conv2D(3,(8,1),padding='valid',activation='relu',name='fileconv')(layer_state)  # 3,8,1
