@@ -121,7 +121,6 @@ class Agent(object):
                 array of temporal difference errors
 
         """
-        print("updating agent...")
         # Prepare separate lists
         states, rewards, new_states = [], [], []
         td_errors = []
@@ -148,8 +147,7 @@ class Agent(object):
         td_errors = V_target - V_state
 
         # Perform a step of minibatch Gradient Descent.
-        print("calling fit")
-        self.model.fit(x=np.stack(states, axis=0), y=np.stack(V_target,axis=0), epochs=1, verbose=1)
+        self.model.fit(x=np.stack(states, axis=0), y=np.stack(V_target,axis=0), epochs=1, verbose=0)
 
         return td_errors
 

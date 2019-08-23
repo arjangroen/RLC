@@ -21,6 +21,7 @@ class TD_search(object):
             self.env.reset()
             if k % c == 0:
                 self.agent.fix_model()
+                print("iter",k)
             if k > 3:
                 self.ready=True
             self.play_game()
