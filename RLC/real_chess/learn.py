@@ -97,7 +97,7 @@ class TD_search(object):
 
             self.update_agent()
 
-        self.result_trace.append(reward)
+        self.result_trace.append(reward * self.gamma**turncount)
         print("game ended with result",reward)
 
         return self.env.board
