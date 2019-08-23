@@ -22,7 +22,7 @@ class GreedyAgent(object):
     def __init__(self,color=-1):
         self.color = color
 
-    def predict(self,layer_board):
+    def predict(self,layer_board,noise=True):
         layer_board1 = layer_board[0,:,:,:]
         pawns = 1 * np.sum(layer_board1[0, :, :])
         rooks = 5 * np.sum(layer_board1[1, :, :])
@@ -32,7 +32,9 @@ class GreedyAgent(object):
         maxscore = 40
         material = pawns + rooks + minor + queen
         board_value = self.color * material/maxscore
-        return board_value
+        if noise:
+            added_noise = np.random.randn()/1e2
+        return board_value + added_noise
 
 class Agent(object):
 

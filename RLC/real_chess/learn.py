@@ -66,8 +66,7 @@ class TD_search(object):
                 for move in self.env.board.generate_legal_moves():
                     self.env.step(move)
                     successor_state_value_opponent = self.env.opposing_agent.predict(np.expand_dims(state,axis=0))
-                    noise = np.random.randn()/1e2
-                    successor_state_value_opponent = successor_state_value_opponent + noise
+                    successor_state_value_opponent = successor_state_value_opponent
                     if successor_state_value_opponent > max_value:
                         max_move = move
                         max_value = successor_state_value_opponent
