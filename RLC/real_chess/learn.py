@@ -65,6 +65,9 @@ class TD_search(object):
                 max_value = np.NINF
                 for move in self.env.board.generate_legal_moves():
                     self.env.step(move)
+                    if self.env.board.result() == "0-1":
+                        max_move = move
+                        break
                     successor_state_value_opponent = self.env.opposing_agent.predict(np.expand_dims(state,axis=0))
                     successor_state_value_opponent = successor_state_value_opponent
                     if successor_state_value_opponent > max_value:
@@ -122,7 +125,7 @@ class TD_search(object):
         return choice_indices, minibatch
 
 
-    def mcts(self,node,timelimit=1):
+    def mcts(self,node,timelimit=2):
         """
         Return best node
         :param node:

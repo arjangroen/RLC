@@ -69,7 +69,7 @@ class Node(object):
             return self
 
     def simulate(self, model, env, depth=0):
-        if env.board.is_game_over() or depth > 5:
+        if env.board.is_game_over() or depth > 8:
             if env.board.is_game_over():
                 result = 0
             else:
