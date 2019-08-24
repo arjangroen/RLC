@@ -148,6 +148,9 @@ class TD_search(object):
 
             self.memory.append([board_layer,result,suc_board_layer,error])
 
+            self.env.pop_layer_board()
+            self.env.board.pop()
+
 
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board,parent=node)
