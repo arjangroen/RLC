@@ -139,7 +139,16 @@ class TD_search(object):
                     node = new_node
                     break
                 node = new_node
+
+            board_layer = self.env.board_layer.copy()
             result, move = node.simulate(self.agent.model,self.env)
+            self.env.step(move)
+            suc_board_layer = self.env.board_layer.copy()
+            error = 0.1  # arbitrary
+
+            self.memory.append([board_layer,result,suc_board_layer,error])
+
+
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board,parent=node)
 
