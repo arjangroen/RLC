@@ -140,13 +140,13 @@ class TD_search(object):
                     break
                 node = new_node
 
-            board_layer = self.env.board_layer.copy()
+            layer_board = self.env.layer_board.copy()
             result, move = node.simulate(self.agent.model,self.env)
             self.env.step(move)
-            suc_board_layer = self.env.board_layer.copy()
+            suc_board_layer = self.env.layer_board.copy()
             error = 0.1  # arbitrary
 
-            self.memory.append([board_layer,result,suc_board_layer,error])
+            self.memory.append([layer_board,result,suc_board_layer,error])
 
             self.env.pop_layer_board()
             self.env.board.pop()
