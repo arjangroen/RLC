@@ -14,6 +14,7 @@ class TD_search(object):
         self.memsize = 5000
         self.batch_size = 128
         self.result_trace = []
+        self.piece_balance_trace = []
         self.ready = False
 
     def learn(self,iters=100,c=5):
@@ -103,7 +104,9 @@ class TD_search(object):
             self.update_agent()
 
         self.result_trace.append(reward * self.gamma**turncount)
-        print("game ended with result",reward)
+        piece_balance = self.env.get_material_value()
+        self.piece_balance_trace.append(piece_balance)
+        print("game ended with result",reward, "and material balance",piece_balance)
 
         return self.env.board
 
