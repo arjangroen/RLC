@@ -17,7 +17,9 @@ class TD_search(object):
         self.piece_balance_trace = []
         self.ready = False
 
-    def learn(self,iters=100,c=5):
+    def learn(self,iters=100,c=5,timelimit_seconds=3600):
+        starttime = time.time()
+        
         for k in range(iters):
             self.env.reset()
             if k % c == 0:
@@ -26,6 +28,8 @@ class TD_search(object):
             if k > 3:
                 self.ready=True
             self.play_game()
+            if starttime + timelimit_seconds < time.time():
+                break
         return self.env.board
 
 
@@ -137,7 +141,6 @@ class TD_search(object):
         :return:
         """
         starttime = time.time()
-        timelimit = timelimit
         sim_count = 0
         while starttime + timelimit > time.time():
             sim_count+=1
