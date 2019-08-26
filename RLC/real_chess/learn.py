@@ -134,7 +134,7 @@ class TD_search(object):
         return choice_indices, minibatch
 
 
-    def mcts(self,node,timelimit=2):
+    def mcts(self,node,timelimit=1):
         """
         Return best node
         :param node:
