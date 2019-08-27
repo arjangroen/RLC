@@ -75,13 +75,13 @@ class Agent(object):
 
         dense1 = Concatenate(name='dense_bass')([flat_file,flat_rank,flat_quarters,flat_large,flat_board,flat_board3])
         dropout1 = Dropout(rate=0.1)(dense1)
-        dense2 = Dense(128)(dropout1)
-        dense3 = Dense(64)(dense2)
+        dense2 = Dense(128,activation='tanh')(dropout1)
+        dense3 = Dense(64,activation='tanh')(dense2)
         dropout3 = Dropout(rate=0.1)(dense3,training=True)
-        dense4 = Dense(32)(dropout3)
+        dense4 = Dense(32,activation='tanh')(dropout3)
         dropout4 = Dropout(rate=0.1)(dense4,training=True)
 
-        value_head = Dense(1,activation='tanh')(dropout4)
+        value_head = Dense(1)(dropout4)
         self.model = Model(inputs=layer_state,
                            outputs=[value_head])
         self.model.compile(optimizer=optimizer,
