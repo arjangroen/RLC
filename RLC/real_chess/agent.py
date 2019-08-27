@@ -47,13 +47,13 @@ class Agent(object):
         The fixed model is the model used for bootstrapping
         Returns:
         """
-        optimizer = SGD(lr=0.1)
+        optimizer = SGD(lr=0.03)
         self.fixed_model = clone_model(self.model)
         self.fixed_model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
         self.fixed_model.set_weights(self.model.get_weights())
 
     def init_network(self):
-        optimizer = SGD(lr=0.07)
+        optimizer = SGD(lr=0.03)
         layer_state = Input(shape=(8,8,8),name='state')
 
         openfile = Conv2D(3,(8,1),padding='valid',activation='relu',name='fileconv')(layer_state)  # 3,8,1
