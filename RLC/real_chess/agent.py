@@ -33,7 +33,7 @@ class GreedyAgent(object):
         material = pawns + rooks + minor + queen
         board_value = self.color * material/maxscore
         if noise:
-            added_noise = np.random.randn()/1e2
+            added_noise = np.random.randn()/1e3
         return -(board_value + added_noise)
 
 class Agent(object):
