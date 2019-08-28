@@ -56,14 +56,22 @@ class Board(object):
             self.layer_board[7, :, :] = 1
 
     def update_layer_board(self,move):
-        from_row = move.from_square // 8
-        from_col = move.from_square % 8
-        to_row = move.to_square // 8
-        to_col = move.to_square % 8
-        piece_index = np.argmax(np.abs(self.layer_board[:,from_row,from_col]))
-        self._prev_layer_board = self.layer_board.copy()
-        self.layer_board[piece_index,to_row, to_col] = self.layer_board[piece_index,from_row, from_col]
-        self.layer_board[piece_index,from_row, from_col] = 0
+        if move.promotion:
+            self.init_layer_board()
+        else:
+            from_row = move.from_square // 8
+            from_col = move.from_square % 8
+            to_row = move.to_square // 8
+            to_col = move.to_square % 8
+            piece_index = np.argmax(np.abs(self.layer_board[:,from_row,from_col]))
+            self._prev_layer_board = self.layer_board.copy()
+            self.layer_board[piece_index,to_row, to_col] = self.layer_board[piece_index,from_row, from_col]
+            self.layer_board[piece_index,from_row, from_col] = 0
+            if self.board.turn:
+                self.layer_board[6, :, :] = 1 / self.board.fullmove_number
+            if self.board.can_claim_draw():
+                self.layer_board[7, :, :] = 1
+            
 
     def pop_layer_board(self):
         self.layer_board = self._prev_layer_board.copy()
