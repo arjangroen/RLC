@@ -77,12 +77,13 @@ class TD_search(object):
                         break
                     successor_state_value_opponent = self.env.opposing_agent.predict(np.expand_dims(self.env.layer_board,axis=0))
                     if successor_state_value_opponent > max_value:
+                        print("black max value on move ", move, max_value)
                         max_move = move
                         max_value = successor_state_value_opponent
 
                     self.env.board.pop()
                     self.env.pop_layer_board()
-
+            print('move',max_move)
             episode_end, reward = self.env.step(max_move)
 
             if max_move not in tree.children.keys():
