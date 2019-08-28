@@ -57,6 +57,7 @@ class Board(object):
 
     def update_layer_board(self,move):
         if move.promotion:
+            self._prev_layer_board = self.layer_board.copy()
             self.init_layer_board()
         else:
             from_row = move.from_square // 8
