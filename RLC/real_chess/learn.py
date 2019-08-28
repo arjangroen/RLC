@@ -75,7 +75,7 @@ class TD_search(object):
                         self.env.board.pop()
                         self.env.pop_layer_board()
                         break
-                    successor_state_value_opponent = self.env.opposing_agent.predict(np.expand_dims(state,axis=0))
+                    successor_state_value_opponent = self.env.opposing_agent.predict(np.expand_dims(self.env.layer_board,axis=0))
                     if successor_state_value_opponent > max_value:
                         max_move = move
                         max_value = successor_state_value_opponent
