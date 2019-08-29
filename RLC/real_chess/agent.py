@@ -39,7 +39,7 @@ class GreedyAgent(object):
 class Agent(object):
 
     def __init__(self,lr=0.06):
-        self.optimizer = optimizer = SGD(lr=lr)
+        self.optimizer = SGD(lr=lr)
         self.model = Model()
         self.init_network()
 
