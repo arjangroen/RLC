@@ -54,7 +54,6 @@ class Agent(object):
         self.fixed_model.set_weights(self.model.get_weights())
 
     def init_network(self):
-        optimizer = SGD(lr=self.lr)
         layer_state = Input(shape=(8,8,8),name='state')
 
         openfile = Conv2D(3,(8,1),padding='valid',activation='relu',name='fileconv')(layer_state)  # 3,8,1
