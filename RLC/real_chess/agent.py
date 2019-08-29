@@ -39,8 +39,8 @@ class GreedyAgent(object):
 class Agent(object):
 
     def __init__(self,lr=0.06):
+        self.optimizer = optimizer = SGD(lr=lr)
         self.model = Model()
-        self.lr = lr
         self.init_network()
 
     def fix_model(self):
@@ -48,9 +48,9 @@ class Agent(object):
         The fixed model is the model used for bootstrapping
         Returns:
         """
-        optimizer = SGD(lr=self.lr)
+        
         self.fixed_model = clone_model(self.model)
-        self.fixed_model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
+        self.fixed_model.compile(optimizer=self.optimizer, loss='mse', metrics=['mae'])
         self.fixed_model.set_weights(self.model.get_weights())
 
     def init_network(self):
@@ -85,7 +85,7 @@ class Agent(object):
         value_head = Dense(1)(dropout4)
         self.model = Model(inputs=layer_state,
                            outputs=[value_head])
-        self.model.compile(optimizer=optimizer,
+        self.model.compile(optimizer=self.optimizer,
                            loss=[mean_squared_error]
                            )
 
