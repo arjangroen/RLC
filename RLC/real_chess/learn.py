@@ -172,4 +172,5 @@ class TD_search(object):
                 node.backprop(result)
                 node = node.parent
                 node.update()
+            sim_count+=1
         return node
