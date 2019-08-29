@@ -138,9 +138,9 @@ class TD_search(object):
         :param node:
         :return:
         """
-        timelimit = 2*len(self.memory)/self.memsize
         starttime = time.time()
         sim_count = 0
+        timelimit = 10*len(self.memory)/self.memsize
         while starttime + timelimit > time.time():
             sim_count+=1
             while node.children:
