@@ -101,7 +101,7 @@ class TD_search(object):
             turncount += 1
             if turncount > maxiter:
                 episode_end = True
-                reward = 0
+                reward = -1
 
             self.update_agent()
 
@@ -132,12 +132,13 @@ class TD_search(object):
         return choice_indices, minibatch
 
 
-    def mcts(self,node,timelimit=1):
+    def mcts(self,node):
         """
         Return best node
         :param node:
         :return:
         """
+        timelimit = 2*len(self.memory)/self.memsize
         starttime = time.time()
         sim_count = 0
         while starttime + timelimit > time.time():
