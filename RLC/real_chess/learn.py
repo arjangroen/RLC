@@ -141,8 +141,8 @@ class TD_search(object):
         starttime = time.time()
         sim_count = 0
         timelimit = 10*len(self.memory)/self.memsize
-        while starttime + timelimit > time.time():
-            sim_count+=1
+        sim = False
+        while starttime + timelimit > time.time() or sim_count < 1:
             while node.children:
                 new_node = node.select()
                 if new_node == node:
