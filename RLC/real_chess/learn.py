@@ -154,7 +154,7 @@ class TD_search(object):
             result, move = node.simulate(self.agent.model,self.env)
             self.env.step(move)
             suc_board_layer = self.env.layer_board.copy()
-            error = 0.1  # arbitrary
+            error = 0.01  # arbitrary
 
             self.memory.append([layer_board,result,suc_board_layer,error])
 
