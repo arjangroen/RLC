@@ -55,7 +55,6 @@ class TD_search(object):
             if self.env.board.turn:
                 tree = self.mcts(tree)
                 self.env.init_layer_board()
-
                 # Step the best move
                 max_move = None
                 max_value = np.NINF
@@ -101,7 +100,12 @@ class TD_search(object):
             turncount += 1
             if turncount > maxiter:
                 episode_end = True
-                reward = np.clip(self.env.get_material_value()/40,-1,1)
+
+                # before k steps, use material balance as end result, after k steps, bootstrap from model.
+                if len(self.memory) < 1000:
+                    reward = np.clip(self.env.get_material_value()/40,-1,1)
+                else:
+                    reward = self.agent.predict(np.expand_dims(self.env.layer_board,axis=0))
 
             self.update_agent()
 
