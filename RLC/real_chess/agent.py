@@ -38,7 +38,7 @@ class GreedyAgent(object):
 
 class Agent(object):
 
-    def __init__(self,lr=0.06):
+    def __init__(self,lr=0.003):
         self.optimizer = Adam(lr=lr)
         self.model = Model()
         self.init_network()
