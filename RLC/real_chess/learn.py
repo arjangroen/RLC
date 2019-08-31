@@ -17,7 +17,7 @@ class TD_search(object):
         self.piece_balance_trace = []
         self.ready = False
 
-    def learn(self,iters=100,c=5,timelimit_seconds=3600):
+    def learn(self,iters=40,c=5,timelimit_seconds=3600):
         starttime = time.time()
         
         for k in range(iters):
@@ -33,7 +33,7 @@ class TD_search(object):
         return self.env.board
 
 
-    def play_game(self,maxiter=100):
+    def play_game(self,maxiter=50):
         """
         Play a game of capture chess
         Args:
@@ -101,7 +101,7 @@ class TD_search(object):
             turncount += 1
             if turncount > maxiter:
                 episode_end = True
-                reward = -1
+                reward = np.clip(self.env.get_material_value()/40,-1,1)
 
             self.update_agent()
 
