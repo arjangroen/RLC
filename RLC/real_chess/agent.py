@@ -1,7 +1,7 @@
 from keras.layers import Input, Dense, Flatten, Concatenate, Conv2D, Dropout
 from keras.losses import mean_squared_error
 from keras.models import Model, clone_model
-from keras.optimizers import SGD
+from keras.optimizers import Adam
 import numpy as np
 
 
@@ -39,7 +39,7 @@ class GreedyAgent(object):
 class Agent(object):
 
     def __init__(self,lr=0.06):
-        self.optimizer = SGD(lr=lr)
+        self.optimizer = Adam(lr=lr)
         self.model = Model()
         self.init_network()
 
