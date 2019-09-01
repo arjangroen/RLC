@@ -102,7 +102,7 @@ class Agent(object):
         value_head = Dense(1)(dense5)
 
         self.model = Model(inputs=layer_state,
-                           outputs=value_head
+                           outputs=value_head)
         self.model.compile(optimizer=self.optimizer,
                            loss=mean_squared_error
                            )
