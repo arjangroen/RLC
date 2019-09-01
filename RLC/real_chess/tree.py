@@ -44,7 +44,7 @@ class Node(object):
         self.upper_bound = self.mean_value + 2 * self.std_value
 
     def add_children(self):
-        print("this function should be removed")
+        print("adding children full width")
         for move in self.board.generate_legal_moves():
             self.board.push(move)
             self.children[move] = Node(self.board, parent=self)
