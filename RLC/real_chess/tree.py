@@ -112,7 +112,8 @@ class Node(object):
                 successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
-            move_probas = softmax(np.array(successor_values))
+            move_probas = np.zeros(len(successor_values))
+            move_probas[np.argmax(successor_values)] = 1
             moves = [x for x in env.board.generate_legal_moves()]
             if len(moves) == 1:
                 move = moves[0]
@@ -128,5 +129,5 @@ class Node(object):
             # restore environment
             return result, move
         else:
-            noise = np.random.randn()/1e9
+            noise = np.random.randn()/1e3
             return result + noise
