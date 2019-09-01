@@ -1,7 +1,7 @@
 import numpy as np
 
-def softmax(x):
-    return np.exp(x) / np.sum(np.exp(x))
+def softmax(x,temperature=1):
+    return np.exp(x/temperature) / np.sum(np.exp(x/temperature))
 
 
 class Node(object):
@@ -69,7 +69,11 @@ class Node(object):
             return self
 
     def simulate(self, model, env, depth=0):
-        if env.board.is_game_over() or depth > 3:
+
+        # Gradually reduce the temperature
+        max_depth = 3
+        temperature = 1 + max_depth - depth
+        if env.board.is_game_over() or depth > max_depth:
             if env.board.is_game_over():
                 result = 0
             else:
@@ -90,7 +94,7 @@ class Node(object):
                 successor_values.append(np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
-            move_probas = softmax(np.array(successor_values))
+            move_probas = softmax(np.array(successor_values),temperature=temperature)
             moves = [x for x in env.board.generate_legal_moves()]
             if len(moves) == 1:
                 move = moves[0]
