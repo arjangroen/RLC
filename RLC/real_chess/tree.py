@@ -26,7 +26,7 @@ class Node(object):
             for i in range(self.value_iters):
                 child.values.append(model.predict())
             child.mean_value = np.mean(child.values)
-            child.std_value = np.std(child.values)
+            child.std_value = np.clip(np.std(child.values),0,0.5)
             child.upper_bound = child.mean_value + 2 * child.std_value
 
     def update_child(self, move, result):
