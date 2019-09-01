@@ -33,7 +33,7 @@ class TD_search(object):
         return self.env.board
 
 
-    def play_game(self,maxiter=50):
+    def play_game(self,maxiter=51):
         """
         Play a game of capture chess
         Args:
@@ -102,7 +102,7 @@ class TD_search(object):
                 episode_end = True
 
                 # before k steps, use material balance as end result, after k steps, bootstrap from model.
-                if len(self.memory) < 1000:
+                if len(self.memory) < 50000:
                     reward = np.clip(self.env.get_material_value()/40,-1,1)
                 else:
                     reward = self.agent.predict(np.expand_dims(self.env.layer_board,axis=0))
