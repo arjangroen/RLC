@@ -38,10 +38,13 @@ class GreedyAgent(object):
 
 class Agent(object):
 
-    def __init__(self,lr=0.003):
+    def __init__(self,lr=0.003,network='simple'):
         self.optimizer = Adam(lr=lr)
         self.model = Model()
-        self.init_network()
+        if network == 'simple':
+            self.init_simple_network()
+        else:
+            self.init_network()
 
     def fix_model(self):
         """
@@ -75,10 +78,10 @@ class Agent(object):
 
         dense1 = Concatenate(name='dense_bass')([flat_file,flat_rank,flat_quarters,flat_large,flat_board,flat_board3])
         dropout1 = Dropout(rate=0.1)(dense1)
-        dense2 = Dense(128,activation='tanh')(dropout1)
-        dense3 = Dense(64,activation='tanh')(dense2)
+        dense2 = Dense(128,activation='sigmoid')(dropout1)
+        dense3 = Dense(64,activation='sigmoid')(dense2)
         dropout3 = Dropout(rate=0.1)(dense3,training=True)
-        dense4 = Dense(32,activation='tanh')(dropout3)
+        dense4 = Dense(32,activation='sigmoid')(dropout3)
         dropout4 = Dropout(rate=0.1)(dense4,training=True)
 
         value_head = Dense(1)(dropout4)
@@ -87,6 +90,22 @@ class Agent(object):
         self.model.compile(optimizer=self.optimizer,
                            loss=[mean_squared_error]
                            )
+
+    def init_simple_network(self):
+
+        layer_state = Input(shape=(8, 8, 8), name='state')
+        conv1 = Conv2D(8,(3,3),activation='sigmoid')(layer_state)
+        conv2 = Conv2D(10,(3,3),activation='sigmoid')(conv1)
+        conv3 = Conv2D(12,(3,3),activation='sigmoid')(conv2)
+        flat4 = Flatten()(conv3)
+        dense5 = Dense(10,activation='sigmoid')(flat4)
+        value_head = Dense(1)(dense5)
+
+        self.model = Model(inputs=layer_state,
+                           outputs=value_head,
+                           loss=mean_squared_error
+                           )
+
 
     def predict_distribution(self,states,batch_size=256):
         """
