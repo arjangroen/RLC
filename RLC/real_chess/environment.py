@@ -102,7 +102,7 @@ class Board(object):
         elif self.board.result() == "0-1":
             reward = -1
             episode_end = True
-        elif self.board.is_game_over():
+        elif self.board.is_game_over(claim_draw=True):
             reward = 0
             episode_end = True
         return episode_end, reward
