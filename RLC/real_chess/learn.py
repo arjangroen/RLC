@@ -60,7 +60,7 @@ class TD_search(object):
             # White's turn
             if self.env.board.turn:
                 x = (turncount/maxiter - 0.5)*10
-                timelimit = np.clip((k // self.search_speed),0,3) * sigmoid(x)
+                timelimit = np.clip((k / self.search_speed),0,2) * sigmoid(x)
                 tree = self.mcts(tree,timelimit=timelimit)
                 self.env.init_layer_board()
                 # Step the best move
