@@ -15,8 +15,8 @@ class TD_search(object):
         self.lamb = lamb
         self.gamma = gamma
         self.memory = []
-        self.memsize = 5000
-        self.batch_size = 128
+        self.memsize = 10000
+        self.batch_size = 1024
         self.result_trace = []
         self.piece_balance_trace = []
         self.ready = False
@@ -139,7 +139,7 @@ class TD_search(object):
             sampling_priorities = np.abs(np.array([xp[3] for xp in self.memory]))
             sampling_probs = sampling_priorities / np.sum(sampling_priorities)
             sample_indices = [x for x in range(len(self.memory))]
-            choice_indices = np.random.choice(sample_indices,min(len(self.memory),128),p=np.squeeze(sampling_probs))
+            choice_indices = np.random.choice(sample_indices,min(len(self.memory),self.batch_size),p=np.squeeze(sampling_probs))
             minibatch = [self.memory[idx] for idx in choice_indices]
         return choice_indices, minibatch
 
