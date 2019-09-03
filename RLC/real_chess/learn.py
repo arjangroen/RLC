@@ -1,10 +1,14 @@
 import numpy as np
 import time
 from RLC.real_chess.tree import Node
+import math
+
+def sigmoid(x):
+    return 1 / (1 + math.exp(-x))
 
 class TD_search(object):
 
-    def __init__(self,env,agent,lamb=0.9, gamma=0.9):
+    def __init__(self,env,agent,lamb=0.9, gamma=0.9,search_multiplier=2):
         self.env = env
         self.agent = agent
         self.tree = Node(self.env)
@@ -16,6 +20,7 @@ class TD_search(object):
         self.result_trace = []
         self.piece_balance_trace = []
         self.ready = False
+        self.search_multiplier = search_multiplier
 
     def learn(self,iters=40,c=5,timelimit_seconds=3600):
         starttime = time.time()
@@ -51,9 +56,12 @@ class TD_search(object):
             state = self.env.layer_board.copy()
             state_value = self.agent.predict(np.expand_dims(state,axis=0))
 
+
             # White's turn
             if self.env.board.turn:
-                tree = self.mcts(tree)
+                x = (turncount/maxiter - 0.5)*10
+                timelimit = self.search_multiplier * sigmoid(x)
+                tree = self.mcts(tree,timelimit=timelimit)
                 self.env.init_layer_board()
                 # Step the best move
                 max_move = None
@@ -136,7 +144,7 @@ class TD_search(object):
         return choice_indices, minibatch
 
 
-    def mcts(self,node):
+    def mcts(self,node,timelimit):
         """
         Return best node
         :param node:
@@ -144,7 +152,6 @@ class TD_search(object):
         """
         starttime = time.time()
         sim_count = 0
-        timelimit = 0.5
         sim = False
         while starttime + timelimit > time.time() or sim_count < 1:
             while node.children:
