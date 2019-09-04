@@ -143,7 +143,7 @@ class TD_search(object):
                                               min(len(self.memory),
                                                   self.batch_size),
                                               p=np.squeeze(sampling_probs),
-                                              replace=False
+                                              replace=True
                                               )
             minibatch = [self.memory[idx] for idx in choice_indices]
         return choice_indices, minibatch
