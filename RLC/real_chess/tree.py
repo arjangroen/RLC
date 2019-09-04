@@ -62,11 +62,11 @@ class Node(object):
                     max_upper = child.upper_bound
                     max_move = move
             if max_move:
-                return self.children[max_move]
+                return self.children[max_move], max_move
             else:
-                return self
+                return self, None
         else:
-            return self
+            return self, None
 
     def simulate(self, model, env, depth=0):
 

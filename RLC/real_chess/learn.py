@@ -157,26 +157,19 @@ class TD_search(object):
         """
         starttime = time.time()
         sim_count = 0
-        sim = False
+        node.parent = None
         while starttime + timelimit > time.time() or sim_count < 1:
             while node.children:
-                new_node = node.select()
-                if new_node == node:
-                    node = new_node
+                node, move = node.select()
+                if not move:
                     break
-                node = new_node
+                else:
+                    self.env.step(move)
 
-            layer_board = self.env.layer_board.copy()
             result, move = node.simulate(self.agent.model,self.env)
-            #self.env.step(move)
-            #suc_board_layer = self.env.layer_board.copy()
             error = result - statevalue
 
-            self.memory.append([layer_board, result, None, np.squeeze(error)])
-
-            #self.env.pop_layer_board()
-            #self.env.board.pop()
-
+            self.memory.append([self.env.layer_board.copy(), result, None, np.squeeze(error)])
 
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board,parent=node)
@@ -188,5 +181,8 @@ class TD_search(object):
                 node.backprop(result)
                 node = node.parent
                 node.update()
+                if node.parent:
+                    self.env.board.pop()
+                    self.env.pop_layer_board()
             sim_count+=1
         return node
