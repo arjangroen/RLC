@@ -165,6 +165,10 @@ class TD_search(object):
                     break
                 else:
                     self.env.step(move)
+                    if self.env.board.result() == "1-0" or self.env.board.result(claim_draw=True) == "1/2-1/2":
+                        self.env.board.pop()
+                        self.env.pop_layer_board()
+                        return node
 
             result, move = node.simulate(self.agent.model,self.env)
             error = result - statevalue
@@ -183,6 +187,10 @@ class TD_search(object):
                 node.update()
                 if node.parent:
                     self.env.board.pop()
-                    self.env.pop_layer_board()
+                    try:
+                        self.env.pop_layer_board()
+                    except:
+                        print("cant pop")
+                        print(self.env.board)
             sim_count+=1
         return node
