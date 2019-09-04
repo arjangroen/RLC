@@ -71,10 +71,11 @@ class Node(object):
     def simulate(self, model, env, depth=0):
 
         # Gradually reduce the temperature
-        max_depth = 3
+        max_depth = 4  # Even for final move for black
         temperature = 1 + max_depth - depth
         if env.board.is_game_over() or depth > max_depth:
-            if env.board.is_game_over():
+            print(env.board.turn)
+            if env.board.is_game_over(claim_draw=True):
                 result = 0
             else:
                 result = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
