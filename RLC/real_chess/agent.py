@@ -145,31 +145,44 @@ class Agent(object):
         """
         # Prepare separate lists
         states, rewards, new_states = [], [], []
+        mcts_states, mcts_results = [], []
         td_errors = []
         episode_ends = []
         for sample in minibatch:
-            states.append(sample[0])
-            rewards.append(sample[1])
-            new_states.append(sample[2])
+            if type(sample[2]) == np.ndarray:
+                states.append(sample[0])
+                rewards.append(sample[1])
+                new_states.append(sample[2])
 
-            # Episode end detection
-            if sample[1] != 0:
-                episode_ends.append(0)
+                # Episode end detection
+                if sample[1] != 0:
+                    episode_ends.append(0)
+                else:
+                    episode_ends.append(1)
             else:
-                episode_ends.append(1)
+                mcts_states.append(sample[0])
+                mcts_results.append(sample[1])
 
         # The V target
-        suc_state_value = self.fixed_model.predict(np.stack(new_states, axis=0))
-        V_target = np.array(rewards) + np.array(episode_ends) * gamma * np.squeeze(suc_state_value)
-        V_target = np.expand_dims(V_target,axis=-1)
+        if len(new_states) > 0:
+            suc_state_value = self.fixed_model.predict(np.stack(new_states, axis=0))
+            V_target = np.array(rewards) + np.array(episode_ends) * gamma * np.squeeze(suc_state_value)
+        else:
+            V_target = np.array()
 
-        # The Q value for the remaining actions
-        V_state = self.model.predict(np.stack(states, axis=0))  # the expected future returns
-        
-        td_errors = V_target - V_state
+        # add mcts states to batch
+        V_target = np.concatenate([V_target,np.array(mcts_results)], axis=0)
+        V_target = np.expand_dims(V_target,axis=-1)
+        states = states + mcts_states
 
         # Perform a step of minibatch Gradient Descent.
         self.model.fit(x=np.stack(states, axis=0), y=np.stack(V_target,axis=0), epochs=1, verbose=0)
+
+
+        V_state = self.model.predict(np.stack(states, axis=0))  # the expected future returns
+
+        td_errors = V_target - V_state
+
 
         return td_errors
 

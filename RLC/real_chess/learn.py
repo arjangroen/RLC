@@ -139,7 +139,12 @@ class TD_search(object):
             sampling_priorities = np.abs(np.array([xp[3] for xp in self.memory]))
             sampling_probs = sampling_priorities / np.sum(sampling_priorities)
             sample_indices = [x for x in range(len(self.memory))]
-            choice_indices = np.random.choice(sample_indices,min(len(self.memory),self.batch_size),p=np.squeeze(sampling_probs))
+            choice_indices = np.random.choice(sample_indices,
+                                              min(len(self.memory),
+                                                  self.batch_size),
+                                              p=np.squeeze(sampling_probs),
+                                              replace=False
+                                              )
             minibatch = [self.memory[idx] for idx in choice_indices]
         return choice_indices, minibatch
 
@@ -163,14 +168,14 @@ class TD_search(object):
 
             layer_board = self.env.layer_board.copy()
             result, move = node.simulate(self.agent.model,self.env)
-            self.env.step(move)
-            suc_board_layer = self.env.layer_board.copy()
+            #self.env.step(move)
+            #suc_board_layer = self.env.layer_board.copy()
             error = result - statevalue
 
-            self.memory.append([layer_board, result, suc_board_layer, error])
+            self.memory.append([layer_board, result, None, np.squeeze(error)])
 
-            self.env.pop_layer_board()
-            self.env.board.pop()
+            #self.env.pop_layer_board()
+            #self.env.board.pop()
 
 
             if move not in node.children.keys():
