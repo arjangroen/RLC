@@ -71,7 +71,7 @@ class Node(object):
     def simulate(self, model, env, depth=0):
 
         # Gradually reduce the temperature
-        max_depth = 5
+        max_depth = 3
         temperature = 1 + max_depth - depth
         if env.board.is_game_over() or depth > max_depth:
             if env.board.is_game_over():
