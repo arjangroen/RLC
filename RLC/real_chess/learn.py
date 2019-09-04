@@ -184,6 +184,4 @@ class TD_search(object):
                 node = node.parent
                 node.update()
             sim_count+=1
-        print("timelimit",timelimit)
-        print("n_sims:",sim_count)
         return node

@@ -74,7 +74,6 @@ class Node(object):
         max_depth = 4  # Even for final move for black
         temperature = 1 + max_depth - depth
         if env.board.is_game_over() or depth > max_depth:
-            print(env.board.turn)
             if env.board.is_game_over(claim_draw=True):
                 result = 0
             else:
