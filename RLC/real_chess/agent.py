@@ -182,8 +182,13 @@ class Agent(object):
         V_state = self.model.predict(np.stack(states, axis=0))  # the expected future returns
 
         td_errors = V_target - V_state
-
-
+        
+        # Make error proportional to the number of simulations compared to non-simulation. This reduces the chance of selecting sims.
+        n_sims = len(mcts_states)
+        n_steps = len(new_states)
+        sim_step_rt = n_sims/max(n_steps,1)
+        td_errors[-n_sims:] = td_errors[-n_sims:] / sim_step_rt 
+        
         return td_errors
 
 
