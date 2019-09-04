@@ -61,7 +61,7 @@ class TD_search(object):
             if self.env.board.turn:
                 x = (turncount/maxiter - 0.5)*10
                 timelimit = np.clip((k / self.search_speed),0,1) * sigmoid(x)
-                tree = self.mcts(tree,timelimit=timelimit)
+                tree = self.mcts(tree,state_value,timelimit)
                 self.env.init_layer_board()
                 # Step the best move
                 max_move = None
@@ -144,7 +144,7 @@ class TD_search(object):
         return choice_indices, minibatch
 
 
-    def mcts(self,node,timelimit):
+    def mcts(self,node,statevalue,timelimit):
         """
         Return best node
         :param node:
@@ -165,9 +165,9 @@ class TD_search(object):
             result, move = node.simulate(self.agent.model,self.env)
             self.env.step(move)
             suc_board_layer = self.env.layer_board.copy()
-            error = 0.01  # arbitrary
+            error = result - statevalue
 
-            self.memory.append([layer_board,result,suc_board_layer,error])
+            self.memory.append([layer_board, result, suc_board_layer, error])
 
             self.env.pop_layer_board()
             self.env.board.pop()
