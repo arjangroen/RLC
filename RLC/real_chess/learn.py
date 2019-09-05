@@ -172,7 +172,6 @@ class TD_search(object):
                     if self.env.board.result() == "1-0" or self.env.board.result(claim_draw=False) == "1/2-1/2":
 
                         # if so, restore and return root node
-                        node = node.children[move]
                         while node.parent:
                             node = node.parent
                             if node.parent:
