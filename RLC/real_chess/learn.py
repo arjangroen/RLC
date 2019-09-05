@@ -89,6 +89,7 @@ class TD_search(object):
 
                     self.env.board.pop()
                     self.env.pop_layer_board()
+
             episode_end, reward = self.env.step(max_move)
 
             if max_move not in tree.children.keys():
@@ -201,7 +202,6 @@ class TD_search(object):
                 node = node.parent
                 node.update()
                 if node.parent:
-                    last_move = self.env.board.peek()
                     self.env.board.pop()
                     try:
                         self.env.pop_layer_board()
