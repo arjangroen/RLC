@@ -163,7 +163,6 @@ class TD_search(object):
             while node.children:
                 node, move = node.select()
                 depth += 1
-                print(depth)
                 if not move:
                     break
                 else:
