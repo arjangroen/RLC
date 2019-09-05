@@ -41,6 +41,7 @@ class Agent(object):
     def __init__(self,lr=0.003,network='simple'):
         self.optimizer = Adam(lr=lr)
         self.model = Model()
+        self.proportional_error = False
         if network == 'simple':
             self.init_simple_network()
         else:
@@ -183,11 +184,13 @@ class Agent(object):
 
         td_errors = V_target - V_state
         
-        # Make error proportional to the number of simulations compared to non-simulation. This reduces the chance of selecting sims.
-        n_sims = len(mcts_states)
-        n_steps = len(new_states)
-        sim_step_rt = n_sims/max(n_steps,1)
-        td_errors[-n_sims:] = td_errors[-n_sims:] / sim_step_rt 
+        # Make error proportional to the number of simulations compared to non-simulation.
+        # This reduces the chance of selecting sims.
+        if self.proportional_error:
+            n_sims = len(mcts_states)
+            n_steps = len(new_states)
+            sim_step_rt = n_sims/max(n_steps,1)
+            td_errors[-n_sims:] = td_errors[-n_sims:] / sim_step_rt
         
         return td_errors
 
