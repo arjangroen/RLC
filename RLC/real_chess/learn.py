@@ -175,12 +175,11 @@ class TD_search(object):
                         # if so, restore and return root node
                         while node.parent:
                             node = node.parent
-                            if node.parent:
-                                self.env.board.pop()
-                                try:
-                                    self.env.pop_layer_board()
-                                except:
-                                    self.env.init_layer_board()
+                            self.env.board.pop()
+                            try:
+                                self.env.pop_layer_board()
+                            except:
+                                self.env.init_layer_board()
                         return node
 
             # Expand the game tree with a simulation
