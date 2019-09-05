@@ -51,7 +51,7 @@ class Node(object):
             self.board.pop()
 
     def backprop(self, result):
-        self.parent.values.append(result)
+        self.parent.values.append(self.gamma*result)
 
     def select(self):
         if self.children:

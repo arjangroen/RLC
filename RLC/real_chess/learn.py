@@ -157,22 +157,35 @@ class TD_search(object):
         """
         starttime = time.time()
         sim_count = 0
-        node.parent = None
         while starttime + timelimit > time.time() or sim_count < 1:
+            depth = 0
             while node.children:
                 node, move = node.select()
+                depth += 1
                 if not move:
                     break
                 else:
+                    # A best node is selected
                     self.env.step(move)
-                    if self.env.board.result() == "1-0" or self.env.board.result(claim_draw=True) == "1/2-1/2":
-                        self.env.board.pop()
-                        self.env.pop_layer_board()
+                    # Check best node is terminal
+                    if self.env.board.result() == "1-0" or self.env.board.result(claim_draw=False) == "1/2-1/2":
+
+                        # if so, restore and return root node
+                        while node.parent:
+                            node = node.parent
+                            if node.parent:
+                                self.env.board.pop()
+                                try:
+                                    self.env.pop_layer_board()
+                                except:
+                                    self.env.init_layer_board()
                         return node
 
+            # Expand the game tree with a simulation
             result, move = node.simulate(self.agent.model,self.env)
-            error = result - statevalue
+            error = result * self.gamma**depth - statevalue
 
+            # Add the result to memory
             self.memory.append([self.env.layer_board.copy(), result, None, np.squeeze(error)])
 
             if move not in node.children.keys():
@@ -181,16 +194,18 @@ class TD_search(object):
             node.update_child(move,result)
 
             node = node.children[move]
+
+            # Return to root node
             while node.parent:
                 node.backprop(result)
                 node = node.parent
                 node.update()
                 if node.parent:
+                    last_move = self.env.board.peek()
                     self.env.board.pop()
                     try:
                         self.env.pop_layer_board()
                     except:
-                        print("cant pop")
-                        print(self.env.board)
+                        self.env.init_layer_board()
             sim_count+=1
         return node
