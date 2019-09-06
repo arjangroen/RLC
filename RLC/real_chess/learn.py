@@ -108,7 +108,7 @@ class TD_search(object):
             if len(self.memory) > self.memsize:
                 self.memory.pop(0)
             turncount += 1
-            if turncount > maxiter:
+            if turncount > maxiter and not episode_end:
                 episode_end = True
 
                 # before k steps, use material balance as end result, after k steps, bootstrap from model.
