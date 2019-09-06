@@ -102,7 +102,7 @@ class TD_search(object):
             error = new_state_value - state_value
 
             # construct training sample state, prediction, error
-            self.memory.append([state.copy(),reward,self.env.layer_board.copy(),np.squeeze(error)])
+            self.memory.append([state.copy(),reward,self.env.layer_board.copy(),np.float(np.squeeze(error))])
 
             if len(self.memory) > self.memsize:
                 self.memory.pop(0)
@@ -183,10 +183,10 @@ class TD_search(object):
 
             # Expand the game tree with a simulation
             result, move = node.simulate(self.agent.model,self.env)
-            error = np.float(result * self.gamma**depth - statevalue)
+            error = result * self.gamma**depth - statevalue
 
             # Add the result to memory
-            self.memory.append([self.env.layer_board.copy(), result, None, np.squeeze(error)])
+            self.memory.append([self.env.layer_board.copy(), result, None, np.float(np.squeeze(error))])
 
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board,parent=node)
