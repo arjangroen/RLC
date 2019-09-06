@@ -38,7 +38,7 @@ class TD_search(object):
         return self.env.board
 
 
-    def play_game(self,k,maxiter=101):
+    def play_game(self,k,maxiter=80):
         """
         Play a game of capture chess
         Args:
