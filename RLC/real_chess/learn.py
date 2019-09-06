@@ -32,7 +32,7 @@ class TD_search(object):
                 print("iter",k)
             if k > 3:
                 self.ready=True
-            maxiter = np.min(np.max(5,k/10),100)
+            maxiter = np.min([np.max([5,k/10]),100])
             self.play_game(k)
             if starttime + timelimit_seconds < time.time():
                 break
