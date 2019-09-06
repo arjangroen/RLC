@@ -183,7 +183,7 @@ class TD_search(object):
 
             # Expand the game tree with a simulation
             result, move = node.simulate(self.agent.model,self.env)
-            error = np.abs(result * self.gamma**depth - statevalue)
+            error = np.float(result * self.gamma**depth - statevalue)
 
             # Add the result to memory
             self.memory.append([self.env.layer_board.copy(), result, None, np.squeeze(error)])
