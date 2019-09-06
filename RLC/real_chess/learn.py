@@ -100,9 +100,10 @@ class TD_search(object):
 
             new_state_value = self.agent.predict(np.expand_dims(self.env.layer_board,axis=0))
             error = self.gamma*new_state_value - state_value
+            error = np.float(np.squeeze(error))
 
             # construct training sample state, prediction, error
-            self.memory.append([state.copy(),reward,self.env.layer_board.copy(),np.min(np.float(np.squeeze(error)),1e-3)])
+            self.memory.append([state.copy(),reward,self.env.layer_board.copy(),np.min([error,1e-3])])
 
             if len(self.memory) > self.memsize:
                 self.memory.pop(0)
