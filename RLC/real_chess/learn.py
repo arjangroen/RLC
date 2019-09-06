@@ -112,7 +112,7 @@ class TD_search(object):
                 episode_end = True
 
                 # before k steps, use material balance as end result, after k steps, bootstrap from model.
-                if len(self.memory) < 10000:
+                if len(self.memory) < self.memsize:
                     reward = np.clip(self.env.get_material_value()/40,-1,1)
                 else:
                     reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board,axis=0)))
@@ -122,7 +122,7 @@ class TD_search(object):
         self.result_trace.append(reward * self.gamma**turncount)
         piece_balance = self.env.get_material_value()
         self.piece_balance_trace.append(piece_balance)
-        print("game ended with result",reward, "and material balance",piece_balance)
+        print("game ended with result",reward, "and material balance",piece_balance, "in",turncount,"halfmoves")
 
         return self.env.board
 
