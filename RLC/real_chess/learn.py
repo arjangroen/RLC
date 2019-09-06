@@ -33,7 +33,7 @@ class TD_search(object):
             if k > 3:
                 self.ready=True
             maxiter = np.min([np.max([5,k/10]),100])
-            self.play_game(k)
+            self.play_game(k,maxiter=maxiter)
             if starttime + timelimit_seconds < time.time():
                 break
         return self.env.board
