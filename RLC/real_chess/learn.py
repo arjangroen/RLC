@@ -162,10 +162,10 @@ class TD_search(object):
             depth = 0
             while node.children:
                 node, move = node.select()
-                depth += 1
                 if not move:
                     break
                 else:
+                    depth += 1
                     # A best node is selected
                     self.env.step(move)
                     # Check best node is terminal
@@ -183,7 +183,7 @@ class TD_search(object):
 
             # Expand the game tree with a simulation
             result, move = node.simulate(self.agent.model,self.env)
-            error = result * self.gamma**depth - statevalue
+            error = np.abs(result * self.gamma**depth - statevalue)
 
             # Add the result to memory
             self.memory.append([self.env.layer_board.copy(), result, None, np.squeeze(error)])
