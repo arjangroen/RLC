@@ -8,7 +8,7 @@ def sigmoid(x):
 
 class TD_search(object):
 
-    def __init__(self,env,agent,lamb=0.9, gamma=0.9,search_speed=50):
+    def __init__(self, env, agent, lamb=0.9, gamma=0.9, search_time=1):
         self.env = env
         self.agent = agent
         self.tree = Node(self.env)
@@ -20,7 +20,7 @@ class TD_search(object):
         self.result_trace = []
         self.piece_balance_trace = []
         self.ready = False
-        self.search_speed = search_speed
+        self.search_time = search_time
 
     def learn(self,iters=40,c=5,timelimit_seconds=3600):
         starttime = time.time()
@@ -32,7 +32,7 @@ class TD_search(object):
                 print("iter",k)
             if k > 3:
                 self.ready=True
-            maxiter = np.min([np.max([5,k/10]),100])
+            maxiter = np.min([np.max([5,k]),80])
             self.play_game(k,maxiter=maxiter)
             if starttime + timelimit_seconds < time.time():
                 break
@@ -60,8 +60,8 @@ class TD_search(object):
 
             # White's turn
             if self.env.board.turn:
-                x = (turncount/maxiter - 0.5)*10
-                timelimit = np.clip((k / self.search_speed),0,1) * sigmoid(x)
+                x = (turncount/maxiter - 0.6)*10
+                timelimit = self.search_time * sigmoid(x)
                 tree = self.mcts(tree,state_value,timelimit)
                 self.env.init_layer_board()
                 # Step the best move
