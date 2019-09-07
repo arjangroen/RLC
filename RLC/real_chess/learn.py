@@ -22,7 +22,7 @@ class TD_search(object):
         self.ready = False
         self.search_time = search_time
 
-    def learn(self,iters=40,c=5,timelimit_seconds=3600):
+    def learn(self,iters=40,c=5,timelimit_seconds=3600,maxiter=51):
         starttime = time.time()
         
         for k in range(iters):
@@ -32,7 +32,6 @@ class TD_search(object):
                 print("iter",k)
             if k > 3:
                 self.ready=True
-            maxiter = np.min([np.max([5,k]),80])
             self.play_game(k,maxiter=maxiter)
             if starttime + timelimit_seconds < time.time():
                 break
