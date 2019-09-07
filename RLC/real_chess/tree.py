@@ -19,47 +19,26 @@ class Node(object):
         self.values = []
         self.gamma = gamma
 
-    def estimate_child_values(self, model):
-        """Remove?"""
-        value_predictions = []
-        for child in self.children.values():
-            for i in range(self.value_iters):
-                child.values.append(model.predict())
-            child.mean_value = np.mean(child.values)
-            child.std_value = np.clip(np.std(child.values),0,0.5)
-            child.upper_bound = child.mean_value + 2 * child.std_value
-
     def update_child(self, move, result):
         child = self.children[move]
         child.values.append(result)
-        child.mean_value = np.mean(child.values)
-        child.std_value = np.std(child.values)
-        child.upper_bound = child.mean_value + 2 * child.std_value
 
     def update(self,result=None):
         if result:
             self.values.append(result)
-        self.mean_value = np.mean(self.values)
-        self.std_value = np.std(self.values)
-        self.upper_bound = self.mean_value + 2 * self.std_value
-
-    def add_children(self):
-        print("adding children full width")
-        for move in self.board.generate_legal_moves():
-            self.board.push(move)
-            self.children[move] = Node(self.board, parent=self)
-            self.board.pop()
 
     def backprop(self, result):
         self.parent.values.append(self.gamma*result)
 
     def select(self):
+        """Thompson sampling"""
         if self.children:
-            max_upper = self.upper_bound if self.upper_bound else 0
+            max_sample = np.random.choice(self.values)
             max_move = None
             for move, child in self.children.items():
-                if child.upper_bound > max_upper:
-                    max_upper = child.upper_bound
+                child_sample = np.random.choice(child.values)
+                if child_sample > max_sample:
+                    max_sample = child_sample
                     max_move = move
             if max_move:
                 return self.children[max_move], max_move

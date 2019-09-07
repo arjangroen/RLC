@@ -99,7 +99,7 @@ class TD_search(object):
             tree.parent = None
 
             new_state_value = self.agent.predict(np.expand_dims(self.env.layer_board,axis=0))
-            error = self.gamma*new_state_value - state_value
+            error = reward + self.gamma*new_state_value - state_value
             error = np.float(np.squeeze(error))
 
             # construct training sample state, prediction, error
