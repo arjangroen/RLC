@@ -51,7 +51,7 @@ class Node(object):
 
         # Gradually reduce the temperature
         max_depth = 4  # Even for final move for black
-        temperature = 1 + max_depth - depth
+        temperature = 1
         if env.board.is_game_over() or depth > max_depth:
             if env.board.is_game_over(claim_draw=True):
                 result = 0
