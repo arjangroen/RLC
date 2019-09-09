@@ -73,12 +73,13 @@ class Node(object):
                 successor_values.append(np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
-            move_probas = softmax(np.array(successor_values),temperature=temperature)
+            #move_probas = softmax(np.array(successor_values),temperature=temperature)
             moves = [x for x in env.board.generate_legal_moves()]
             if len(moves) == 1:
                 move = moves[0]
             else:
-                move = np.random.choice(moves, p=np.squeeze(move_probas))
+                #move = np.random.choice(moves, p=np.squeeze(move_probas))
+                move = moves[np.argmax(successor_values)]
             env.step(move)
         else:
             successor_values = []
