@@ -18,6 +18,7 @@ class Node(object):
         self.value_iters = 5
         self.values = []
         self.gamma = gamma
+        self.epsilon = 0.05
 
     def update_child(self, move, result):
         child = self.children[move]
@@ -77,6 +78,8 @@ class Node(object):
             moves = [x for x in env.board.generate_legal_moves()]
             if len(moves) == 1:
                 move = moves[0]
+            elif np.random.randint(0,100)/100 < self.epsilon:
+                move = np.random.choice(moves)
             else:
                 #move = np.random.choice(moves, p=np.squeeze(move_probas))
                 move = moves[np.argmax(successor_values)]
