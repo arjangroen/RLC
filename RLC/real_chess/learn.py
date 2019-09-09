@@ -161,7 +161,7 @@ class TD_search(object):
         """
         starttime = time.time()
         sim_count = 0
-        while starttime + timelimit > time.time() or sim_count < 1:
+        while starttime + timelimit > time.time() or sim_count < 3:
             depth = 0
             while node.children:
                 node, move = node.select()
