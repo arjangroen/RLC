@@ -119,8 +119,7 @@ class TD_search(object):
                 else:
                     reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board,axis=0)))
 
-            for i in range(10):
-                self.update_agent()
+            self.update_agent()
 
         self.result_trace.append(reward * self.gamma**turncount)
         piece_balance = self.env.get_material_value()
