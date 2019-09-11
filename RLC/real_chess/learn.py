@@ -61,7 +61,7 @@ class TD_search(object):
             if self.env.board.turn:
                 x = (turncount/maxiter - 0.6)*10
                 timelimit = self.search_time * sigmoid(x)
-                tree = self.mcts(tree,state_value,timelimit, maxiter-turncount)
+                tree = self.mcts(tree,state_value,timelimit, remaining_depth=maxiter-turncount)
                 self.env.init_layer_board()
                 # Step the best move
                 max_move = None
