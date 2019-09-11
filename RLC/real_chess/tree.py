@@ -48,10 +48,9 @@ class Node(object):
         else:
             return self, None
 
-    def simulate(self, model, env, depth=0):
+    def simulate(self, model, env, max_depth, depth=0):
 
         # Gradually reduce the temperature
-        max_depth = 99  # Even for final move for black
         temperature = 1
         if env.board.is_game_over() or depth > max_depth:
             if env.board.is_game_over(claim_draw=True):
@@ -106,7 +105,7 @@ class Node(object):
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
             env.step(move)
 
-        result = self.gamma * self.simulate(model, env, depth=depth + 1)
+        result = self.gamma * self.simulate(model, env, max_depth, depth=depth + 1)
         env.board.pop()
 
 
