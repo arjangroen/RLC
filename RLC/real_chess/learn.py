@@ -60,7 +60,7 @@ class TD_search(object):
 
             # White's turn
             if self.env.board.turn:
-                x = (turncount/maxiter - 0.6)*10
+                x = (turncount/maxiter - self.search_balance)*10
                 timelimit = self.search_time * sigmoid(x)
                 tree = self.mcts(tree,state_value,timelimit, remaining_depth=maxiter-turncount)
                 self.env.init_layer_board()
