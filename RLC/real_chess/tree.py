@@ -61,7 +61,7 @@ class Node(object):
         if env.board.turn:
             successor_values = []
             for move in env.board.generate_legal_moves():
-                episode_end, reward = self.env.step(move)
+                episode_end, reward = env.step(move)
                 if env.board.result() == "1-0":
                     env.board.pop()
                     result = 1
