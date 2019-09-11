@@ -8,7 +8,7 @@ def sigmoid(x):
 
 class TD_search(object):
 
-    def __init__(self, env, agent, lamb=0.9, gamma=0.9, search_time=1):
+    def __init__(self, env, agent, lamb=0.9, gamma=0.9, search_time=1, search_balance=0.0):
         self.env = env
         self.agent = agent
         self.tree = Node(self.env)
@@ -21,6 +21,7 @@ class TD_search(object):
         self.piece_balance_trace = []
         self.ready = False
         self.search_time = search_time
+        self.search_balance = search_balance
 
     def learn(self,iters=40,c=5,timelimit_seconds=3600,maxiter=51):
         starttime = time.time()
