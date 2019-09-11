@@ -51,7 +51,7 @@ class Node(object):
     def simulate(self, model, env, depth=0):
 
         # Gradually reduce the temperature
-        max_depth = 4  # Even for final move for black
+        max_depth = 99  # Even for final move for black
         temperature = 1
         if env.board.is_game_over() or depth > max_depth:
             if env.board.is_game_over(claim_draw=True):
