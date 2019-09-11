@@ -80,6 +80,7 @@ class Node(object):
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
                 #move = moves[np.argmax(successor_values)]
             env.step(move)
+            # Include reward, epsiode end here
         else:
             successor_values = []
             for move in env.board.generate_legal_moves():
@@ -103,7 +104,11 @@ class Node(object):
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
             env.step(move)
+            # Include reward, epsiode end here
 
+        #Check if game is over
+        
+        # If not, add reward to result
         result = self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
         env.board.pop()
 
