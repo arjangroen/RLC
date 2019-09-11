@@ -105,7 +105,7 @@ class Node(object):
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
             env.step(move)
 
-        result = self.gamma * self.simulate(model, env, max_depth-depth, depth=0)
+        result = self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
         env.board.pop()
 
 
