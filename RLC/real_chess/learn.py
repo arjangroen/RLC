@@ -153,7 +153,7 @@ class TD_search(object):
         return choice_indices, minibatch
 
 
-    def mcts(self,node,statevalue,timelimit):
+    def mcts(self,node,statevalue,timelimit,remaining_depth=3):
         """
         Return best node
         :param node:
@@ -185,7 +185,7 @@ class TD_search(object):
                         return node
 
             # Expand the game tree with a simulation
-            result, move = node.simulate(self.agent.model,self.env)
+            result, move = node.simulate(self.agent.model,self.env,remaining_depth-depth)
             error = result * self.gamma**depth - statevalue
 
             # Add the result to memory
