@@ -185,7 +185,6 @@ class TD_search(object):
                         return node
 
             # Expand the game tree with a simulation
-            print(remaining_depth, depth)
             result, move = node.simulate(self.agent.model,self.env,remaining_depth,depth=depth)
             error = result * self.gamma**depth - statevalue
 
