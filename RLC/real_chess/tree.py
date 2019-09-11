@@ -61,8 +61,7 @@ class Node(object):
         if env.board.turn:
             successor_values = []
             for move in env.board.generate_legal_moves():
-                env.board.push(move)
-                env.update_layer_board(move)
+                episode_end, reward = self.env.step(move)
                 if env.board.result() == "1-0":
                     env.board.pop()
                     result = 1
@@ -70,7 +69,7 @@ class Node(object):
                         return result
                     else:
                         return result, move
-                successor_values.append(np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
+                successor_values.append(reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
             move_probas = softmax(np.array(successor_values),temperature=temperature)
