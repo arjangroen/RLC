@@ -44,6 +44,8 @@ class Agent(object):
         self.proportional_error = False
         if network == 'simple':
             self.init_simple_network()
+        elif network == ' super_simple':
+            self.init_super_simple_network()
         else:
             self.init_network()
 
@@ -100,6 +102,19 @@ class Agent(object):
         conv3 = Conv2D(12,(3,3),activation='sigmoid')(conv2)
         flat4 = Flatten()(conv3)
         dense5 = Dense(10,activation='sigmoid')(flat4)
+        value_head = Dense(1)(dense5)
+
+        self.model = Model(inputs=layer_state,
+                           outputs=value_head)
+        self.model.compile(optimizer=self.optimizer,
+                           loss=mean_squared_error
+                           )
+
+    def init_super_simple_network(self):
+        layer_state = Input(shape=(8, 8, 8), name='state')
+        conv1 = Conv2D(8, (3, 3), activation='sigmoid')(layer_state)
+        flat4 = Flatten()(conv1)
+        dense5 = Dense(10, activation='sigmoid')(flat4)
         value_head = Dense(1)(dense5)
 
         self.model = Model(inputs=layer_state,

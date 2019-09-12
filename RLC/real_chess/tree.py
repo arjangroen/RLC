@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def softmax(x,temperature=1):
     return np.exp(x/temperature) / np.sum(np.exp(x/temperature))
 
@@ -10,9 +11,7 @@ class Node(object):
         self.children = {}
         self.board = board
         self.parent = parent
-        self.mean_value = None
-        self.std_value = None
-        self.upper_bound = None
+
         self.visits = 0
         self.balance = 0
         self.value_iters = 5
