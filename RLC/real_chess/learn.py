@@ -205,14 +205,12 @@ class TD_search(object):
                         while node.parent:
                             node = node.parent
                             self.env.board.pop()
-                            try:
-                                self.env.pop_layer_board()
-                            except:
-                                self.env.init_layer_board()
+                        self.env.init_layer_board()
                         return node
 
             # Expand the game tree with a simulation
             result, move = node.simulate(self.agent.model,self.env,max(1,remaining_depth-depth),depth=0)
+            self.env.init_layer_board()
             error = result * self.gamma**depth - statevalue
 
             # Add the result to memory
@@ -232,9 +230,7 @@ class TD_search(object):
                 node.update()
                 if node.parent:
                     self.env.board.pop()
-                    try:
-                        self.env.pop_layer_board()
-                    except:
-                        self.env.init_layer_board()
+
+            self.env.init_layer_board()
             sim_count += 1
         return node
