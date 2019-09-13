@@ -148,6 +148,7 @@ class TD_search(object):
         print("game ended with result",reward, "and material balance",piece_balance, "in",turncount,"halfmoves")
         if np.abs(reward) == 1:
             print(self.env.board)
+            print(self.env.layer_board[5])
 
 
         return self.env.board
