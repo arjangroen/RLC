@@ -105,7 +105,7 @@ class Node(object):
         elif depth == max_depth:
             result = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
         else:
-            result = self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
+            result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
 
         env.board.pop()
 

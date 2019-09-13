@@ -147,7 +147,7 @@ class Agent(object):
     def predict(self,board_layer):
         return self.model.predict(board_layer)
 
-    def network_update(self, minibatch,gamma=0.9):
+    def TD_update(self, states, rewards, sucstates, gamma=0.9):
         """
         Update the SARSA-network using samples from the minibatch
         Args:
@@ -159,53 +159,17 @@ class Agent(object):
                 array of temporal difference errors
 
         """
-        # Prepare separate lists
-        states, rewards, new_states = [], [], []
-        mcts_states, mcts_results = [], []
-        td_errors = []
-        episode_ends = []
-        for sample in minibatch:
-            if type(sample[2]) == np.ndarray:
-                states.append(sample[0])
-                rewards.append(sample[1])
-                new_states.append(sample[2])
-
-                # Episode end detection
-                if sample[1] != 0:
-                    episode_ends.append(0)
-                else:
-                    episode_ends.append(1)
-            else:
-                mcts_states.append(sample[0])
-                mcts_results.append(sample[1])
-
-        # The V target
-        if len(new_states) > 0:
-            suc_state_value = self.fixed_model.predict(np.stack(new_states, axis=0))
-            V_target = np.array(rewards) + np.array(episode_ends) * gamma * np.squeeze(suc_state_value)
-        else:
-            V_target = np.array()
-
-        # add mcts states to batch
-        V_target = np.concatenate([V_target,np.array(mcts_results)], axis=0)
-        V_target = np.expand_dims(V_target,axis=-1)
-        states = states + mcts_states
-
+        suc_state_values = self.fixed_model.predict(sucstates)
+        # EPISODE END DETECTION
+        episode_ends = (rewards == 0).astype(int)
+        V_target = np.array(rewards) + np.array(episode_ends) * gamma * np.squeeze(suc_state_values)
         # Perform a step of minibatch Gradient Descent.
-        self.model.fit(x=np.stack(states, axis=0), y=np.stack(V_target,axis=0), epochs=1, verbose=0)
+        self.model.fit(x=states, y=V_target, epochs=1, verbose=1)
 
 
-        V_state = self.model.predict(np.stack(states, axis=0))  # the expected future returns
+        V_state = self.fixed_model.predict(states)  # the expected future returns
+        td_errors = V_target - np.squeeze(V_state)
 
-        td_errors = V_target - V_state
-        
-        # Make error proportional to the number of simulations compared to non-simulation.
-        # This reduces the chance of selecting sims.
-        if self.proportional_error:
-            n_sims = len(mcts_states)
-            n_steps = len(new_states)
-            sim_step_rt = n_sims/max(n_steps,1)
-            td_errors[-n_sims:] = td_errors[-n_sims:] / sim_step_rt
         
         return td_errors
 
