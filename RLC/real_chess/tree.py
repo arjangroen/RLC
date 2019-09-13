@@ -49,18 +49,14 @@ class Node(object):
 
     def simulate(self, model, env, max_depth, depth=0):
 
-        # Gradually reduce the temperature
         temperature = 1
-        if env.board.is_game_over() or depth > max_depth:
-            if env.board.is_game_over(claim_draw=True):
-                result = 0
-            else:
-                result = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
-            return result
+
         if env.board.turn:
             successor_values = []
             for move in env.board.generate_legal_moves():
                 episode_end, reward = env.step(move)
+
+                # Winning moves are greedy
                 if env.board.result() == "1-0":
                     env.board.pop()
                     result = 1
@@ -77,14 +73,14 @@ class Node(object):
                 move = moves[0]
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
-                #move = moves[np.argmax(successor_values)]
-            env.step(move)
-            # Include reward, epsiode end here
+            episode_end, reward = env.step(move)
         else:
             successor_values = []
             for move in env.board.generate_legal_moves():
                 env.board.push(move)
                 env.update_layer_board(move)
+
+                # Winning moves are get hardcoded result
                 if env.board.result() == "0-1":
                     env.board.pop()
                     result = -1
@@ -102,13 +98,15 @@ class Node(object):
                 move = moves[0]
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
-            env.step(move)
-            # Include reward, epsiode end here
+            episode_end, reward = env.step(move)
 
-        #Check if game is over
-        
-        # If not, add reward to result
-        result = self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
+        if episode_end:
+            result = reward
+        elif depth == max_depth:
+            result = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+        else:
+            result = self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
+
         env.board.pop()
 
 
