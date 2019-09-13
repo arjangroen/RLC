@@ -44,7 +44,7 @@ class Agent(object):
         self.proportional_error = False
         if network == 'simple':
             self.init_simple_network()
-        elif network == ' super_simple':
+        elif network == 'super_simple':
             self.init_super_simple_network()
         else:
             self.init_network()
