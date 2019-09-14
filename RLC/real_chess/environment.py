@@ -51,7 +51,7 @@ class Board(object):
             layer = mapper[piece.symbol()]
             self.layer_board[layer, row, col] = sign
             self.layer_board[6, :, :] = 1 / self.board.fullmove_number
-        if self.board.turn():
+        if self.board.turn:
             self.layer_board[6,0,:] = 1
         else:
             self.layer_board[6,0,:] = -1
