@@ -7,17 +7,18 @@ def softmax(x,temperature=1):
 
 class Node(object):
 
-    def __init__(self, board=None, parent=None, gamma=0.9):
+    def __init__(self, board=None, parent=None, gamma=0.9,stop_criterium=0.1):
         self.children = {}
         self.board = board
         self.parent = parent
-
+        self.stop_criterium = stop_criterium
         self.visits = 0
         self.balance = 0
         self.value_iters = 5
         self.values = []
         self.gamma = gamma
         self.epsilon = 0.05
+        self.starting_value = 0
 
     def update_child(self, move, result):
         child = self.children[move]
@@ -50,6 +51,9 @@ class Node(object):
     def simulate(self, model, env, max_depth, depth=0):
 
         temperature = 1
+
+        if depth == 0:
+            self.starting_value = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
 
         if env.board.turn:
             successor_values = []
@@ -100,10 +104,11 @@ class Node(object):
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
             episode_end, reward = env.step(move)
 
+            V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
         if episode_end:
             result = reward
-        elif depth == max_depth:
-            result = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+        elif depth == max_depth or np.abs(V-self.starting_value) > self.mcts_stop_tresh:
+            result = V
         else:
             result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
 
