@@ -107,7 +107,7 @@ class Node(object):
         V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
         if episode_end:
             result = reward
-        elif depth == max_depth or np.abs(V-self.starting_value) > self.mcts_stop_tresh:
+        elif depth == max_depth or np.abs(V * self.gamma**depth - self.starting_value) > self.stop_criterium:
             result = V
         else:
             result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
