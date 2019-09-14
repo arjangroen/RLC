@@ -209,7 +209,7 @@ class TD_search(object):
                         return node
 
             # Expand the game tree with a simulation
-            result, move = node.simulate(self.agent.model,self.env,max(1,remaining_depth-depth),depth=0)
+            result, move = node.simulate(self.agent.model,self.env,max(1,np.min(remaining_depth-depth,10)),depth=0)
             self.env.init_layer_board()
             error = result * self.gamma**depth - statevalue
 
