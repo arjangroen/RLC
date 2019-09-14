@@ -50,8 +50,11 @@ class Board(object):
                 sign = -1
             layer = mapper[piece.symbol()]
             self.layer_board[layer, row, col] = sign
-        if self.board.turn:
             self.layer_board[6, :, :] = 1 / self.board.fullmove_number
+        if self.board.turn():
+            self.layer_board[6,0,:] = 1
+        else:
+            self.layer_board[6,0,:] = -1
         if self.board.can_claim_draw():
             self.layer_board[7, :, :] = 1
 
@@ -68,8 +71,8 @@ class Board(object):
             self._prev_layer_board = self.layer_board.copy()
             self.layer_board[piece_index,to_row, to_col] = self.layer_board[piece_index,from_row, from_col]
             self.layer_board[piece_index,from_row, from_col] = 0
-            if self.board.turn:
-                self.layer_board[6, :, :] = 1 / self.board.fullmove_number
+            self.layer_board[6, :, :] = 1 / self.board.fullmove_number
+            self.layer_board[6, 0, :] *= -1
             if self.board.can_claim_draw():
                 self.layer_board[7, :, :] = 1
             
