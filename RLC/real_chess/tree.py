@@ -108,8 +108,8 @@ class Node(object):
         if episode_end:
             result = reward
         elif depth == max_depth or \
-                np.abs(V * self.gamma**depth - self.starting_value) > self.stop_criterium[1] or \
-                np.abs(V * self.gamma**depth - self.starting_value) < self.stop_criterium[0]:
+                V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
+                V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
             result = V
         else:
             result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
