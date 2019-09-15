@@ -98,11 +98,12 @@ class Agent(object):
 
         layer_state = Input(shape=(8, 8, 8), name='state')
         conv1 = Conv2D(8,(3,3),activation='sigmoid')(layer_state)
-        conv2 = Conv2D(10,(3,3),activation='sigmoid')(conv1)
-        conv3 = Conv2D(12,(3,3),activation='sigmoid')(conv2)
+        conv2 = Conv2D(6,(3,3),activation='sigmoid')(conv1)
+        conv3 = Conv2D(4,(3,3),activation='sigmoid')(conv2)
         flat4 = Flatten()(conv3)
-        dense5 = Dense(10,activation='sigmoid')(flat4)
-        value_head = Dense(1)(dense5)
+        dense5 = Dense(24,activation='sigmoid')(flat4)
+        dense6 = Dense(8,activation='sigmoid')(dense5)
+        value_head = Dense(1)(dense6)
 
         self.model = Model(inputs=layer_state,
                            outputs=value_head)
