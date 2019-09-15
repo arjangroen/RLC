@@ -7,7 +7,7 @@ def softmax(x,temperature=1):
 
 class Node(object):
 
-    def __init__(self, board=None, parent=None, gamma=0.9,stop_criterium=0.05):
+    def __init__(self, board=None, parent=None, gamma=0.9,stop_criterium=(0.01,0.1)):
         self.children = {}
         self.board = board
         self.parent = parent
@@ -107,7 +107,9 @@ class Node(object):
         V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
         if episode_end:
             result = reward
-        elif depth == max_depth or np.abs(V * self.gamma**depth - self.starting_value) > self.stop_criterium:
+        elif depth == max_depth or \
+                np.abs(V * self.gamma**depth - self.starting_value) > self.stop_criterium[1] or \
+                np.abs(V * self.gamma**depth - self.starting_value) < self.stop_criterium[0]:
             result = V
         else:
             result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
