@@ -160,11 +160,14 @@ class TD_search(object):
             td_errors = self.agent.TD_update(states, rewards, sucstates, gamma=self.gamma)
             self.mem_error[choice_indices.tolist()] = td_errors
 
-    def get_minibatch(self):
+    def get_minibatch(self,prioritized=False):
         if len(self.memory) == 1:
             return [0], [self.memory[0]]
         else:
-            sampling_priorities = np.abs(self.mem_error) + 1e-9
+            if prioritized:
+                sampling_priorities = np.abs(self.mem_error) + 1e-9
+            else:
+                sampling_priorities = np.ones(shape=self.mem_error.shape)
             sampling_probs = sampling_priorities / np.sum(sampling_priorities)
             sample_indices = [x for x in range(self.mem_state.shape[0])]
             choice_indices = np.random.choice(sample_indices,
