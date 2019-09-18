@@ -80,8 +80,8 @@ class TD_search(object):
                 max_move = None
                 max_value = np.NINF
                 for move, child in tree.children.items():
-                    # Thompson
-                    sampled_value = np.random.choice(child.values)
+                    # optimistic
+                    sampled_value = np.max(child.values)
                     if sampled_value > max_value:
                         max_value = sampled_value
                         max_move = move
