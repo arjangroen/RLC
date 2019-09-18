@@ -104,7 +104,7 @@ class Node(object):
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
             episode_end, reward = env.step(move)
 
-        V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+        V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))).item()
         if episode_end:
             result = reward
         elif depth == max_depth or \

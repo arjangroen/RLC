@@ -3,6 +3,9 @@ import time
 from RLC.real_chess.tree import Node
 import math
 
+def softmax(x,temperature=1):
+    return np.exp(x/temperature) / np.sum(np.exp(x/temperature))
+
 def sigmoid(x):
     return 1 / (1 + math.exp(-x))
 
@@ -32,7 +35,7 @@ class TD_search(object):
         self.mc_state_result = np.zeros(shape=(1))
         self.mc_state_error = np.zeros(shape=(1,8,8,8))
 
-    def learn(self,iters=40,c=5,timelimit_seconds=3600,maxiter=51):
+    def learn(self,iters=40,c=25,timelimit_seconds=3600,maxiter=51):
         starttime = time.time()
         
         for k in range(iters):
