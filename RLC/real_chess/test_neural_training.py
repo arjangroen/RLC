@@ -10,21 +10,28 @@ from chess.pgn import Game
 opponent = agent.GreedyAgent()
 env = environment.Board(opponent, FEN='4k3/8/8/8/8/8/8/R3K2R w Q - 0 1')
 player = agent.Agent(lr=0.01,network='')
-learner = learn.TD_search(env, player,gamma=0.8,search_time=2)
+learner = learn.TD_search(env, player,gamma=0.8,search_time=1.5)
 node = tree.Node(learner.env.board, gamma=learner.gamma)
 player.model.summary()
 
-learner.learn(iters=1000,timelimit_seconds=3600)
+learner.learn(iters=1000,timelimit_seconds=900)
 
-reward_smooth = pd.DataFrame(learner.reward_trace)
-reward_smooth.rolling(window=500,min_periods=0).mean().plot(figsize=(16,9),title='average performance over the last 3 episodes')
-plt.show()
+choice_indices, states, rewards, sucstates = learner.get_minibatch()
+valuations = []
+for i in range(10):
+    vals = learner.agent.model.predict(states)
+    valuations.append(vals)
+    learner.agent.TD_update(states,rewards, sucstates, gamma=0.8)
 
-reward_smooth = pd.DataFrame(learner.piece_balance_trace)
-reward_smooth.rolling(window=3,min_periods=0).mean().plot(figsize=(16,9),title='average piece balance over the last 3 episodes')
-plt.show()
+df = pd.DataFrame(valuations)
+
+df.to_csv('valuations_delta.csv')
+
 
 pgn = Game.from_board(learner.env.board)
 with open("rlc_pgn","w") as log:
     log.write(str(pgn))
+
+
+
 

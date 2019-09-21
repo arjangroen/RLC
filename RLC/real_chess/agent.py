@@ -46,6 +46,10 @@ class Agent(object):
             self.init_simple_network()
         elif network == 'super_simple':
             self.init_super_simple_network()
+        elif network == 'alt':
+            self.init_altnet()
+        elif network == 'big':
+            self.init_bignet()
         else:
             self.init_network()
 
@@ -124,6 +128,47 @@ class Agent(object):
                            loss=mean_squared_error
                            )
 
+    def init_altnet(self):
+        layer_state = Input(shape=(8, 8, 8), name='state')
+        conv1 = Conv2D(6, (1, 1), activation='sigmoid')(layer_state)
+        flat2 = Flatten()(conv1)
+        dense3 = Dense(128,activation='sigmoid')(flat2)
+
+        value_head = Dense(1)(dense3)
+
+        self.model = Model(inputs=layer_state,
+                           outputs=value_head)
+        self.model.compile(optimizer=self.optimizer,
+                           loss=mean_squared_error
+                           )
+
+    def init_bignet(self):
+        layer_state = Input(shape=(8, 8, 8), name='state')
+        conv_xs = Conv2D(4, (1,1), activation='sigmoid')(layer_state)
+        conv_s = Conv2D(8,(2,2),strides=(1,1),activation='sigmoid')(layer_state)
+        conv_m = Conv2D(12,(3,3),strides=(2,2),activation='sigmoid')(layer_state)
+        conv_l = Conv2D(16,(4,4),strides=(2,2),activation='sigmoid')(layer_state)
+        conv_xl = Conv2D(20,(8,8),activation='sigmoid')(layer_state)
+        conv_rank = Conv2D(3,(1,8),activation='sigmoid')(layer_state)
+        conv_file = Conv2D(3,(8,1),activation='sigmoid')(layer_state)
+
+        f_xs = Flatten()(conv_xs)
+        f_s = Flatten()(conv_s)
+        f_m = Flatten()(conv_m)
+        f_l = Flatten()(conv_l)
+        f_xl = Flatten()(conv_xl)
+        f_r = Flatten()(conv_rank)
+        f_f = Flatten()(conv_file)
+
+        dense1 = Concatenate(name='dense_bass')([f_xs, f_s, f_m, f_l, f_xl, f_r,f_f])
+
+        value_head = Dense(1)(dense1)
+
+        self.model = Model(inputs=layer_state,
+                           outputs=value_head)
+        self.model.compile(optimizer=self.optimizer,
+                           loss=mean_squared_error
+                           )
 
     def predict_distribution(self,states,batch_size=256):
         """
