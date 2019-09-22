@@ -120,17 +120,17 @@ class TD_search(object):
             tree = tree.children[max_move]
             tree.parent = None
 
-            print(tree.values)
+            #print(tree.values)
 
             sucstate = np.expand_dims(self.env.layer_board, axis=0)
             new_state_value = self.agent.predict(sucstate)
 
-            print(new_state_value.item())
+            #print(new_state_value.item())
 
             if not tree.values:
                 tree.values.append(new_state_value.item())
 
-            print(tree.values)
+            #print(tree.values)
 
             error = reward + self.gamma * new_state_value - state_value
             error = np.float(np.squeeze(error))
