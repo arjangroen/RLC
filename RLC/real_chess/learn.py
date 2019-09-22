@@ -123,7 +123,7 @@ class TD_search(object):
             new_state_value = self.agent.predict(sucstate)
 
             if not tree.values:
-                tree.values = []
+                tree.values = [new_state_value.item()]
 
             error = reward + self.gamma * new_state_value - state_value
             error = np.float(np.squeeze(error))
