@@ -31,14 +31,14 @@ class Node(object):
     def backprop(self, result):
         self.parent.values.append(self.gamma*result)
 
-    def select(self,color=1):
+    def select(self, color=1):
         """Thompson sampling"""
         assert color == 1 or color == -1, "color has to be white (1) or black (-1)"
         if self.children:
-            max_sample = np.max(color * self.values)
+            max_sample = np.max(color * np.array(self.values))
             max_move = None
             for move, child in self.children.items():
-                child_sample = np.max(color * child.values)
+                child_sample = np.max(color * np.array(child.values))
                 if child_sample > max_sample:
                     max_sample = child_sample
                     max_move = move

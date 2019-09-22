@@ -65,6 +65,7 @@ class TD_search(object):
         episode_end = False
         turncount = 0
         tree = Node(self.env.board, gamma=self.gamma)
+        tree.values = [0]
 
         # Play a game of chess
         while not episode_end:
@@ -119,11 +120,17 @@ class TD_search(object):
             tree = tree.children[max_move]
             tree.parent = None
 
+            print(tree.values)
+
             sucstate = np.expand_dims(self.env.layer_board, axis=0)
             new_state_value = self.agent.predict(sucstate)
 
+            print(new_state_value.item())
+
             if not tree.values:
-                tree.values = [new_state_value.item()]
+                tree.values.append(new_state_value.item())
+
+            print(tree.values)
 
             error = reward + self.gamma * new_state_value - state_value
             error = np.float(np.squeeze(error))
