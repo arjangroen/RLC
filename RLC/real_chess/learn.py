@@ -230,8 +230,8 @@ class TD_search(object):
             self.env.init_layer_board()
             error = result * self.gamma ** depth - statevalue
 
-            # Add the result to memory
-            self.memory.append([self.env.layer_board.copy(), result, None, np.float(np.squeeze(error))])
+            ## Add the result to memory
+            #self.memory.append([self.env.layer_board.copy(), result, None, np.float(np.squeeze(error))])
 
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
@@ -239,12 +239,13 @@ class TD_search(object):
             node.update_child(move, result)
 
             node = node.children[move]
+            depth += 1
 
             # Return to root node
             while node.parent:
-                node.backprop(result)
                 node = node.parent
-                node.update()
+                result = self.gamma * result
+                node.update(result)
                 if node.parent:
                     self.env.board.pop()
 
