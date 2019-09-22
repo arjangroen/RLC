@@ -8,8 +8,8 @@ import chess
 from chess.pgn import Game
 
 opponent = agent.GreedyAgent()
-env = environment.Board(opponent, FEN='4k3/8/8/8/8/8/8/R3K2R w Q - 0 1')
-player = agent.Agent(lr=0.01,network='')
+env = environment.Board(opponent, FEN='4k2r/8/8/8/8/8/8/R3K2R w Q - 0 1')
+player = agent.Agent(lr=0.001,network='big')
 learner = learn.TD_search(env, player,gamma=0.8,search_time=2)
 node = tree.Node(learner.env.board, gamma=learner.gamma)
 player.model.summary()
@@ -21,7 +21,7 @@ reward_smooth.rolling(window=500,min_periods=0).mean().plot(figsize=(16,9),title
 plt.show()
 
 reward_smooth = pd.DataFrame(learner.piece_balance_trace)
-reward_smooth.rolling(window=3,min_periods=0).mean().plot(figsize=(16,9),title='average piece balance over the last 3 episodes')
+reward_smooth.rolling(window=100,min_periods=0).mean().plot(figsize=(16,9),title='average piece balance over the last 3 episodes')
 plt.show()
 
 pgn = Game.from_board(learner.env.board)

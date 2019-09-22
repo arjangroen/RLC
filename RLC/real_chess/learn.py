@@ -3,11 +3,14 @@ import time
 from RLC.real_chess.tree import Node
 import math
 
-def softmax(x,temperature=1):
-    return np.exp(x/temperature) / np.sum(np.exp(x/temperature))
+
+def softmax(x, temperature=1):
+    return np.exp(x / temperature) / np.sum(np.exp(x / temperature))
+
 
 def sigmoid(x):
     return 1 / (1 + math.exp(-x))
+
 
 class TD_search(object):
 
@@ -26,32 +29,31 @@ class TD_search(object):
         self.search_time = search_time
         self.search_balance = search_balance
 
-        self.mem_state = np.zeros(shape=(1,8,8,8))
-        self.mem_sucstate = np.zeros(shape=(1,8,8,8))
+        self.mem_state = np.zeros(shape=(1, 8, 8, 8))
+        self.mem_sucstate = np.zeros(shape=(1, 8, 8, 8))
         self.mem_reward = np.zeros(shape=(1))
         self.mem_error = np.zeros(shape=(1))
 
-        self.mc_state = np.zeros(shape=(1,8,8,8))
+        self.mc_state = np.zeros(shape=(1, 8, 8, 8))
         self.mc_state_result = np.zeros(shape=(1))
-        self.mc_state_error = np.zeros(shape=(1,8,8,8))
+        self.mc_state_error = np.zeros(shape=(1, 8, 8, 8))
 
-    def learn(self,iters=40,c=25,timelimit_seconds=3600,maxiter=51):
+    def learn(self, iters=40, c=25, timelimit_seconds=3600, maxiter=51):
         starttime = time.time()
-        
+
         for k in range(iters):
             self.env.reset()
             if k % c == 0:
                 self.agent.fix_model()
-                print("iter",k)
+                print("iter", k)
             if k > 3:
-                self.ready=True
-            self.play_game(k,maxiter=maxiter)
+                self.ready = True
+            self.play_game(k, maxiter=maxiter)
             if starttime + timelimit_seconds < time.time():
                 break
         return self.env.board
 
-
-    def play_game(self,k,maxiter=80):
+    def play_game(self, k, maxiter=80):
         """
         Play a game of capture chess
         Args:
@@ -62,23 +64,22 @@ class TD_search(object):
         """
         episode_end = False
         turncount = 0
-        tree = Node(self.env.board,gamma=self.gamma)
+        tree = Node(self.env.board, gamma=self.gamma)
 
         # Play a game of chess
         while not episode_end:
-            state = np.expand_dims(self.env.layer_board.copy(),axis=0)
+            state = np.expand_dims(self.env.layer_board.copy(), axis=0)
             state_value = self.agent.predict(state)
-
 
             # White's turn
             if self.env.board.turn:
 
                 # Search longer at end than begin
-                x = (turncount/maxiter - self.search_balance)*10
+                x = (turncount / maxiter - self.search_balance) * 10
                 timelimit = self.search_time * sigmoid(x)
 
                 # Do a Monte Carlo Tree Search
-                tree = self.mcts(tree,state_value,timelimit, remaining_depth=maxiter-turncount)
+                tree = self.mcts(tree, state_value, timelimit, remaining_depth=maxiter - turncount)
                 # Step the best move
                 max_move = None
                 max_value = np.NINF
@@ -100,7 +101,8 @@ class TD_search(object):
                         self.env.board.pop()
                         self.env.pop_layer_board()
                         break
-                    successor_state_value_opponent = self.env.opposing_agent.predict(np.expand_dims(self.env.layer_board,axis=0))
+                    successor_state_value_opponent = self.env.opposing_agent.predict(
+                        np.expand_dims(self.env.layer_board, axis=0))
                     if successor_state_value_opponent > max_value:
                         max_move = move
                         max_value = successor_state_value_opponent
@@ -117,9 +119,8 @@ class TD_search(object):
             tree = tree.children[max_move]
             tree.parent = None
 
-            sucstate = np.expand_dims(self.env.layer_board,axis=0)
+            sucstate = np.expand_dims(self.env.layer_board, axis=0)
             new_state_value = self.agent.predict(sucstate)
-
 
             error = reward + self.gamma * new_state_value - state_value
             error = np.float(np.squeeze(error))
@@ -142,17 +143,16 @@ class TD_search(object):
                 episode_end = True
 
                 # Bootstrap and end episode
-                reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board,axis=0)))
+                reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board, axis=0)))
 
             self.update_agent()
 
         piece_balance = self.env.get_material_value()
         self.piece_balance_trace.append(piece_balance)
-        print("game ended with result",reward, "and material balance",piece_balance, "in",turncount,"halfmoves")
+        print("game ended with result", reward, "and material balance", piece_balance, "in", turncount, "halfmoves")
         if np.abs(reward) == 1:
             print(self.env.board)
             print(self.env.layer_board[1])
-
 
         return self.env.board
 
@@ -163,7 +163,7 @@ class TD_search(object):
             td_errors = self.agent.TD_update(states, rewards, sucstates, gamma=self.gamma)
             self.mem_error[choice_indices.tolist()] = td_errors
 
-    def get_minibatch(self,prioritized=False):
+    def get_minibatch(self, prioritized=False):
         if len(self.memory) == 1:
             return [0], [self.memory[0]]
         else:
@@ -185,8 +185,7 @@ class TD_search(object):
 
         return choice_indices, states, rewards, sucstates
 
-
-    def mcts(self,node,statevalue,timelimit,remaining_depth=3):
+    def mcts(self, node, statevalue, timelimit, remaining_depth=3):
         """
         Return best node
         :param node:
@@ -196,16 +195,19 @@ class TD_search(object):
         sim_count = 0
         while starttime + timelimit > time.time() or sim_count < 3:
             depth = 0
+            color = 1
             while node.children:
                 node, move = node.select()
                 if not move:
                     break
                 else:
                     depth += 1
+                    color = color * -1  # switch color
                     # A best node is selected
                     self.env.step(move)
                     # Check best node is terminal
-                    if self.env.board.result() == "1-0" or self.env.board.result(claim_draw=False) == "1/2-1/2":
+                    if self.env.board.result() == "1-0" or self.env.board.result(claim_draw=False) == "1/2-1/2" or \
+                            self.env.board.result() == "0-1":
 
                         # if so, restore and return root node
                         while node.parent:
@@ -219,19 +221,19 @@ class TD_search(object):
                                          self.env,
                                          np.max([
                                              1,
-                                             np.min([remaining_depth-depth,10])
+                                             np.min([remaining_depth - depth, 10])
                                          ]),
                                          depth=0)
             self.env.init_layer_board()
-            error = result * self.gamma**depth - statevalue
+            error = result * self.gamma ** depth - statevalue
 
             # Add the result to memory
             self.memory.append([self.env.layer_board.copy(), result, None, np.float(np.squeeze(error))])
 
             if move not in node.children.keys():
-                node.children[move] = Node(self.env.board,parent=node)
+                node.children[move] = Node(self.env.board, parent=node)
 
-            node.update_child(move,result)
+            node.update_child(move, result)
 
             node = node.children[move]
 
