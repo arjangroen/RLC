@@ -197,7 +197,7 @@ class TD_search(object):
             depth = 0
             color = 1
             while node.children:
-                node, move = node.select()
+                node, move = node.select(color=color)
                 if not move:
                     break
                 else:
