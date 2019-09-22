@@ -122,6 +122,9 @@ class TD_search(object):
             sucstate = np.expand_dims(self.env.layer_board, axis=0)
             new_state_value = self.agent.predict(sucstate)
 
+            if not tree.values:
+                tree.values = []
+
             error = reward + self.gamma * new_state_value - state_value
             error = np.float(np.squeeze(error))
 
