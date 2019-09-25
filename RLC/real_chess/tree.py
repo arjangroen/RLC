@@ -7,7 +7,7 @@ def softmax(x,temperature=1):
 
 class Node(object):
 
-    def __init__(self, board=None, parent=None, gamma=0.9,stop_criterium=(0.01,0.1)):
+    def __init__(self, board=None, parent=None, gamma=0.9,stop_criterium=(-0.1,0.3)):
         self.children = {}
         self.board = board
         self.parent = parent
