@@ -219,6 +219,18 @@ class Agent(object):
         
         return td_errors
 
+    def MC_update(self,states, returns):
+        """
+        Update network using a monte carlo playout
+        Args:
+            states: starting states
+            returns: discounted future rewards
+
+        Returns: None
+
+        """
+        pass
+
 
 
 

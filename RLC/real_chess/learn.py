@@ -173,7 +173,7 @@ class TD_search(object):
             td_errors = self.agent.TD_update(states, rewards, sucstates, gamma=self.gamma)
             self.mem_error[choice_indices.tolist()] = td_errors
 
-    def get_minibatch(self, prioritized=False):
+    def get_minibatch(self, prioritized=True):
         if len(self.memory) == 1:
             return [0], [self.memory[0]]
         else:
