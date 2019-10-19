@@ -36,7 +36,8 @@ class TD_search(object):
         self.mc_state = np.zeros(shape=(1, 8, 8, 8))
         self.mc_state_result = np.zeros(shape=(1))
         self.mc_state_error = np.zeros(shape=(1))
-        self.mc_state_probs = np.zeros(shape=(1))
+        self.mc_sumval = np.ones(shape=(1))
+        self.mc_indices = np.zeros(shape=(1))
 
     def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=51):
         starttime = time.time()
@@ -70,7 +71,7 @@ class TD_search(object):
         # Play a game of chess
         while not episode_end:
             state = np.expand_dims(self.env.layer_board.copy(), axis=0)
-            state_value = self.agent.predict([state,np.zeros((1,1))])
+            _, state_value = self.agent.model.predict([state,np.zeros((1,1)),np.zeros((1,1))])
 
             # White's turn
             if self.env.board.turn:
@@ -123,7 +124,7 @@ class TD_search(object):
             #print(tree.values)
 
             sucstate = np.expand_dims(self.env.layer_board, axis=0)
-            new_state_value = self.agent.predict([sucstate,np.zeros((1,1))])
+            _, new_state_value = self.agent.model.predict([sucstate,np.zeros((1,1)), np.ones((1,1))])
 
             #print(new_state_value.item())
 
@@ -153,8 +154,7 @@ class TD_search(object):
                 episode_end = True
 
                 # Bootstrap and end episode
-                reward = np.squeeze(self.agent.predict([np.expand_dims(self.env.layer_board, axis=0),np.zeros((1,1))]))
-
+                reward = 0
             #self.update_agent(mc=False)
             #self.update_agent(mc=True)
             self.reinforce_agent()
@@ -174,8 +174,8 @@ class TD_search(object):
         Returns:
 
         """
-        self.agent.model.fit(x=[self.mc_state[-batch_size:], self.mc_state_probs[-batch_size:]],
-                             y=np.ones((batch_size,1)))
+        self.agent.model.fit(x=[self.mc_state[-batch_size:],self.mc_state_result[-batch_size:], self.mc_sumval[-batch_size:]],
+                             y=np.ones((np.min([batch_size,self.mc_state.shape[0]]),1)))
 
 
     def update_agent(self,mc=False):
@@ -260,8 +260,9 @@ class TD_search(object):
                         self.env.init_layer_board()
                         return node
 
+
             # Expand the game tree with a simulation
-            result, move, value_grads, target_index = node.simulate(self.agent.model,
+            result, move, altvalues, target_index = node.simulate(self.agent.model,
                                          self.env,
                                          np.max([
                                              1,
@@ -276,13 +277,18 @@ class TD_search(object):
             ## Add the result to memory
             self.mc_state = np.append(self.mc_state, np.expand_dims(self.env.layer_board.copy(), axis=0), axis=0)
             self.mc_state_result = np.append(self.mc_state_result, result)
-            self.mc_state_probs = np.append(self.mc_state_probs, prob)
+            self.mc_sumval = np.append(self.mc_sumval, np.sum(np.exp(altvalues)))
+            self.mc_indices = np.append(self.mc_indices, target_index)
             self.mc_state_error = np.append(self.mc_state_error, error)
 
             if self.mc_state.shape[0] > self.memsize:
                 self.mc_state = self.mc_state[1:]
                 self.mc_state_result = self.mc_state_result[1:]
                 self.mc_state_error = self.mc_state_error[1:]
+
+
+            self.env.pop_layer_board()
+            self.env.board.pop()
 
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)

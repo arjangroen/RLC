@@ -54,7 +54,11 @@ class Node(object):
         temperature = 1
 
         if depth == 0:
-            self.starting_value = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+            _, self.starting_value = np.squeeze(model.predict([
+                    np.expand_dims(env.layer_board,axis=0),
+                    np.zeros((1,1)),
+                    np.ones((1,1))
+                ]))
 
         if env.board.turn:
             successor_values = []
@@ -69,18 +73,21 @@ class Node(object):
                         return result
                     else:
                         return result, move
-                successor_values.append(reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
+                successor_values.append(reward + self.gamma * np.squeeze(model.predict([
+                    np.expand_dims(env.layer_board,axis=0),
+                    np.zeros((1,1)),
+                    np.ones((1,1))
+                ])))
+
                 env.board.pop()
                 env.pop_layer_board()
+            successor_values = [v[1] for v in successor_values]
             move_probas = softmax(np.array(successor_values),temperature=temperature)
             moves = [x for x in env.board.generate_legal_moves()]
             if len(moves) == 1:
                 move = moves[0]
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
-                if depth == 0:
-                    value_grads = successor_values
-                    target_index = moves.index(move)
             episode_end, reward = env.step(move)
         else:
             successor_values = []
@@ -108,7 +115,7 @@ class Node(object):
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
             episode_end, reward = env.step(move)
 
-        V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))).item()
+        #V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))).item()
         if episode_end:
             result = reward
         elif depth == max_depth: #  or \
@@ -122,6 +129,8 @@ class Node(object):
 
 
         if depth == 0:
+            value_grads = successor_values
+            target_index = moves.index(move)
             return result, move, value_grads, target_index
         else:
             noise = np.random.randn()/1e3

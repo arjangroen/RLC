@@ -1,4 +1,4 @@
-from keras.layers import Input, Dense, Flatten, Concatenate, Conv2D, Dropout
+from keras.layers import Input, Dense, Flatten, Concatenate, Conv2D, Dropout, Lambda
 from keras.losses import mean_squared_error
 from keras.models import Model, clone_model
 from keras.optimizers import SGD
@@ -7,7 +7,7 @@ import keras.backend as K
 
 def policy_gradient_loss(Returns):
     def modified_crossentropy(action,action_probs):
-        cost = (K.categorical_crossentropy(action,action_probs,from_logits=True,axis=1) * Returns)
+        cost = (K.binary_crossentropy(action,action_probs,from_logits=False) * Returns)
         return K.mean(cost)
     return modified_crossentropy
 
@@ -152,6 +152,7 @@ class Agent(object):
     def init_bignet(self):
         layer_state = Input(shape=(8, 8, 8), name='state')
         R = Input(shape=(1,), name='Rewards')
+        sumval = Input(shape=(1,),name='sum_values')
         conv_xs = Conv2D(4, (1,1), activation='sigmoid')(layer_state)
         conv_s = Conv2D(8,(2,2),strides=(1,1),activation='sigmoid')(layer_state)
         conv_m = Conv2D(12,(3,3),strides=(2,2),activation='sigmoid')(layer_state)
@@ -172,10 +173,13 @@ class Agent(object):
 
         value_head = Dense(1)(dense1)
 
-        self.model = Model(inputs=[layer_state, R],
-                           outputs=value_head)
+        value_prob = Lambda(lambda x: K.exp(x[0])/x[1])([value_head,sumval])
+
+        self.model = Model(inputs=[layer_state, R, sumval],
+                           outputs=[value_prob,value_head])
         self.model.compile(optimizer=self.optimizer,
-                           loss=policy_gradient_loss(R)
+                           loss=[policy_gradient_loss(R), None],
+                           loss_weights=[1,0]
                            )
 
     def predict_distribution(self,states,batch_size=256):
@@ -199,7 +203,7 @@ class Agent(object):
         return mean_pred, std_pred, upper_bound
 
     def predict(self,board_layer):
-        return self.model.predict(board_layer)
+        return self.model.predict([board_layer, np.zeros((1,1)), np.zeros((1,1))])
 
     def TD_update(self, states, rewards, sucstates, gamma=0.9):
         """
