@@ -72,7 +72,7 @@ class Node(object):
                     if depth > 0:
                         return result
                     else:
-                        return result, move
+                        return result, move, self.starting_value, 0
                 successor_values.append(reward + self.gamma * np.squeeze(model.predict([
                     np.expand_dims(env.layer_board,axis=0),
                     np.zeros((1,1)),
