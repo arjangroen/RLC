@@ -78,6 +78,9 @@ class Node(object):
                 move = moves[0]
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
+                if depth == 0:
+                    value_grads = successor_values
+                    target_index = moves.index(move)
             episode_end, reward = env.step(move)
         else:
             successor_values = []
@@ -119,8 +122,7 @@ class Node(object):
 
 
         if depth == 0:
-            # restore environment
-            return result, move
+            return result, move, value_grads, target_index
         else:
             noise = np.random.randn()/1e3
             return result + noise
