@@ -108,9 +108,9 @@ class Node(object):
         V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))).item()
         if episode_end:
             result = reward
-        elif depth == max_depth or \
-                V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
-                V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
+        elif depth == max_depth: #  or \
+            # V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
+            # V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
             result = V
         else:
             result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)

@@ -213,7 +213,7 @@ class Agent(object):
         self.model.fit(x=states, y=V_target, epochs=1, verbose=0)
 
 
-        V_state = self.fixed_model.predict(states)  # the expected future returns
+        V_state = self.model.predict(states)  # the expected future returns
         td_errors = V_target - np.squeeze(V_state)
 
         
@@ -226,10 +226,15 @@ class Agent(object):
             states: starting states
             returns: discounted future rewards
 
-        Returns: None
-
+        Returns:
+            td_errors: np.array
+                array of temporal difference errors
         """
-        pass
+        self.model.fit(x=states,y=returns, epochs=0, verbose=0)
+        V_state = np.squeeze(self.model.predict(states))
+        td_errors= returns - V_state
+
+        return td_errors
 
 
 

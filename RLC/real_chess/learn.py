@@ -20,7 +20,6 @@ class TD_search(object):
         self.tree = Node(self.env)
         self.lamb = lamb
         self.gamma = gamma
-        self.memory = []
         self.memsize = 10000
         self.batch_size = 1024
         self.reward_trace = []
@@ -36,9 +35,9 @@ class TD_search(object):
 
         self.mc_state = np.zeros(shape=(1, 8, 8, 8))
         self.mc_state_result = np.zeros(shape=(1))
-        self.mc_state_error = np.zeros(shape=(1, 8, 8, 8))
+        self.mc_state_error = np.zeros(shape=(1))
 
-    def learn(self, iters=40, c=25, timelimit_seconds=3600, maxiter=51):
+    def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=51):
         starttime = time.time()
 
         for k in range(iters):
@@ -155,7 +154,8 @@ class TD_search(object):
                 # Bootstrap and end episode
                 reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board, axis=0)))
 
-            self.update_agent()
+            self.update_agent(mc=False)
+            self.update_agent(mc=True)
 
         piece_balance = self.env.get_material_value()
         self.piece_balance_trace.append(piece_balance)
@@ -166,34 +166,56 @@ class TD_search(object):
 
         return self.env.board
 
-    def update_agent(self):
+    def update_agent(self,mc=False):
         if self.ready:
-            choice_indices, states, rewards, sucstates = self.get_minibatch()
 
-            td_errors = self.agent.TD_update(states, rewards, sucstates, gamma=self.gamma)
-            self.mem_error[choice_indices.tolist()] = td_errors
+            if mc:
+                choice_indices, states, results = self.get_mc_minibatch(prioritized=True)
+                td_errors = self.agent.MC_update(states, results)
+                self.mc_state_error[choice_indices.tolist()] = td_errors
+
+            else:
+                choice_indices, states, rewards, sucstates = self.get_minibatch()
+
+                td_errors = self.agent.TD_update(states, rewards, sucstates, gamma=self.gamma)
+                self.mem_error[choice_indices.tolist()] = td_errors
 
     def get_minibatch(self, prioritized=True):
-        if len(self.memory) == 1:
-            return [0], [self.memory[0]]
+        if prioritized:
+            sampling_priorities = np.abs(self.mem_error) + 1e-9
         else:
-            if prioritized:
-                sampling_priorities = np.abs(self.mem_error) + 1e-9
-            else:
-                sampling_priorities = np.ones(shape=self.mem_error.shape)
-            sampling_probs = sampling_priorities / np.sum(sampling_priorities)
-            sample_indices = [x for x in range(self.mem_state.shape[0])]
-            choice_indices = np.random.choice(sample_indices,
-                                              min(self.mem_state.shape[0],
-                                                  self.batch_size),
-                                              p=np.squeeze(sampling_probs),
-                                              replace=False
-                                              )
-            states = self.mem_state[choice_indices]
-            rewards = self.mem_reward[choice_indices]
-            sucstates = self.mem_sucstate[choice_indices]
+            sampling_priorities = np.ones(shape=self.mem_error.shape)
+        sampling_probs = sampling_priorities / np.sum(sampling_priorities)
+        sample_indices = [x for x in range(self.mem_state.shape[0])]
+        choice_indices = np.random.choice(sample_indices,
+                                          min(self.mem_state.shape[0],
+                                              self.batch_size),
+                                          p=np.squeeze(sampling_probs),
+                                          replace=False
+                                          )
+        states = self.mem_state[choice_indices]
+        rewards = self.mem_reward[choice_indices]
+        sucstates = self.mem_sucstate[choice_indices]
 
         return choice_indices, states, rewards, sucstates
+
+    def get_mc_minibatch(self, prioritized=True):
+        if prioritized:
+            sampling_priorities = np.abs(self.mc_state_error) + 1e-9
+        else:
+            sampling_priorities = np.ones(shape=self.mc_state_error.shape)
+        sampling_probs = sampling_priorities / np.sum(sampling_priorities)
+        sample_indices = [x for x in range(self.mc_state.shape[0])]
+        choice_indices = np.random.choice(sample_indices,
+                                          min(self.mc_state.shape[0],
+                                              self.batch_size),
+                                          p=np.squeeze(sampling_probs),
+                                          replace=False
+                                          )
+        states = self.mc_state[choice_indices]
+        results = self.mc_state_result[choice_indices]
+
+        return choice_indices, states, results
 
     def mcts(self, node, statevalue, timelimit, remaining_depth=3):
         """
@@ -231,14 +253,21 @@ class TD_search(object):
                                          self.env,
                                          np.max([
                                              1,
-                                             np.min([remaining_depth - depth, 10])
+                                             remaining_depth - depth
                                          ]),
                                          depth=0)
             self.env.init_layer_board()
             error = result * self.gamma ** depth - statevalue
 
             ## Add the result to memory
-            #self.memory.append([self.env.layer_board.copy(), result, None, np.float(np.squeeze(error))])
+            self.mc_state = np.append(self.mc_state, np.expand_dims(self.env.layer_board.copy(), axis=0), axis=0)
+            self.mc_state_result = np.append(self.mc_state_result, result)
+            self.mc_state_error = np.append(self.mc_state_error, error)
+
+            if self.mc_state.shape[0] > self.memsize:
+                self.mc_state = self.mc_state[1:]
+                self.mc_state_result = self.mc_state_result[1:]
+                self.mc_state_error = self.mc_state_error[1:]
 
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
