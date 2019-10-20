@@ -157,7 +157,7 @@ class TD_search(object):
                 reward = 0
             #self.update_agent(mc=False)
             #self.update_agent(mc=True)
-            self.reinforce_agent()
+        self.reinforce_agent()
 
         piece_balance = self.env.get_material_value()
         self.piece_balance_trace.append(piece_balance)
@@ -168,7 +168,7 @@ class TD_search(object):
 
         return self.env.board
 
-    def reinforce_agent(self,batch_size=128):
+    def reinforce_agent(self,batch_size=512):
         """
 
         Returns:
