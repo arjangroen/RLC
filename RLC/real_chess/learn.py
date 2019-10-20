@@ -276,7 +276,7 @@ class TD_search(object):
 
             ## Add the result to memory
             self.mc_state = np.append(self.mc_state, np.expand_dims(self.env.layer_board.copy(), axis=0), axis=0)
-            self.mc_state_result = np.append(self.mc_state_result, result - 0.5)
+            self.mc_state_result = np.append(self.mc_state_result, result - np.mean(self.mc_state_result))
             self.mc_sumval = np.append(self.mc_sumval, np.sum(np.exp(altvalues)) - np.exp(altvalues[target_index]))
             self.mc_indices = np.append(self.mc_indices, target_index)
             self.mc_state_error = np.append(self.mc_state_error, error)
