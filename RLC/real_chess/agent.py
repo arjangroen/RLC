@@ -152,7 +152,7 @@ class Agent(object):
     def init_bignet(self):
         layer_state = Input(shape=(8, 8, 8), name='state')
         R = Input(shape=(1,), name='Rewards')
-        sumval = Input(shape=(1,),name='sum_values')
+        sumval = Input(shape=(1,),name='sum_of_alt_values')
         conv_xs = Conv2D(4, (1,1), activation='sigmoid')(layer_state)
         conv_s = Conv2D(8,(2,2),strides=(1,1),activation='sigmoid')(layer_state)
         conv_m = Conv2D(12,(3,3),strides=(2,2),activation='sigmoid')(layer_state)
@@ -173,7 +173,7 @@ class Agent(object):
 
         value_head = Dense(1)(dense1)
 
-        value_prob = Lambda(lambda x: K.exp(x[0])/x[1])([value_head,sumval])
+        value_prob = Lambda(lambda x: K.exp(x[0])/(x[1] + K.exp(x[0])))([value_head,sumval])
 
         self.model = Model(inputs=[layer_state, R, sumval],
                            outputs=[value_prob,value_head])
