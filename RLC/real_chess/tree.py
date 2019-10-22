@@ -101,7 +101,7 @@ class Node(object):
                     if depth > 0:
                         return reward
                     else:
-                        return reward, move
+                        return reward, move, [self.starting_value], 0
                 successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
