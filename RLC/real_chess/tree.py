@@ -125,7 +125,7 @@ class Node(object):
             result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
 
         env.board.pop()
-        env.pop_layer_board()
+
 
 
         if depth == 0:
