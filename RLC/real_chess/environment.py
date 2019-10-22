@@ -15,6 +15,7 @@ mapper["B"] = 3
 mapper["Q"] = 4
 mapper["K"] = 5
 
+
 class Board(object):
 
     def __init__(self,opposing_agent,FEN=None):
@@ -82,11 +83,12 @@ class Board(object):
         self._prev_layer_board = None
 
 
-    def step(self,action):
+    def step(self,action, auxiliary_rewards = True):
         """
         Run a step
         Args:
             action: python chess move
+            auxiliary_rewards: Whether to use auxiliary rewards.
         Returns:
             epsiode end: Boolean
                 Whether the episode has ended
@@ -100,14 +102,21 @@ class Board(object):
             reward = 0
             episode_end = False
         elif self.board.result() == "1-0":
-            reward = 1
+            reward = 100
             episode_end = True
         elif self.board.result() == "0-1":
-            reward = -1
+            reward = -100
             episode_end = True
         elif self.board.is_game_over(claim_draw=True):
             reward = 0
             episode_end = True
+
+        if auxiliary_rewards:
+            piece_balance_after = self.get_material_value()
+            reward = reward + (piece_balance_after - piece_balance_before)
+
+
+
         return episode_end, reward
 
     def get_random_action(self):

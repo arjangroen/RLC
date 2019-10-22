@@ -66,13 +66,13 @@ class Node(object):
                 episode_end, reward = env.step(move)
 
                 # Winning moves are greedy
-                if env.board.result() == "1-0":
+                if episode_end:
                     env.board.pop()
-                    result = 1
+                    env.board.pop_layer_board()
                     if depth > 0:
-                        return result
+                        return reward
                     else:
-                        return result, move, [self.starting_value], 0
+                        return reward, move, [self.starting_value], 0
                 successor_values.append(reward + self.gamma * np.squeeze(model.predict([
                     np.expand_dims(env.layer_board,axis=0),
                     np.zeros((1,1)),
@@ -92,17 +92,16 @@ class Node(object):
         else:
             successor_values = []
             for move in env.board.generate_legal_moves():
-                env.board.push(move)
-                env.update_layer_board(move)
+                episode_end, reward = env.step(move)
 
                 # Winning moves are get hardcoded result
                 if env.board.result() == "0-1":
                     env.board.pop()
-                    result = -1
+                    env.board.pop_layer_board()
                     if depth > 0:
-                        return result
+                        return reward
                     else:
-                        return result, move
+                        return reward, move
                 successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
@@ -121,7 +120,7 @@ class Node(object):
         elif depth == max_depth: #  or \
             # V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
             # V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
-            result = 0
+            return reward
         else:
             result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
 
