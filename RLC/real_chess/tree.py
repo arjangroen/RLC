@@ -68,7 +68,7 @@ class Node(object):
                 # Winning moves are greedy
                 if episode_end:
                     env.board.pop()
-                    env.board.pop_layer_board()
+                    env.pop_layer_board()
                     if depth > 0:
                         return reward
                     else:
@@ -97,7 +97,7 @@ class Node(object):
                 # Winning moves are get hardcoded result
                 if env.board.result() == "0-1":
                     env.board.pop()
-                    env.board.pop_layer_board()
+                    env.pop_layer_board()
                     if depth > 0:
                         return reward
                     else:
@@ -125,6 +125,7 @@ class Node(object):
             result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
 
         env.board.pop()
+        env.pop_layer_board()
 
 
         if depth == 0:
