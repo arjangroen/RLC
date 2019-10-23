@@ -39,7 +39,7 @@ class TD_search(object):
         self.mc_sumval = np.ones(shape=(1))
         self.mc_indices = np.zeros(shape=(1))
 
-    def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=51):
+    def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=75):
         starttime = time.time()
 
         for k in range(iters):
