@@ -285,6 +285,9 @@ class TD_search(object):
                 self.mc_state = self.mc_state[1:]
                 self.mc_state_result = self.mc_state_result[1:]
                 self.mc_state_error = self.mc_state_error[1:]
+                self.mc_indices = self.mc_indices[1:]
+                self.mc_state_error = self.mc_state_error[1:]
+
 
 
             self.env.pop_layer_board()

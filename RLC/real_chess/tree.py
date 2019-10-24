@@ -120,6 +120,7 @@ class Node(object):
         elif depth == max_depth: #  or \
             # V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
             # V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
+            env.board.pop()
             return reward
         else:
             result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
