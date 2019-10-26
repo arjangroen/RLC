@@ -96,6 +96,8 @@ class Board(object):
         piece_balance_before = self.get_material_value()
         self.board.push(action)
         self.update_layer_board(action)
+        piece_balance_after = self.get_material_value()
+        auxiliary_reward = (piece_balance_after - piece_balance_before) / 100
         if self.board.result() == "*":
             reward = 0
             episode_end = False
