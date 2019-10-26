@@ -130,7 +130,7 @@ class Q_learning(object):
         memory = self.memory[:-turncount]
         probs = self.sampling_probs[:-turncount]
         sample_probs = [probs[n]/np.sum(probs) for n in range(len(probs))]
-        indices = np.random.choice(range(len(memory)),min(1028,len(memory)),replace=False,p=sample_probs)
+        indices = np.random.choice(range(len(memory)),min(1028,len(memory)),replace=True,p=sample_probs)
         for i in indices:
             minibatch.append(memory[i])
 
