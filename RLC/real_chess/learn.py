@@ -155,7 +155,7 @@ class TD_search(object):
                 #reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board, axis=0)))
 
             #self.update_agent(mc=False)
-            self.update_agent(mc=True)
+        self.update_agent(mc=True)
 
         piece_balance = self.env.get_material_value()
         self.piece_balance_trace.append(piece_balance)

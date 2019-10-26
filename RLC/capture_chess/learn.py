@@ -38,6 +38,7 @@ class Q_learning(object):
         """
         for k in range(iters):
             if k % c == 0:
+                print("iter",k)
                 self.agent.fix_model()
             greedy = True if k == iters-1 else False
             self.env.reset()
