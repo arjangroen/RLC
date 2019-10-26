@@ -152,7 +152,7 @@ class TD_search(object):
                 episode_end = True
 
                 # Bootstrap and end episode
-                reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board, axis=0)))
+                #reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board, axis=0)))
 
             #self.update_agent(mc=False)
             self.update_agent(mc=True)
