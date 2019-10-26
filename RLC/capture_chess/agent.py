@@ -168,7 +168,7 @@ class Agent(object):
             action values
 
         """
-        return self.fixed_model.predict(state) + np.random.randn(1e-9)
+        return self.fixed_model.predict(state) + np.random.randn() * 1e-9
 
     def policy_gradient_update(self,states, actions, rewards, action_spaces,actor_critic=False):
         """
