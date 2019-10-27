@@ -52,6 +52,7 @@ class Node(object):
     def simulate(self, model, env, max_depth, depth=0):
 
         temperature = 1
+        max_depth = 5
 
         if depth == 0:
             self.starting_value = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))

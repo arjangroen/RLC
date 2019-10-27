@@ -144,13 +144,13 @@ class Agent(object):
 
     def init_bignet(self):
         layer_state = Input(shape=(8, 8, 8), name='state')
-        conv_xs = Conv2D(4, (1,1), activation='sigmoid')(layer_state)
-        conv_s = Conv2D(8,(2,2),strides=(1,1),activation='sigmoid')(layer_state)
-        conv_m = Conv2D(12,(3,3),strides=(2,2),activation='sigmoid')(layer_state)
-        conv_l = Conv2D(16,(4,4),strides=(2,2),activation='sigmoid')(layer_state)
-        conv_xl = Conv2D(20,(8,8),activation='sigmoid')(layer_state)
-        conv_rank = Conv2D(3,(1,8),activation='sigmoid')(layer_state)
-        conv_file = Conv2D(3,(8,1),activation='sigmoid')(layer_state)
+        conv_xs = Conv2D(4, (1,1), activation='relu')(layer_state)
+        conv_s = Conv2D(8,(2,2),strides=(1,1),activation='relu')(layer_state)
+        conv_m = Conv2D(12,(3,3),strides=(2,2),activation='relu')(layer_state)
+        conv_l = Conv2D(16,(4,4),strides=(2,2),activation='relu')(layer_state)
+        conv_xl = Conv2D(20,(8,8),activation='relu')(layer_state)
+        conv_rank = Conv2D(3,(1,8),activation='relu')(layer_state)
+        conv_file = Conv2D(3,(8,1),activation='relu')(layer_state)
 
         f_xs = Flatten()(conv_xs)
         f_s = Flatten()(conv_s)
