@@ -161,8 +161,13 @@ class Agent(object):
         f_f = Flatten()(conv_file)
 
         dense1 = Concatenate(name='dense_bass')([f_xs, f_s, f_m, f_l, f_xl, f_r,f_f])
+        dense2 = Dense(256, activation='sigmoid')(dense1)
+        dense3 = Dense(128, activation='sigmoid')(dense2)
+        dense4 = Dense(56, activation='sigmoid')(dense3)
+        dense5 = Dense(64, activation='sigmoid')(dense4)
+        dense6 = Dense(32, activation='sigmoid')(dense5)
 
-        value_head = Dense(1)(dense1)
+        value_head = Dense(1)(dense6)
 
         self.model = Model(inputs=layer_state,
                            outputs=value_head)
