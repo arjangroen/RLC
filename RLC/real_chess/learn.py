@@ -286,7 +286,7 @@ class TD_search(object):
             #node = node.children[move]
             #depth += 1
 
-            print("completed sim",sim_count, "with result",result)
+            #print("completed sim",sim_count, "with result",result)
 
             # Return to root node
             while node.parent:

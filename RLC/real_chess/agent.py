@@ -215,7 +215,7 @@ class Agent(object):
         episode_ends = (rewards == 0).astype(int)
         V_target = np.array(rewards) + np.array(episode_ends) * gamma * np.squeeze(suc_state_values)
         # Perform a step of minibatch Gradient Descent.
-        self.model.fit(x=states, y=V_target, epochs=1, verbose=0)
+        self.model.fit(x=states, y=V_target, epochs=1, verbose=1)
 
 
         V_state = self.model.predict(states)  # the expected future returns
