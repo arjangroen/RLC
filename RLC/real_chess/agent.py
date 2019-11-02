@@ -212,7 +212,7 @@ class Agent(object):
         """
         suc_state_values = self.fixed_model.predict(sucstates)
         # EPISODE END DETECTION
-        episode_ends = (rewards == 0).astype(int)
+        episode_ends = np.abs(rewards) < .99
         V_target = np.array(rewards) + np.array(episode_ends) * gamma * np.squeeze(suc_state_values)
         # Perform a step of minibatch Gradient Descent.
         self.model.fit(x=states, y=V_target, epochs=1, verbose=0)
