@@ -110,6 +110,7 @@ class Board(object):
         elif self.board.is_game_over(claim_draw=True):
             reward = 0
             episode_end = True
+        reward += auxiliary_reward
         return episode_end, reward
 
     def get_random_action(self):

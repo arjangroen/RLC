@@ -228,6 +228,7 @@ class TD_search(object):
         while starttime + timelimit > time.time() or sim_count < 3:
             depth = 0
             color = 1
+            node_rewards = []
             while node.children:
                 node, move = node.select(color=color)
                 if not move:
@@ -236,17 +237,24 @@ class TD_search(object):
                     depth += 1
                     color = color * -1  # switch color
                     # A best node is selected
-                    self.env.step(move)
+                    episode_end, reward = self.env.step(move)
+                    node_rewards.append(reward)
                     # Check best node is terminal
-                    if self.env.board.result() == "1-0" or self.env.board.result(claim_draw=False) == "1/2-1/2" or \
-                            self.env.board.result() == "0-1":
 
-                        # if so, restore and return root node
-                        while node.parent:
-                            node = node.parent
-                            self.env.board.pop()
+                    if self.env.board.result() == "1-0" and depth == 1:  # -> Direct win for white, no need for mcts.
+                        self.env.board.pop()
                         self.env.init_layer_board()
+                        node = node.parent
                         return node
+                    elif episode_end:
+                        while node.parent:
+                            self.env.board.pop()
+                            self.env.init_layer_board()
+                            node = node.parent
+                            break
+                    else:
+                        continue
+
 
             # Expand the game tree with a simulation
             result, move = node.simulate(self.agent.model,
@@ -257,30 +265,34 @@ class TD_search(object):
                                          ]),
                                          depth=0)
             self.env.init_layer_board()
-            error = result * self.gamma ** depth - statevalue
+            #error = result * self.gamma ** depth - statevalue
+            error = 0.01
 
             ## Add the result to memory
-            self.mc_state = np.append(self.mc_state, np.expand_dims(self.env.layer_board.copy(), axis=0), axis=0)
-            self.mc_state_result = np.append(self.mc_state_result, result)
-            self.mc_state_error = np.append(self.mc_state_error, error)
+            #self.mc_state = np.append(self.mc_state, np.expand_dims(self.env.layer_board.copy(), axis=0), axis=0)
+            #self.mc_state_result = np.append(self.mc_state_result, result)
+            #self.mc_state_error = np.append(self.mc_state_error, error)
 
-            if self.mc_state.shape[0] > self.memsize:
-                self.mc_state = self.mc_state[1:]
-                self.mc_state_result = self.mc_state_result[1:]
-                self.mc_state_error = self.mc_state_error[1:]
+            #if self.mc_state.shape[0] > self.memsize:
+            #    self.mc_state = self.mc_state[1:]
+            #    self.mc_state_result = self.mc_state_result[1:]
+            #    self.mc_state_error = self.mc_state_error[1:]
 
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
 
             node.update_child(move, result)
 
-            node = node.children[move]
-            depth += 1
+            #node = node.children[move]
+            #depth += 1
+
+            print("completed sim",sim_count, "with result",result)
 
             # Return to root node
             while node.parent:
                 node = node.parent
-                result = self.gamma * result
+                latest_reward = node_rewards.pop(-1)
+                result = latest_reward + self.gamma * result
                 node.update(result)
                 if node.parent:
                     self.env.board.pop()

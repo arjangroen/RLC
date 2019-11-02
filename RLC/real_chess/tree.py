@@ -112,7 +112,7 @@ class Node(object):
         elif depth == max_depth: #  or \
             # V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
             # V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
-            result = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+            result = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
         else:
             result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
 
