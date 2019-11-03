@@ -37,7 +37,7 @@ class TD_search(object):
         self.mc_state_result = np.zeros(shape=(1))
         self.mc_state_error = np.zeros(shape=(1))
 
-    def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=51):
+    def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=80):
         starttime = time.time()
 
         for k in range(iters):
@@ -251,13 +251,12 @@ class TD_search(object):
                             self.env.board.pop()
                             self.env.init_layer_board()
                             node = node.parent
-                            break
                     else:
                         continue
 
 
             # Expand the game tree with a simulation
-            result, move = node.simulate(self.agent.model,
+            result, move = node.simulate(self.agent.fixed_model,
                                          self.env,
                                          np.max([
                                              1,
@@ -265,8 +264,7 @@ class TD_search(object):
                                          ]),
                                          depth=0)
             self.env.init_layer_board()
-            #error = result * self.gamma ** depth - statevalue
-            error = 0.01
+            #error = 0.02
 
             ## Add the result to memory
             #self.mc_state = np.append(self.mc_state, np.expand_dims(self.env.layer_board.copy(), axis=0), axis=0)
@@ -290,12 +288,11 @@ class TD_search(object):
 
             # Return to root node
             while node.parent:
+                self.env.board.pop()
                 node = node.parent
                 latest_reward = node_rewards.pop(-1)
                 result = latest_reward + self.gamma * result
                 node.update(result)
-                if node.parent:
-                    self.env.board.pop()
 
             self.env.init_layer_board()
             sim_count += 1

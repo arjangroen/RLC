@@ -51,7 +51,7 @@ class Node(object):
 
     def simulate(self, model, env, max_depth, depth=0):
 
-        temperature = 1
+        temperature = 2
         max_depth = 5
 
         if depth == 0:
@@ -106,7 +106,7 @@ class Node(object):
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
             episode_end, reward = env.step(move)
 
-        V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))).item()
+        #V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))).item()
         if episode_end:
             result = reward
         elif depth == max_depth: #  or \
@@ -123,5 +123,5 @@ class Node(object):
             # restore environment
             return result, move
         else:
-            noise = np.random.randn()/1e3
+            noise = np.random.randn()/1e6
             return result + noise
