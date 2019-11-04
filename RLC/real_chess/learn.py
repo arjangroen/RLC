@@ -20,8 +20,8 @@ class TD_search(object):
         self.tree = Node(self.env)
         self.lamb = lamb
         self.gamma = gamma
-        self.memsize = 10000
-        self.batch_size = 1024
+        self.memsize = 50000
+        self.batch_size = 2500
         self.reward_trace = []
         self.piece_balance_trace = []
         self.ready = False
@@ -201,7 +201,7 @@ class TD_search(object):
 
     def get_mc_minibatch(self, prioritized=True):
         if prioritized:
-            sampling_priorities = np.abs(self.mc_state_error) + 1e-9
+            sampling_priorities = np.abs(self.mc_state_error) + 1e-2
         else:
             sampling_priorities = np.ones(shape=self.mc_state_error.shape)
         sampling_probs = sampling_priorities / np.sum(sampling_priorities)
