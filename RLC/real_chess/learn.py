@@ -20,8 +20,8 @@ class TD_search(object):
         self.tree = Node(self.env)
         self.lamb = lamb
         self.gamma = gamma
-        self.memsize = 50000
-        self.batch_size = 2500
+        self.memsize = 1000
+        self.batch_size = 128
         self.reward_trace = []
         self.piece_balance_trace = []
         self.ready = False
