@@ -106,7 +106,7 @@ class Node(object):
         episode_end, reward = env.step(move)
 
         if episode_end:
-            Returns = 0
+            Returns = reward
         elif depth == max_depth: #  or \
             # V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
             # V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:

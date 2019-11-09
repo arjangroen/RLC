@@ -153,7 +153,7 @@ class TD_search(object):
                 # Bootstrap and end episode
                 #reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board, axis=0)))
 
-            self.update_agent(mc=False)
+        self.update_agent(mc=False)
         #self.update_agent(mc=True)
 
         piece_balance = self.env.get_material_value()
@@ -201,6 +201,7 @@ class TD_search(object):
     def get_mc_minibatch(self, prioritized=True):
         if prioritized:
             sampling_priorities = np.abs(self.mc_state_error) + 1e-2
+            sampling_priorities[-self.batch_size:] = 1e-9
         else:
             sampling_priorities = np.ones(shape=self.mc_state_error.shape)
         sampling_probs = sampling_priorities / np.sum(sampling_priorities)
