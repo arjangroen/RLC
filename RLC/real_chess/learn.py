@@ -64,7 +64,6 @@ class TD_search(object):
         episode_end = False
         turncount = 0
         tree = Node(self.env.board, gamma=self.gamma)
-        tree.values = [0]
 
         # Play a game of chess
         while not episode_end:
@@ -256,19 +255,15 @@ class TD_search(object):
 
 
             # Expand the game tree with a simulation
-            result, move = node.simulate(self.agent.fixed_model,
+            Returns, move = node.simulate(self.agent.fixed_model,
                                          self.env,
-                                         np.max([
-                                             1,
-                                             remaining_depth - depth
-                                         ]),
                                          depth=0)
             self.env.init_layer_board()
             #error = 0.02
 
-            ## Add the result to memory
+            ## Add the Returns to memory
             #self.mc_state = np.append(self.mc_state, np.expand_dims(self.env.layer_board.copy(), axis=0), axis=0)
-            #self.mc_state_result = np.append(self.mc_state_result, result)
+            #self.mc_state_result = np.append(self.mc_state_result, Returns)
             #self.mc_state_error = np.append(self.mc_state_error, error)
 
             #if self.mc_state.shape[0] > self.memsize:
@@ -279,20 +274,29 @@ class TD_search(object):
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
 
-            node.update_child(move, result)
+            node.update_child(move, Returns)
+
+            episode_end, reward = self.env.step(move)
+            self.env.board.pop()
+            self.env.pop_layer_board()
+
+            Returns = reward + self.gamma * Returns
+            node.update(Returns)
+
 
             #node = node.children[move]
             #depth += 1
 
-            #print("completed sim",sim_count, "with result",result)
+            #print("completed sim",sim_count, "with Returns",Returns)
 
             # Return to root node
             while node.parent:
                 self.env.board.pop()
                 node = node.parent
                 latest_reward = node_rewards.pop(-1)
-                result = latest_reward + self.gamma * result
-                node.update(result)
+                Returns = latest_reward + self.gamma * Returns
+                node.update(Returns)
+
 
             self.env.init_layer_board()
             sim_count += 1

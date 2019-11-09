@@ -15,7 +15,7 @@ class Node(object):
         self.visits = 0
         self.balance = 0
         self.value_iters = 5
-        self.values = []
+        self.values = []  # reward + Returns
         self.gamma = gamma
         self.epsilon = 0.05
         self.starting_value = 0
@@ -49,7 +49,7 @@ class Node(object):
         else:
             return self, None
 
-    def simulate(self, model, env, max_depth, depth=0):
+    def simulate(self, model, env, depth=0):
 
         temperature = 2
         max_depth = 5
@@ -65,11 +65,11 @@ class Node(object):
                 # Winning moves are greedy
                 if env.board.result() == "1-0":
                     env.board.pop()
-                    result = 1
+                    Returns = 0
                     if depth > 0:
-                        return result
+                        return reward + self.gamma * Returns
                     else:
-                        return result, move
+                        return reward + self.gamma * Returns, move
                 successor_values.append(reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
@@ -79,21 +79,19 @@ class Node(object):
                 move = moves[0]
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
-            episode_end, reward = env.step(move)
         else:
             successor_values = []
             for move in env.board.generate_legal_moves():
-                env.board.push(move)
-                env.update_layer_board(move)
+                episode_end, reward = env.step(move)
 
-                # Winning moves are get hardcoded result
+                # Winning moves are get hardcoded Returns
                 if env.board.result() == "0-1":
                     env.board.pop()
-                    result = -1
+                    Returns = 0
                     if depth > 0:
-                        return result
+                        return reward + self.gamma * Returns
                     else:
-                        return result, move
+                        return reward, Returns, move
                 successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
@@ -104,24 +102,24 @@ class Node(object):
                 move = moves[0]
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
-            episode_end, reward = env.step(move)
 
-        #V = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))).item()
+        episode_end, reward = env.step(move)
+
         if episode_end:
-            result = reward
+            Returns = 0
         elif depth == max_depth: #  or \
             # V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
             # V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
-            result = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+            Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
         else:
-            result = reward + self.gamma * self.simulate(model, env, max_depth, depth=depth+1)
+            Returns = reward + self.gamma * self.simulate(model, env, depth=depth+1)
 
         env.board.pop()
 
 
         if depth == 0:
             # restore environment
-            return result, move
+            return Returns, move
         else:
             noise = np.random.randn()/1e6
-            return result + noise
+            return Returns + noise
