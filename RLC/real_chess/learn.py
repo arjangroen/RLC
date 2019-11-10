@@ -90,7 +90,7 @@ class TD_search(object):
                             max_value = sampled_value
                             max_move = move
                 else:
-                    move = np.random.choice(self.env.board.generate_legal_moves())
+                    max_move = np.random.choice(self.env.board.generate_legal_moves())
 
             # Black's turn
             else:
