@@ -35,10 +35,10 @@ class Node(object):
         """Thompson sampling"""
         assert color == 1 or color == -1, "color has to be white (1) or black (-1)"
         if self.children:
-            max_sample = np.max(color * np.array(self.values))
+            max_sample = np.random.choice(color * np.array(self.values))
             max_move = None
             for move, child in self.children.items():
-                child_sample = np.max(color * np.array(child.values))
+                child_sample = np.random.choice(color * np.array(child.values))
                 if child_sample > max_sample:
                     max_sample = child_sample
                     max_move = move
@@ -49,15 +49,16 @@ class Node(object):
         else:
             return self, None
 
-    def simulate(self, model, env, depth=0):
+    def simulate(self, model, env, depth=0, random=True):
 
-        temperature = 2
-        max_depth = 5
+        max_depth = 8
+
+        temperature = 1
 
         if depth == 0:
             self.starting_value = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
 
-        if env.board.turn:
+        if env.board.turn and not random:
             successor_values = []
             for move in env.board.generate_legal_moves():
                 episode_end, reward = env.step(move)
@@ -79,6 +80,8 @@ class Node(object):
                 move = moves[0]
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
+        elif env.board.turn and random:
+            move = np.random.choice([x for x in env.board.generate_legal_moves()])
         else:
             successor_values = []
             for move in env.board.generate_legal_moves():

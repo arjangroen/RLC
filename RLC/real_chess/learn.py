@@ -228,7 +228,7 @@ class TD_search(object):
         """
         starttime = time.time()
         sim_count = 0
-        while starttime + timelimit > time.time() or sim_count < 3:
+        while starttime + timelimit > time.time() or sim_count < 10:
             depth = 0
             color = 1
             node_rewards = []
