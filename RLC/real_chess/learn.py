@@ -240,6 +240,8 @@ class TD_search(object):
         # Add a prediction for each child node
         for move in self.env.board.generate_legal_moves():
             if move not in node.children.keys():
+                node.children[move] = Node(self.env.board, parent=node)
+
                 episode_end, reward = self.env.step(move)
 
                 if episode_end:
