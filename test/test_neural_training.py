@@ -9,28 +9,21 @@ from chess.pgn import Game
 
 opponent = agent.GreedyAgent()
 env = environment.Board(opponent, FEN='4k3/8/8/8/8/8/8/R3K2R w Q - 0 1')
-player = agent.Agent(lr=0.01,network='')
+player = agent.Agent(lr=0.001,network='')
 learner = learn.TD_search(env, player,gamma=0.8,search_time=1.5)
 node = tree.Node(learner.env.board, gamma=learner.gamma)
 player.model.summary()
 
-learner.learn(iters=1000,timelimit_seconds=900)
+w_before = learner.agent.model.get_weights()
 
-choice_indices, states, rewards, sucstates = learner.get_minibatch()
-valuations = []
-for i in range(10):
-    vals = learner.agent.model.predict(states)
-    valuations.append(vals)
-    learner.agent.TD_update(states,rewards, sucstates, gamma=0.8)
+def test_train():
+    learner.learn(iters=40,timelimit_seconds=900)
 
-df = pd.DataFrame(valuations)
+test_train()
 
-df.to_csv('valuations_delta.csv')
+w_after = learner.agent.model.get_weights()
 
-
-pgn = Game.from_board(learner.env.board)
-with open("rlc_pgn","w") as log:
-    log.write(str(pgn))
+print("done")
 
 
 

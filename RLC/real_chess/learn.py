@@ -32,6 +32,7 @@ class TD_search(object):
         self.mem_sucstate = np.zeros(shape=(1, 8, 8, 8))
         self.mem_reward = np.zeros(shape=(1))
         self.mem_error = np.zeros(shape=(1))
+        self.mem_episode_active = np.ones(shape=(1))
 
         self.mc_state = np.zeros(shape=(1, 8, 8, 8))
         self.mc_state_result = np.zeros(shape=(1))
@@ -136,22 +137,28 @@ class TD_search(object):
             error = reward + self.gamma * new_state_value - state_value
             error = np.float(np.squeeze(error))
 
+            turncount += 1
+            if turncount > maxiter and not episode_end:
+                episode_end = True
+
+            episode_active = 0 if episode_end else 1
+
+
             # construct training sample state, prediction, error
             self.mem_state = np.append(self.mem_state, state, axis=0)
             self.mem_reward = np.append(self.mem_reward, reward)
             self.mem_sucstate = np.append(self.mem_sucstate, sucstate, axis=0)
             self.mem_error = np.append(self.mem_error, error)
             self.reward_trace = np.append(self.reward_trace, reward)
+            self.mem_episode_active = np.append(self.mem_episode_active,episode_active)
 
             if self.mem_state.shape[0] > self.memsize:
                 self.mem_state = self.mem_state[1:]
                 self.mem_reward = self.mem_reward[1:]
                 self.mem_sucstate = self.mem_sucstate[1:]
                 self.mem_error = self.mem_error[1:]
+                self.mem_episode_active = self.mem_episode_active[1:]
 
-            turncount += 1
-            if turncount > maxiter and not episode_end:
-                episode_end = True
 
                 # Bootstrap and end episode
                 #reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board, axis=0)))
@@ -178,9 +185,9 @@ class TD_search(object):
                 self.mc_state_error[choice_indices.tolist()] = td_errors
 
             else:
-                choice_indices, states, rewards, sucstates = self.get_minibatch()
+                choice_indices, states, rewards, sucstates, episode_active = self.get_minibatch()
 
-                td_errors = self.agent.TD_update(states, rewards, sucstates, gamma=self.gamma)
+                td_errors = self.agent.TD_update(states, rewards, sucstates, episode_active, gamma=self.gamma)
                 self.mem_error[choice_indices.tolist()] = td_errors
 
     def get_minibatch(self, prioritized=True):
@@ -199,8 +206,9 @@ class TD_search(object):
         states = self.mem_state[choice_indices]
         rewards = self.mem_reward[choice_indices]
         sucstates = self.mem_sucstate[choice_indices]
+        episode_active = self.mem_episode_active[choice_indices]
 
-        return choice_indices, states, rewards, sucstates
+        return choice_indices, states, rewards, sucstates, episode_active
 
     def get_mc_minibatch(self, prioritized=True):
         if prioritized:
@@ -228,6 +236,25 @@ class TD_search(object):
         """
         starttime = time.time()
         sim_count = 0
+
+        # Add a prediction for each child node
+        for move in self.env.board.generate_legal_moves():
+            if move not in node.children.keys():
+                episode_end, reward = self.env.step(move)
+
+                if episode_end:
+                    successor_state_value = 0
+                else:
+                    successor_state_value = np.squeeze(
+                        self.agent.model.predict(np.expand_dims(self.env.layer_board, axis=0))
+                    )
+
+                child_value = reward + self.gamma * successor_state_value
+
+                node.update_child(move,child_value)
+                self.env.board.pop()
+                self.env.pop_layer_board()
+
         while starttime + timelimit > time.time() or sim_count < 10:
             depth = 0
             color = 1
