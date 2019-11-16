@@ -256,6 +256,8 @@ class TD_search(object):
                 node.update_child(move,child_value)
                 self.env.board.pop()
                 self.env.pop_layer_board()
+        if not node.values:
+            node.values = [0]
 
         while starttime + timelimit > time.time() or sim_count < 10:
             depth = 0
