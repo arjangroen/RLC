@@ -17,7 +17,7 @@ class TD_search(object):
     def __init__(self, env, agent, lamb=0.9, gamma=0.9, search_time=1, search_balance=0.0):
         self.env = env
         self.agent = agent
-        self.tree = Node(self.env)
+        self.tree = Node(self.env.board)
         self.lamb = lamb
         self.gamma = gamma
         self.memsize = 1000
@@ -218,14 +218,14 @@ class TD_search(object):
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
 
-                episode_end, reward = self.env.step(move)
+            episode_end, reward = self.env.step(move)
 
-                if episode_end:
-                    successor_state_value = 0
-                else:
-                    successor_state_value = np.squeeze(
-                        self.agent.model.predict(np.expand_dims(self.env.layer_board, axis=0))
-                    )
+            if episode_end:
+                successor_state_value = 0
+            else:
+                successor_state_value = np.squeeze(
+                    self.agent.model.predict(np.expand_dims(self.env.layer_board, axis=0))
+                )
 
                 child_value = reward + self.gamma * successor_state_value
 
