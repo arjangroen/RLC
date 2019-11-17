@@ -94,7 +94,7 @@ class Node(object):
                     if depth > 0:
                         return reward + self.gamma * Returns
                     else:
-                        return reward, Returns, move
+                        return reward + self.gamma * Returns, move
                 successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
                 env.board.pop()
                 env.pop_layer_board()
@@ -113,7 +113,8 @@ class Node(object):
         elif depth == max_depth: #  or \
             # V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
             # V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
-            Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+            #Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+            Returns = reward + self.gamma * 0
         else:
             Returns = reward + self.gamma * self.simulate(model, env, depth=depth+1)
 
