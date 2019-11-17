@@ -230,8 +230,9 @@ class TD_search(object):
                 child_value = reward + self.gamma * successor_state_value
 
                 node.update_child(move,child_value)
-                self.env.board.pop()
-                self.env.pop_layer_board()
+                for _ in ("turn1","turn2"):
+                    self.env.board.pop()
+                self.env.init_layer_board()
         if not node.values:
             node.values = [0]
 
