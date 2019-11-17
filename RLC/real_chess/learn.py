@@ -75,8 +75,9 @@ class TD_search(object):
             if self.env.board.turn:
 
                 # Search longer at end than begin
-                x = (turncount / maxiter - self.search_balance) * 10
-                timelimit = self.search_time * sigmoid(x)
+                #x = (turncount / maxiter - self.search_balance) * 10
+                #timelimit = self.search_time * sigmoid(x)
+                timelimit = 3
 
                 # Do a Monte Carlo Tree Search
                 if k > 25:
@@ -86,53 +87,24 @@ class TD_search(object):
                     max_value = np.NINF
                     for move, child in tree.children.items():
                         # optimistic
-                        sampled_value = np.mean(child.values)
+                        sampled_value = np.random.choice(child.values)
                         if sampled_value > max_value:
                             max_value = sampled_value
                             max_move = move
                 else:
                     max_move = np.random.choice([move for move in self.env.board.generate_legal_moves()])
 
-            # Black's turn
-            else:
-                max_move = None
-                max_value = np.NINF
-                for move in self.env.board.generate_legal_moves():
-                    self.env.step(move)
-                    if self.env.board.result() == "0-1":
-                        max_move = move
-                        self.env.board.pop()
-                        self.env.pop_layer_board()
-                        break
-                    successor_state_value_opponent = self.env.opposing_agent.predict(
-                        np.expand_dims(self.env.layer_board, axis=0))
-                    if successor_state_value_opponent > max_value:
-                        max_move = move
-                        max_value = successor_state_value_opponent
-
-                    self.env.board.pop()
-                    self.env.pop_layer_board()
 
             episode_end, reward = self.env.step(max_move)
-
-            # Move up the tree
-            if max_move not in tree.children.keys():
-                tree.children[max_move] = Node(self.env.board, parent=None)
 
             tree = tree.children[max_move]
             tree.parent = None
 
-            #print(tree.values)
-
             sucstate = np.expand_dims(self.env.layer_board, axis=0)
             new_state_value = self.agent.predict(sucstate)
 
-            #print(new_state_value.item())
-
             if not tree.values:
                 tree.values.append(new_state_value.item())
-
-            #print(tree.values)
 
             error = reward + self.gamma * new_state_value - state_value
             error = np.float(np.squeeze(error))

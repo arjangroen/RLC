@@ -51,7 +51,7 @@ class Node(object):
 
     def simulate(self, model, env, depth=0, random=True):
 
-        max_depth = 8
+        max_depth = 4
 
         temperature = 1
 
@@ -72,8 +72,9 @@ class Node(object):
                     else:
                         return reward + self.gamma * Returns, move
                 successor_values.append(reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
-                env.board.pop()
-                env.pop_layer_board()
+                for _ in ['move, opponent_move']:
+                    env.board.pop()
+                env.init_layer_board()
             move_probas = softmax(np.array(successor_values),temperature=temperature)
             moves = [x for x in env.board.generate_legal_moves()]
             if len(moves) == 1:
@@ -82,35 +83,12 @@ class Node(object):
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
         elif env.board.turn and random:
             move = np.random.choice([x for x in env.board.generate_legal_moves()])
-        else:
-            successor_values = []
-            for move in env.board.generate_legal_moves():
-                episode_end, reward = env.step(move)
-
-                # Winning moves are get hardcoded Returns
-                if env.board.result() == "0-1":
-                    env.board.pop()
-                    Returns = 0
-                    if depth > 0:
-                        return reward + self.gamma * Returns
-                    else:
-                        return reward + self.gamma * Returns, move
-                successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
-                env.board.pop()
-                env.pop_layer_board()
-            move_probas = np.zeros(len(successor_values))
-            move_probas[np.argmax(successor_values)] = 1
-            moves = [x for x in env.board.generate_legal_moves()]
-            if len(moves) == 1:
-                move = moves[0]
-            else:
-                move = np.random.choice(moves, p=np.squeeze(move_probas))
 
         episode_end, reward = env.step(move)
 
         if episode_end:
             Returns = reward
-        elif depth >= max_depth and not self.board.turn: #  or \
+        elif depth >= max_depth: #  or \
             # V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
             # V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
             Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))

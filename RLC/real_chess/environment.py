@@ -15,9 +15,10 @@ mapper["B"] = 3
 mapper["Q"] = 4
 mapper["K"] = 5
 
+
 class Board(object):
 
-    def __init__(self,opposing_agent,FEN=None):
+    def __init__(self, opposing_agent, FEN=None):
         """
         Chess Board Environment
         Args:
@@ -29,7 +30,6 @@ class Board(object):
         self.layer_board = np.zeros(shape=(8, 8, 8))
         self.init_layer_board()
         self.opposing_agent = opposing_agent
-
 
     def init_layer_board(self):
         """
@@ -52,13 +52,13 @@ class Board(object):
             self.layer_board[layer, row, col] = sign
             self.layer_board[6, :, :] = 1 / self.board.fullmove_number
         if self.board.turn:
-            self.layer_board[6,0,:] = 1
+            self.layer_board[6, 0, :] = 1
         else:
-            self.layer_board[6,0,:] = -1
+            self.layer_board[6, 0, :] = -1
         if self.board.can_claim_draw():
             self.layer_board[7, :, :] = 1
 
-    def update_layer_board(self,move):
+    def update_layer_board(self, move):
         if move.promotion:
             self._prev_layer_board = self.layer_board.copy()
             self.init_layer_board()
@@ -67,22 +67,20 @@ class Board(object):
             from_col = move.from_square % 8
             to_row = move.to_square // 8
             to_col = move.to_square % 8
-            piece_index = np.argmax(np.abs(self.layer_board[:,from_row,from_col]))
+            piece_index = np.argmax(np.abs(self.layer_board[:, from_row, from_col]))
             self._prev_layer_board = self.layer_board.copy()
-            self.layer_board[piece_index,to_row, to_col] = self.layer_board[piece_index,from_row, from_col]
-            self.layer_board[piece_index,from_row, from_col] = 0
+            self.layer_board[piece_index, to_row, to_col] = self.layer_board[piece_index, from_row, from_col]
+            self.layer_board[piece_index, from_row, from_col] = 0
             self.layer_board[6, :, :] = 1 / self.board.fullmove_number
             self.layer_board[6, 0, :] *= -1
             if self.board.can_claim_draw():
                 self.layer_board[7, :, :] = 1
-            
 
     def pop_layer_board(self):
         self.layer_board = self._prev_layer_board.copy()
         self._prev_layer_board = None
 
-
-    def step(self,action):
+    def step(self, action):
         """
         Run a step
         Args:
@@ -90,12 +88,16 @@ class Board(object):
         Returns:
             epsiode end: Boolean
                 Whether the episode has ended
-            reward: int
+            reward: float
                 Difference in material value after the move
         """
         piece_balance_before = self.get_material_value()
         self.board.push(action)
         self.update_layer_board(action)
+        if self.board.result() == "*":
+            opponent_action = self.get_opponent_move()
+            self.board.push(opponent_action)
+            self.update_layer_board()
         piece_balance_after = self.get_material_value()
         auxiliary_reward = (piece_balance_after - piece_balance_before) / 100
         if self.board.result() == "*":
@@ -111,6 +113,7 @@ class Board(object):
             reward = 0
             episode_end = True
         reward += auxiliary_reward
+
         return episode_end, reward
 
     def get_random_action(self):
@@ -124,6 +127,21 @@ class Board(object):
         legal_moves = np.random.choice(legal_moves)
         return legal_moves
 
+    def get_opponent_move(self):
+        max_move = None
+        max_value = np.NINF
+        for move in self.env.board.generate_legal_moves():
+            self.env.step(move)
+            if self.env.board.result() == "0-1":
+                max_move = move
+                self.env.board.pop()
+                self.env.pop_layer_board()
+                break
+            successor_state_value_opponent = self.opposing_agent.predict(np.expand_dims(self.env.layer_board, axis=0))
+            if successor_state_value_opponent > max_value:
+                max_move = move
+                max_value = successor_state_value_opponent
+        return max_move
 
     def project_legal_moves(self):
         """
@@ -133,7 +151,7 @@ class Board(object):
         self.action_space = np.zeros(shape=(64, 64))
         moves = [[x.from_square, x.to_square] for x in self.board.generate_legal_moves()]
         for move in moves:
-            self.action_space[move[0],move[1]] = 1
+            self.action_space[move[0], move[1]] = 1
         return self.action_space
 
     def get_material_value(self):
@@ -141,12 +159,11 @@ class Board(object):
         Sums up the material balance using Reinfield values
         Returns: The material balance on the board
         """
-        pawns = 1 * np.sum(self.layer_board[0,:,:])
-        rooks = 5 * np.sum(self.layer_board[1,:,:])
-        minor = 3 * np.sum(self.layer_board[2:4,:,:])
-        queen = 9 * np.sum(self.layer_board[4,:,:])
+        pawns = 1 * np.sum(self.layer_board[0, :, :])
+        rooks = 5 * np.sum(self.layer_board[1, :, :])
+        minor = 3 * np.sum(self.layer_board[2:4, :, :])
+        queen = 9 * np.sum(self.layer_board[4, :, :])
         return pawns + rooks + minor + queen
-
 
     def reset(self):
         """
