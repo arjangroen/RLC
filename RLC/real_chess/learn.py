@@ -97,6 +97,9 @@ class TD_search(object):
 
             episode_end, reward = self.env.step(max_move)
 
+            if max_move not in tree.children.keys():
+                tree.children[max_move] = Node(self.env.board, parent=tree)
+
             tree = tree.children[max_move]
             tree.parent = None
 
