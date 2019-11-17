@@ -130,14 +130,14 @@ class Board(object):
     def get_opponent_move(self):
         max_move = None
         max_value = np.NINF
-        for move in self.env.board.generate_legal_moves():
-            self.env.step(move)
-            if self.env.board.result() == "0-1":
+        for move in self.board.generate_legal_moves():
+            self.step(move)
+            if self.board.result() == "0-1":
                 max_move = move
-                self.env.board.pop()
-                self.env.pop_layer_board()
+                self.board.pop()
+                self.pop_layer_board()
                 break
-            successor_state_value_opponent = self.opposing_agent.predict(np.expand_dims(self.env.layer_board, axis=0))
+            successor_state_value_opponent = self.opposing_agent.predict(np.expand_dims(self.layer_board, axis=0))
             if successor_state_value_opponent > max_value:
                 max_move = move
                 max_value = successor_state_value_opponent
