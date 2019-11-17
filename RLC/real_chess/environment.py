@@ -131,7 +131,8 @@ class Board(object):
         max_move = None
         max_value = np.NINF
         for move in self.board.generate_legal_moves():
-            self.step(move)
+            self.board.push(move)
+            self.update_layer_board(move)
             if self.board.result() == "0-1":
                 max_move = move
                 self.board.pop()
