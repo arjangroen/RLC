@@ -97,7 +97,7 @@ class Board(object):
         if self.board.result() == "*":
             opponent_action = self.get_opponent_move()
             self.board.push(opponent_action)
-            self.update_layer_board()
+            self.update_layer_board(opponent_action)
         piece_balance_after = self.get_material_value()
         auxiliary_reward = (piece_balance_after - piece_balance_before) / 100
         if self.board.result() == "*":
