@@ -58,7 +58,9 @@ class Node(object):
         if depth == 0:
             self.starting_value = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
 
-        if env.board.turn and not random:
+        assert env.board.turn, f"turn out of sync in depth {depth} and result {env.board.result()}"
+
+        if not random:
             successor_values = []
             for move in env.board.generate_legal_moves():
                 episode_end, reward = env.step(move)
@@ -81,8 +83,9 @@ class Node(object):
                 move = moves[0]
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
-        elif env.board.turn and random:
+        elif random:
             move = np.random.choice([x for x in env.board.generate_legal_moves()])
+
 
         episode_end, reward = env.step(move)
 
