@@ -79,7 +79,7 @@ class TD_search(object):
                 timelimit = self.search_time * sigmoid(x)
 
                 # Do a Monte Carlo Tree Search
-                if k > 250:
+                if k > 25:
                     tree = self.mcts(tree, state_value, timelimit, remaining_depth=maxiter - turncount)
                     # Step the best move
                     max_move = None

@@ -110,11 +110,11 @@ class Node(object):
 
         if episode_end:
             Returns = reward
-        elif depth == max_depth: #  or \
+        elif depth >= max_depth and not self.board.turn: #  or \
             # V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
             # V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
-            #Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
-            Returns = reward + self.gamma * 0
+            Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+            #Returns = reward + self.gamma * 0
         else:
             Returns = reward + self.gamma * self.simulate(model, env, depth=depth+1)
 
