@@ -81,6 +81,7 @@ class TD_search(object):
 
                 # Do a Monte Carlo Tree Search
                 if k > 25:
+                    print(turncount)
                     tree = self.mcts(tree, state_value, timelimit, remaining_depth=maxiter - turncount)
                     # Step the best move
                     max_move = None
