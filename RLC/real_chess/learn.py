@@ -242,6 +242,9 @@ class TD_search(object):
                 node, move = node.select(color=color)
                 if not move:
                     break
+                elif move not in self.env.board.generate_legal_moves():
+                    # The same move resulted in a different successor state.
+                    break
                 else:
                     depth += 1
                     color = color * -1  # switch color
