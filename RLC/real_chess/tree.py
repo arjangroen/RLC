@@ -19,7 +19,11 @@ class Node(object):
         self.gamma = gamma
         self.epsilon = 0.05
         self.starting_value = 0
-        self.FEN = board.fen()
+        if board:
+            self.FEN = board.fen()
+        else:
+            self.FEN = None
+
 
     def update_child(self, move, result):
         child = self.children[move]
