@@ -97,7 +97,7 @@ class Board(object):
         if self.board.result() == "*":
             opponent_action = self.get_opponent_move()
             self.board.push(opponent_action)
-            self.update_layer_board(opponent_action)
+            self.update_layer_board()
         piece_balance_after = self.get_material_value()
         auxiliary_reward = (piece_balance_after - piece_balance_before) / 100
         if self.board.result() == "*":
@@ -114,7 +114,7 @@ class Board(object):
             episode_end = True
         reward += auxiliary_reward
 
-        return episode_end, reward, opponent_action
+        return episode_end, reward
 
     def get_random_action(self):
         """
@@ -130,15 +130,14 @@ class Board(object):
     def get_opponent_move(self):
         max_move = None
         max_value = np.NINF
-        for move in self.board.generate_legal_moves():
-            self.board.push(move)
-            self.update_layer_board(move)
-            if self.board.result() == "0-1":
+        for move in self.env.board.generate_legal_moves():
+            self.env.step(move)
+            if self.env.board.result() == "0-1":
                 max_move = move
-                self.board.pop()
-                self.pop_layer_board()
+                self.env.board.pop()
+                self.env.pop_layer_board()
                 break
-            successor_state_value_opponent = self.opposing_agent.predict(np.expand_dims(self.layer_board, axis=0))
+            successor_state_value_opponent = self.opposing_agent.predict(np.expand_dims(self.env.layer_board, axis=0))
             if successor_state_value_opponent > max_value:
                 max_move = move
                 max_value = successor_state_value_opponent

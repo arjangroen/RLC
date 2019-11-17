@@ -17,7 +17,7 @@ class TD_search(object):
     def __init__(self, env, agent, lamb=0.9, gamma=0.9, search_time=1, search_balance=0.0):
         self.env = env
         self.agent = agent
-        self.tree = Node(self.env.board)
+        self.tree = Node(self.env)
         self.lamb = lamb
         self.gamma = gamma
         self.memsize = 1000
@@ -80,8 +80,7 @@ class TD_search(object):
                 timelimit = 3
 
                 # Do a Monte Carlo Tree Search
-                if k > 5:
-                    print(turncount)
+                if k > 25:
                     tree = self.mcts(tree, state_value, timelimit, remaining_depth=maxiter - turncount)
                     # Step the best move
                     max_move = None
@@ -96,15 +95,9 @@ class TD_search(object):
                     max_move = np.random.choice([move for move in self.env.board.generate_legal_moves()])
 
 
-            episode_end, reward, countermove = self.env.step(max_move)
+            episode_end, reward = self.env.step(max_move)
 
-            if max_move not in tree.children.keys():
-                tree.children[max_move] = Node(self.env.board, parent=tree)
-                tree.children[max_move].children[countermove] = Node(self.env.board, parent=tree.children[max_move])
-            elif countermove not in tree.children[max_move].children.keys():
-                tree.children[max_move].children[countermove] = Node(self.env.board, parent=tree.children[max_move])
-
-            tree = tree.children[max_move].children[countermove]
+            tree = tree.children[max_move]
             tree.parent = None
 
             sucstate = np.expand_dims(self.env.layer_board, axis=0)
@@ -221,24 +214,20 @@ class TD_search(object):
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
 
-            episode_end, reward, opponent_move = self.env.step(move)
+                episode_end, reward = self.env.step(move)
 
-            if opponent_move not in node.children.keys():
-                node.children[move].children[opponent_move] = Node(self.env.board, parent=node)
-
-            if episode_end:
-                successor_state_value = 0
-            else:
-                successor_state_value = np.squeeze(
-                    self.agent.model.predict(np.expand_dims(self.env.layer_board, axis=0))
-                )
+                if episode_end:
+                    successor_state_value = 0
+                else:
+                    successor_state_value = np.squeeze(
+                        self.agent.model.predict(np.expand_dims(self.env.layer_board, axis=0))
+                    )
 
                 child_value = reward + self.gamma * successor_state_value
 
                 node.update_child(move,child_value)
-                for _ in ("turn1","turn2"):
-                    self.env.board.pop()
-                self.env.init_layer_board()
+                self.env.board.pop()
+                self.env.pop_layer_board()
         if not node.values:
             node.values = [0]
 
@@ -250,10 +239,6 @@ class TD_search(object):
                 node, move = node.select(color=color)
                 if not move:
                     break
-                elif move not in self.env.board.generate_legal_moves():
-                    # The same move resulted in a different successor state.
-                    node = node.parent
-                    break
                 else:
                     depth += 1
                     color = color * -1  # switch color
@@ -264,13 +249,11 @@ class TD_search(object):
 
                     if self.env.board.result() == "1-0" and depth == 1:  # -> Direct win for white, no need for mcts.
                         self.env.board.pop()
-                        self.env.board.pop()
                         self.env.init_layer_board()
                         node = node.parent
                         return node
                     elif episode_end:
                         while node.parent:
-                            self.env.board.pop()
                             self.env.board.pop()
                             self.env.init_layer_board()
                             node = node.parent
@@ -315,8 +298,7 @@ class TD_search(object):
 
             # Return to root node
             while node.parent:
-                for _ in ("player","opponent"):
-                    self.env.board.pop()
+                self.env.board.pop()
                 node = node.parent
                 latest_reward = node_rewards.pop(-1)
                 Returns = latest_reward + self.gamma * Returns

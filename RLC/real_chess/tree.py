@@ -19,11 +19,6 @@ class Node(object):
         self.gamma = gamma
         self.epsilon = 0.05
         self.starting_value = 0
-        if board:
-            self.FEN = board.fen()
-        else:
-            self.FEN = None
-
 
     def update_child(self, move, result):
         child = self.children[move]
@@ -63,9 +58,7 @@ class Node(object):
         if depth == 0:
             self.starting_value = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
 
-        assert env.board.turn, f"turn out of sync in depth {depth} and result {env.board.result()}"
-
-        if not random:
+        if env.board.turn and not random:
             successor_values = []
             for move in env.board.generate_legal_moves():
                 episode_end, reward = env.step(move)
@@ -78,10 +71,7 @@ class Node(object):
                         return reward + self.gamma * Returns
                     else:
                         return reward + self.gamma * Returns, move
-                elif episode_end:
-                    successor_values.append(reward)
-                else:
-                    successor_values.append(reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
+                successor_values.append(reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
                 for _ in ['move, opponent_move']:
                     env.board.pop()
                 env.init_layer_board()
@@ -91,9 +81,8 @@ class Node(object):
                 move = moves[0]
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
-        elif random:
+        elif env.board.turn and random:
             move = np.random.choice([x for x in env.board.generate_legal_moves()])
-
 
         episode_end, reward = env.step(move)
 
@@ -107,7 +96,6 @@ class Node(object):
         else:
             Returns = reward + self.gamma * self.simulate(model, env, depth=depth+1)
 
-        env.board.pop()
         env.board.pop()
 
 
