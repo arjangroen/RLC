@@ -246,6 +246,7 @@ class TD_search(object):
                     break
                 elif move not in self.env.board.generate_legal_moves():
                     # The same move resulted in a different successor state.
+                    node = node.parent
                     break
                 else:
                     depth += 1
@@ -257,11 +258,13 @@ class TD_search(object):
 
                     if self.env.board.result() == "1-0" and depth == 1:  # -> Direct win for white, no need for mcts.
                         self.env.board.pop()
+                        self.env.board.pop()
                         self.env.init_layer_board()
                         node = node.parent
                         return node
                     elif episode_end:
                         while node.parent:
+                            self.env.board.pop()
                             self.env.board.pop()
                             self.env.init_layer_board()
                             node = node.parent

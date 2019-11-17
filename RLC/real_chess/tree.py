@@ -19,6 +19,7 @@ class Node(object):
         self.gamma = gamma
         self.epsilon = 0.05
         self.starting_value = 0
+        self.FEN = board.fen()
 
     def update_child(self, move, result):
         child = self.children[move]
@@ -73,7 +74,10 @@ class Node(object):
                         return reward + self.gamma * Returns
                     else:
                         return reward + self.gamma * Returns, move
-                successor_values.append(reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
+                elif episode_end:
+                    successor_values.append(reward)
+                else:
+                    successor_values.append(reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
                 for _ in ['move, opponent_move']:
                     env.board.pop()
                 env.init_layer_board()
@@ -99,6 +103,7 @@ class Node(object):
         else:
             Returns = reward + self.gamma * self.simulate(model, env, depth=depth+1)
 
+        env.board.pop()
         env.board.pop()
 
 
