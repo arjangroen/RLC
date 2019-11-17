@@ -80,7 +80,7 @@ class TD_search(object):
                 timelimit = 3
 
                 # Do a Monte Carlo Tree Search
-                if k > 25:
+                if k > 5:
                     print(turncount)
                     tree = self.mcts(tree, state_value, timelimit, remaining_depth=maxiter - turncount)
                     # Step the best move
@@ -305,7 +305,8 @@ class TD_search(object):
 
             # Return to root node
             while node.parent:
-                self.env.board.pop()
+                for _ in ("player","opponent"):
+                    self.env.board.pop()
                 node = node.parent
                 latest_reward = node_rewards.pop(-1)
                 Returns = latest_reward + self.gamma * Returns
