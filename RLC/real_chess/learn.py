@@ -96,12 +96,15 @@ class TD_search(object):
                     max_move = np.random.choice([move for move in self.env.board.generate_legal_moves()])
 
 
-            episode_end, reward = self.env.step(max_move)
+            episode_end, reward, countermove = self.env.step(max_move)
 
             if max_move not in tree.children.keys():
                 tree.children[max_move] = Node(self.env.board, parent=tree)
+                tree.children[max_move].children[countermove] = Node(self.env.board, parent=tree.children[max_move])
+            elif countermove not in tree.children[max_move].children.keys():
+                tree.children[max_move].children[countermove] = Node(self.env.board, parent=tree.children[max_move])
 
-            tree = tree.children[max_move]
+            tree = tree.children[max_move].children[countermove]
             tree.parent = None
 
             sucstate = np.expand_dims(self.env.layer_board, axis=0)
@@ -218,7 +221,10 @@ class TD_search(object):
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
 
-            episode_end, reward = self.env.step(move)
+            episode_end, reward, opponent_move = self.env.step(move)
+
+            if opponent_move not in node.children.keys():
+                node.children[move].children[opponent_move] = Node(self.env.board, parent=node)
 
             if episode_end:
                 successor_state_value = 0

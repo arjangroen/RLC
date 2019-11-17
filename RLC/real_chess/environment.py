@@ -114,7 +114,7 @@ class Board(object):
             episode_end = True
         reward += auxiliary_reward
 
-        return episode_end, reward
+        return episode_end, reward, opponent_action
 
     def get_random_action(self):
         """
