@@ -8,7 +8,7 @@ import chess
 from chess.pgn import Game
 
 opponent = agent.GreedyAgent()
-env = environment.Board(opponent, FEN='4k3/8/8/8/8/8/8/R3K2R w Q - 0 1')
+env = environment.Board(opponent, FEN=None)
 player = agent.Agent(lr=0.001,network='')
 learner = learn.TD_search(env, player,gamma=0.8,search_time=1.5)
 node = tree.Node(learner.env.board, gamma=learner.gamma)
