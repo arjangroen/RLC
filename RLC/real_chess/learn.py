@@ -278,9 +278,10 @@ class TD_search(object):
                     if self.env.board.result() == "1-0" and depth == 1:  # -> Direct win for white, no need for mcts.
                         self.env.board.pop()
                         self.env.init_layer_board()
+                        node.update(1)
                         node = node.parent
                         return node
-                    elif episode_end:
+                    elif episode_end:  # -> if the explored tree leads to a terminal state, simulate from root.
                         while node.parent:
                             self.env.board.pop()
                             self.env.init_layer_board()
@@ -309,28 +310,27 @@ class TD_search(object):
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
 
+            #episode_end, reward = self.env.step(move)
             node.update_child(move, Returns)
 
-            episode_end, reward = self.env.step(move)
-            self.env.board.pop()
-            self.env.pop_layer_board()
+            #self.env.board.pop()
+            #self.env.pop_layer_board()
 
-            Returns = reward + self.gamma * Returns
-            node.update(Returns)
 
 
             #node = node.children[move]
             #depth += 1
 
             #print("completed sim",sim_count, "with Returns",Returns)
-
             # Return to root node
             while node.parent:
-                self.env.board.pop()
-                node = node.parent
                 latest_reward = node_rewards.pop(-1)
                 Returns = latest_reward + self.gamma * Returns
                 node.update(Returns)
+                node = node.parent
+
+
+                self.env.board.pop()
 
 
             self.env.init_layer_board()
