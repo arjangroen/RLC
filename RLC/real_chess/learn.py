@@ -2,6 +2,7 @@ import numpy as np
 import time
 from RLC.real_chess.tree import Node
 import math
+import gc
 
 
 def softmax(x, temperature=1):
@@ -14,19 +15,28 @@ def sigmoid(x):
 
 class TD_search(object):
 
-    def __init__(self, env, agent, lamb=0.9, gamma=0.9, search_time=1, search_balance=0.0):
+    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=2000, batch_size=256):
+        """
+        Chess algorithm that combines bootstrapped monte carlo tree search with Q Learning
+        Args:
+            env: RLC chess environment
+            agent: RLC chess agent
+            gamma: discount factor
+            search_time: maximum time spent doing tree search
+            memsize: Amount of training samples to keep in-memory
+            batch_size: Size of the training batches
+        """
         self.env = env
         self.agent = agent
         self.tree = Node(self.env)
-        self.lamb = lamb
         self.gamma = gamma
-        self.memsize = 1000
-        self.batch_size = 128
-        self.reward_trace = []
-        self.piece_balance_trace = []
-        self.ready = False
+        self.memsize = memsize
+        self.batch_size = batch_size
+        self.reward_trace = []  # Keeps track of the rewards
+        self.piece_balance_trace = []  # Keep track of the material value on the board
+        self.ready = False  # Whether to start training
         self.search_time = search_time
-        self.search_balance = search_balance
+        self.min_sim_count = 10
 
         self.mem_state = np.zeros(shape=(1, 8, 8, 8))
         self.mem_sucstate = np.zeros(shape=(1, 8, 8, 8))
@@ -34,19 +44,24 @@ class TD_search(object):
         self.mem_error = np.zeros(shape=(1))
         self.mem_episode_active = np.ones(shape=(1))
 
-        self.mc_state = np.zeros(shape=(1, 8, 8, 8))
-        self.mc_state_result = np.zeros(shape=(1))
-        self.mc_state_error = np.zeros(shape=(1))
-
     def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=80):
-        starttime = time.time()
+        """
+        Start Reinforcement Learning Algorithm
+        Args:
+            iters: maximum amount of iterations to train
+            c: model update rate (once every C games)
+            timelimit_seconds: maximum training time
+            maxiter: Maximum duration of a game, in halfmoves
+        Returns:
 
+        """
+        starttime = time.time()
         for k in range(iters):
             self.env.reset()
             if k % c == 0:
                 self.agent.fix_model()
                 print("iter", k)
-            if k > 3:
+            if k > c:
                 self.ready = True
             self.play_game(k, maxiter=maxiter)
             if starttime + timelimit_seconds < time.time():
@@ -55,16 +70,17 @@ class TD_search(object):
 
     def play_game(self, k, maxiter=80):
         """
-        Play a game of capture chess
+        Play a chess game and learn from it
         Args:
-            maxiter: int
-                Maximum amount of steps per game
+            k: the play iteration number
+            maxiter: maximum duration of the game (halfmoves)
 
         Returns:
+            board: Chess environment on terminal state
         """
         episode_end = False
         turncount = 0
-        tree = Node(self.env.board, gamma=self.gamma)
+        tree = Node(self.env.board, gamma=self.gamma)  # Initialize the game tree
 
         # Play a game of chess
         while not episode_end:
@@ -74,14 +90,10 @@ class TD_search(object):
             # White's turn
             if self.env.board.turn:
 
-                # Search longer at end than begin
-                #x = (turncount / maxiter - self.search_balance) * 10
-                #timelimit = self.search_time * sigmoid(x)
-                timelimit = 3
-
-                # Do a Monte Carlo Tree Search
-                if k > 25:
-                    tree = self.mcts(tree, state_value, timelimit, remaining_depth=maxiter - turncount)
+                # Do a Monte Carlo Tree Search after game iteration k
+                start_mcts_after = 25
+                if k > start_mcts_after:
+                    tree = self.mcts(tree)
                     # Step the best move
                     max_move = None
                     max_value = np.NINF
@@ -94,17 +106,38 @@ class TD_search(object):
                 else:
                     max_move = np.random.choice([move for move in self.env.board.generate_legal_moves()])
 
+            # Black's turn
+            else:
+                max_move = None
+                max_value = np.NINF
+                for move in self.env.board.generate_legal_moves():
+                    self.env.step(move)
+                    if self.env.board.result() == "0-1":
+                        max_move = move
+                        self.env.board.pop()
+                        self.env.pop_layer_board()
+                        break
+                    successor_state_value_opponent = self.env.opposing_agent.predict(
+                        np.expand_dims(self.env.layer_board, axis=0))
+                    if successor_state_value_opponent > max_value:
+                        max_move = move
+                        max_value = successor_state_value_opponent
+
+                    self.env.board.pop()
+                    self.env.pop_layer_board()
+
+            if not (self.env.board.turn and max_move not in tree.children.keys()) or not k > start_mcts_after:
+                tree.children[max_move] = Node(gamma=0.9,parent=tree)
 
             episode_end, reward = self.env.step(max_move)
 
+
             tree = tree.children[max_move]
             tree.parent = None
+            gc.collect()
 
             sucstate = np.expand_dims(self.env.layer_board, axis=0)
             new_state_value = self.agent.predict(sucstate)
-
-            if not tree.values:
-                tree.values.append(new_state_value.item())
 
             error = reward + self.gamma * new_state_value - state_value
             error = np.float(np.squeeze(error))
@@ -115,14 +148,13 @@ class TD_search(object):
 
             episode_active = 0 if episode_end else 1
 
-
             # construct training sample state, prediction, error
             self.mem_state = np.append(self.mem_state, state, axis=0)
             self.mem_reward = np.append(self.mem_reward, reward)
             self.mem_sucstate = np.append(self.mem_sucstate, sucstate, axis=0)
             self.mem_error = np.append(self.mem_error, error)
             self.reward_trace = np.append(self.reward_trace, reward)
-            self.mem_episode_active = np.append(self.mem_episode_active,episode_active)
+            self.mem_episode_active = np.append(self.mem_episode_active, episode_active)
 
             if self.mem_state.shape[0] > self.memsize:
                 self.mem_state = self.mem_state[1:]
@@ -130,14 +162,10 @@ class TD_search(object):
                 self.mem_sucstate = self.mem_sucstate[1:]
                 self.mem_error = self.mem_error[1:]
                 self.mem_episode_active = self.mem_episode_active[1:]
-
-
-                # Bootstrap and end episode
-                #reward = np.squeeze(self.agent.predict(np.expand_dims(self.env.layer_board, axis=0)))
+                gc.collect()
 
             if turncount % 10 == 0:
-                self.update_agent(mc=False)
-        #self.update_agent(mc=True)
+                self.update_agent()
 
         piece_balance = self.env.get_material_value()
         self.piece_balance_trace.append(piece_balance)
@@ -147,21 +175,26 @@ class TD_search(object):
 
         return self.env.board
 
-    def update_agent(self,mc=False):
+    def update_agent(self):
+        """
+        Update the Agent with TD learning
+        Returns:
+            None
+        """
         if self.ready:
-
-            if mc:
-                choice_indices, states, results = self.get_mc_minibatch(prioritized=True)
-                td_errors = self.agent.MC_update(states, results)
-                self.mc_state_error[choice_indices.tolist()] = td_errors
-
-            else:
-                choice_indices, states, rewards, sucstates, episode_active = self.get_minibatch()
-
-                td_errors = self.agent.TD_update(states, rewards, sucstates, episode_active, gamma=self.gamma)
-                self.mem_error[choice_indices.tolist()] = td_errors
+            choice_indices, states, rewards, sucstates, episode_active = self.get_minibatch()
+            td_errors = self.agent.TD_update(states, rewards, sucstates, episode_active, gamma=self.gamma)
+            self.mem_error[choice_indices.tolist()] = td_errors
 
     def get_minibatch(self, prioritized=True):
+        """
+        Get a mini batch of experience
+        Args:
+            prioritized:
+
+        Returns:
+
+        """
         if prioritized:
             sampling_priorities = np.abs(self.mem_error) + 1e-9
         else:
@@ -181,30 +214,17 @@ class TD_search(object):
 
         return choice_indices, states, rewards, sucstates, episode_active
 
-    def get_mc_minibatch(self, prioritized=True):
-        if prioritized:
-            sampling_priorities = np.abs(self.mc_state_error) + 1e-2
-        else:
-            sampling_priorities = np.ones(shape=self.mc_state_error.shape)
-        sampling_probs = sampling_priorities / np.sum(sampling_priorities)
-        sample_indices = [x for x in range(self.mc_state.shape[0])]
-        choice_indices = np.random.choice(sample_indices,
-                                          min(self.mc_state.shape[0],
-                                              self.batch_size),
-                                          p=np.squeeze(sampling_probs),
-                                          replace=False
-                                          )
-        states = self.mc_state[choice_indices]
-        results = self.mc_state_result[choice_indices]
-
-        return choice_indices, states, results
-
-    def mcts(self, node, statevalue, timelimit, remaining_depth=3):
+    def mcts(self, node):
         """
-        Return best node
-        :param node:
-        :return:
+        Run Monte Carlo Tree Search
+        Args:
+            node: A game state node object
+
+        Returns:
+            the node with playout sims
+
         """
+
         starttime = time.time()
         sim_count = 0
 
@@ -224,16 +244,19 @@ class TD_search(object):
 
                 child_value = reward + self.gamma * successor_state_value
 
-                node.update_child(move,child_value)
+                node.update_child(move, child_value)
                 self.env.board.pop()
                 self.env.pop_layer_board()
         if not node.values:
             node.values = [0]
 
-        while starttime + timelimit > time.time() or sim_count < 10:
+
+        while starttime + self.search_time > time.time() or sim_count < self.min_sim_count:
             depth = 0
             color = 1
             node_rewards = []
+
+            # Select the best node from where to start MCTS
             while node.children:
                 node, move = node.select(color=color)
                 if not move:
@@ -260,49 +283,25 @@ class TD_search(object):
                     else:
                         continue
 
-
             # Expand the game tree with a simulation
             Returns, move = node.simulate(self.agent.fixed_model,
-                                         self.env,
-                                         depth=0)
+                                          self.env,
+                                          depth=0)
             self.env.init_layer_board()
-            #error = 0.02
-
-            ## Add the Returns to memory
-            #self.mc_state = np.append(self.mc_state, np.expand_dims(self.env.layer_board.copy(), axis=0), axis=0)
-            #self.mc_state_result = np.append(self.mc_state_result, Returns)
-            #self.mc_state_error = np.append(self.mc_state_error, error)
-
-            #if self.mc_state.shape[0] > self.memsize:
-            #    self.mc_state = self.mc_state[1:]
-            #    self.mc_state_result = self.mc_state_result[1:]
-            #    self.mc_state_error = self.mc_state_error[1:]
 
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
 
-            #episode_end, reward = self.env.step(move)
             node.update_child(move, Returns)
 
-            #self.env.board.pop()
-            #self.env.pop_layer_board()
-
-
-
-            #node = node.children[move]
-            #depth += 1
-
-            #print("completed sim",sim_count, "with Returns",Returns)
-            # Return to root node
+            # Return to root node and backpropagate Returns
             while node.parent:
                 latest_reward = node_rewards.pop(-1)
                 Returns = latest_reward + self.gamma * Returns
                 node.update(Returns)
                 node = node.parent
 
-
                 self.env.board.pop()
-
 
             self.env.init_layer_board()
             sim_count += 1

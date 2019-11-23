@@ -7,32 +7,57 @@ def softmax(x,temperature=1):
 
 class Node(object):
 
-    def __init__(self, board=None, parent=None, gamma=0.9,stop_criterium=(-0.05,0.1)):
-        self.children = {}
-        self.board = board
+    def __init__(self, board=None, parent=None, gamma=0.9):
+        """
+        Game Node for Monte Carlo Tree Search
+        Args:
+            board: the chess board
+            parent: the parent node
+            gamma: the discount factor
+        """
+        self.children = {}  # Child nodes
+        self.board = board  # Chess board
         self.parent = parent
-        self.stop_criterium = stop_criterium
-        self.visits = 0
-        self.balance = 0
-        self.value_iters = 5
         self.values = []  # reward + Returns
         self.gamma = gamma
-        self.epsilon = 0.05
         self.starting_value = 0
 
-    def update_child(self, move, result):
+    def update_child(self, move, Returns):
+        """
+        Update a child with a simulation result
+        Args:
+            move: The move that leads to the child
+            Returns: the reward of the move and subsequent returns
+
+        Returns:
+
+        """
         child = self.children[move]
-        child.values.append(result)
+        child.values.append(Returns)
 
-    def update(self,result=None):
-        if result:
-            self.values.append(result)
+    def update(self, Returns=None):
+        """
+        Update a node with observed Returns
+        Args:
+            Returns: Future returns
 
-    def backprop(self, result):
-        self.parent.values.append(self.gamma*result)
+        Returns:
+
+        """
+        if Returns:
+            self.values.append(Returns)
 
     def select(self, color=1):
-        """Thompson sampling"""
+        """
+        Use Thompson sampling to select the best child node
+        Args:
+            color: Whether to select for white or black
+
+        Returns:
+            (node, move)
+            node: the selected node
+            move: the selected move
+        """
         assert color == 1 or color == -1, "color has to be white (1) or black (-1)"
         if self.children:
             max_sample = np.random.choice(color * np.array(self.values))
@@ -49,58 +74,58 @@ class Node(object):
         else:
             return self, None
 
-    def simulate(self, model, env, depth=0, random=True):
+    def simulate(self, model, env, depth=0, max_depth=4):
+        """
+        Recursive Monte Carlo Playout
+        Args:
+            model: The model used for bootstrap estimation
+            env: the chess environment
+            depth: The recursion depth
+            max_depth: How deep to search
 
-        max_depth = 4
+        Returns:
+            Playout result.
+        """
 
-        temperature = 1
-
-        if depth == 0:
-            self.starting_value = np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
-
-        if env.board.turn and not random:
+        if env.board.turn:
+            move = np.random.choice([x for x in env.board.generate_legal_moves()])
+        else:
             successor_values = []
             for move in env.board.generate_legal_moves():
                 episode_end, reward = env.step(move)
 
-                # Winning moves are greedy
-                if env.board.result() == "1-0":
+                # Winning moves are get hardcoded Returns
+                if env.board.result() == "0-1":
                     env.board.pop()
                     Returns = 0
                     if depth > 0:
                         return reward + self.gamma * Returns
                     else:
                         return reward + self.gamma * Returns, move
-                successor_values.append(reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0))))
-                for _ in ['move, opponent_move']:
-                    env.board.pop()
-                env.init_layer_board()
-            move_probas = softmax(np.array(successor_values),temperature=temperature)
+                successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
+                env.board.pop()
+                env.pop_layer_board()
+            move_probas = np.zeros(len(successor_values))
+            move_probas[np.argmax(successor_values)] = 1
             moves = [x for x in env.board.generate_legal_moves()]
             if len(moves) == 1:
                 move = moves[0]
             else:
                 move = np.random.choice(moves, p=np.squeeze(move_probas))
-        elif env.board.turn and random:
-            move = np.random.choice([x for x in env.board.generate_legal_moves()])
 
         episode_end, reward = env.step(move)
 
         if episode_end:
             Returns = reward
-        elif depth >= max_depth: #  or \
-            # V * self.gamma**depth - self.starting_value > self.stop_criterium[1] or \
-            # V * self.gamma**depth - self.starting_value < self.stop_criterium[0]:
+        elif depth >= max_depth: # Bootstrap the Monte Carlo Playout
             Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
-            #Returns = reward + self.gamma * 0
-        else:
+        else:  # Recursively continue
             Returns = reward + self.gamma * self.simulate(model, env, depth=depth+1)
 
         env.board.pop()
 
 
         if depth == 0:
-            # restore environment
             return Returns, move
         else:
             noise = np.random.randn()/1e6
