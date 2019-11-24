@@ -55,7 +55,7 @@ class Board(object):
             self.layer_board[6, 0, :] = 1
         else:
             self.layer_board[6, 0, :] = -1
-        if self.board.can_claim_draw():
+        if self.board.is_game_over(claim_draw=False):
             self.layer_board[7, :, :] = 1
 
     def update_layer_board(self, move):
@@ -73,8 +73,7 @@ class Board(object):
             self.layer_board[piece_index, from_row, from_col] = 0
             self.layer_board[6, :, :] = 1 / self.board.fullmove_number
             self.layer_board[6, 0, :] *= -1
-            if self.board.is_game_over(claim_draw=False):
-                self.layer_board[7, :, :] = 1
+            self.layer_board[7, :, :] = 1
 
     def pop_layer_board(self):
         self.layer_board = self._prev_layer_board.copy()
