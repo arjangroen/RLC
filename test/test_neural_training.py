@@ -17,7 +17,7 @@ player.model.summary()
 w_before = learner.agent.model.get_weights()
 
 def test_train():
-    learner.learn(iters=40,timelimit_seconds=900)
+    learner.learn(iters=11,timelimit_seconds=900)
 
 test_train()
 
