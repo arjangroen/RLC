@@ -74,7 +74,7 @@ class Node(object):
         else:
             return self, None
 
-    def simulate(self, model, env, depth=0, max_depth=4):
+    def simulate(self, model, env, depth=0, max_depth=4,random=False):
         """
         Recursive Monte Carlo Playout
         Args:
@@ -87,8 +87,31 @@ class Node(object):
             Playout result.
         """
 
-        if env.board.turn:
+        if env.board.turn and random:
             move = np.random.choice([x for x in env.board.generate_legal_moves()])
+        elif env.board.turn:
+            successor_values = []
+            for move in env.board.generate_legal_moves():
+                episode_end, reward = env.step(move)
+
+                if env.board.result() == "1-0":
+                    env.board.pop()
+                    env.pop_layer_board()
+                    break
+                else:
+                    sucval = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board, axis=0)))
+                    successor_values.append(sucval)
+                    env.board.pop()
+                    env.pop_layer_board()
+
+            if not episode_end:
+                move_probas = softmax(np.array(successor_values),temperature=1)
+                moves = [x for x in env.board.generate_legal_moves()]
+                if len(moves) == 1:
+                    move = moves[0]
+                else:
+                    move = np.random.choice(moves, p=np.squeeze(move_probas))
+
         else:
             successor_values = []
             for move in env.board.generate_legal_moves():
@@ -97,21 +120,21 @@ class Node(object):
                 # Winning moves are get hardcoded Returns
                 if env.board.result() == "0-1":
                     env.board.pop()
-                    Returns = 0
-                    if depth > 0:
-                        return reward + self.gamma * Returns
-                    else:
-                        return reward + self.gamma * Returns, move
-                successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
-                env.board.pop()
-                env.pop_layer_board()
-            move_probas = np.zeros(len(successor_values))
-            move_probas[np.argmax(successor_values)] = 1
-            moves = [x for x in env.board.generate_legal_moves()]
-            if len(moves) == 1:
-                move = moves[0]
-            else:
-                move = np.random.choice(moves, p=np.squeeze(move_probas))
+                    env.pop_layer_board()
+                    break
+                else:
+                    successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
+                    env.board.pop()
+                    env.pop_layer_board()
+
+            if not episode_end:
+                move_probas = np.zeros(len(successor_values))
+                move_probas[np.argmax(successor_values)] = 1
+                moves = [x for x in env.board.generate_legal_moves()]
+                if len(moves) == 1:
+                    move = moves[0]
+                else:
+                    move = np.random.choice(moves, p=np.squeeze(move_probas))
 
         episode_end, reward = env.step(move)
 
