@@ -99,7 +99,7 @@ class TD_search(object):
                     max_value = np.NINF
                     for move, child in tree.children.items():
                         # optimistic
-                        sampled_value = np.random.choice(child.values)
+                        sampled_value = np.mean(child.values)
                         if sampled_value > max_value:
                             max_value = sampled_value
                             max_move = move
