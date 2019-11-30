@@ -87,7 +87,7 @@ class TD_search(object):
             state = np.expand_dims(self.env.layer_board.copy(), axis=0)
             state_value = self.agent.predict(state)
 
-            # White's turn
+            # White's turn involves tree-search
             if self.env.board.turn:
 
                 # Do a Monte Carlo Tree Search after game iteration k
@@ -98,7 +98,6 @@ class TD_search(object):
                     max_move = None
                     max_value = np.NINF
                     for move, child in tree.children.items():
-                        # optimistic
                         sampled_value = np.mean(child.values)
                         if sampled_value > max_value:
                             max_value = sampled_value
@@ -106,7 +105,7 @@ class TD_search(object):
                 else:
                     max_move = np.random.choice([move for move in self.env.board.generate_legal_moves()])
 
-            # Black's turn
+            # Black's turn is myopic
             else:
                 max_move = None
                 max_value = np.NINF
@@ -127,10 +126,9 @@ class TD_search(object):
                     self.env.pop_layer_board()
 
             if not (self.env.board.turn and max_move not in tree.children.keys()) or not k > start_mcts_after:
-                tree.children[max_move] = Node(gamma=0.9,parent=tree)
+                tree.children[max_move] = Node(gamma=0.9, parent=tree)
 
             episode_end, reward = self.env.step(max_move)
-
 
             tree = tree.children[max_move]
             tree.parent = None
@@ -228,7 +226,7 @@ class TD_search(object):
         starttime = time.time()
         sim_count = 0
 
-        # Add a prediction for each child node
+        # First make a prediction for each child state
         for move in self.env.board.generate_legal_moves():
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
@@ -250,7 +248,6 @@ class TD_search(object):
         if not node.values:
             node.values = [0]
 
-
         while starttime + self.search_time > time.time() or sim_count < self.min_sim_count:
             depth = 0
             color = 1
@@ -260,12 +257,12 @@ class TD_search(object):
             while node.children:
                 node, move = node.select(color=color)
                 if not move:
+                    # No move means that the node selects itself, not a child node.
                     break
                 else:
                     depth += 1
                     color = color * -1  # switch color
-                    # A best node is selected
-                    episode_end, reward = self.env.step(move)
+                    episode_end, reward = self.env.step(move)  # Update the environment to reflect the node
                     node_rewards.append(reward)
                     # Check best node is terminal
 

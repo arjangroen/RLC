@@ -1,8 +1,8 @@
 import numpy as np
 
 
-def softmax(x,temperature=1):
-    return np.exp(x/temperature) / np.sum(np.exp(x/temperature))
+def softmax(x, temperature=1):
+    return np.exp(x / temperature) / np.sum(np.exp(x / temperature))
 
 
 class Node(object):
@@ -74,7 +74,7 @@ class Node(object):
         else:
             return self, None
 
-    def simulate(self, model, env, depth=0, max_depth=4,random=False):
+    def simulate(self, model, env, depth=0, max_depth=4, random=False):
         """
         Recursive Monte Carlo Playout
         Args:
@@ -94,43 +94,29 @@ class Node(object):
             for move in env.board.generate_legal_moves():
                 episode_end, reward = env.step(move)
 
-                if env.board.result() == "1-0":
+                if (env.board.result() == "1-0" and env.board.turn) or (
+                        env.board.result() == "0-1" and not env.board.turn):
                     env.board.pop()
                     env.pop_layer_board()
                     break
                 else:
-                    sucval = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board, axis=0)))
+                    if env.board.turn:
+                        sucval = reward + self.gamma * np.squeeze(
+                            model.predict(np.expand_dims(env.layer_board, axis=0)))
+                    else:
+                        sucval = np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0)))
                     successor_values.append(sucval)
                     env.board.pop()
                     env.pop_layer_board()
 
             if not episode_end:
-                move_probas = softmax(np.array(successor_values),temperature=1)
-                moves = [x for x in env.board.generate_legal_moves()]
-                if len(moves) == 1:
-                    move = moves[0]
+                if env.board.turn:
+                    move_probas = softmax(np.array(successor_values), temperature=1)
+                    moves = [x for x in env.board.generate_legal_moves()]
                 else:
-                    move = np.random.choice(moves, p=np.squeeze(move_probas))
-
-        else:
-            successor_values = []
-            for move in env.board.generate_legal_moves():
-                episode_end, reward = env.step(move)
-
-                # Winning moves are get hardcoded Returns
-                if env.board.result() == "0-1":
-                    env.board.pop()
-                    env.pop_layer_board()
-                    break
-                else:
-                    successor_values.append(np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0))))
-                    env.board.pop()
-                    env.pop_layer_board()
-
-            if not episode_end:
-                move_probas = np.zeros(len(successor_values))
-                move_probas[np.argmax(successor_values)] = 1
-                moves = [x for x in env.board.generate_legal_moves()]
+                    move_probas = np.zeros(len(successor_values))
+                    move_probas[np.argmax(successor_values)] = 1
+                    moves = [x for x in env.board.generate_legal_moves()]
                 if len(moves) == 1:
                     move = moves[0]
                 else:
@@ -140,16 +126,15 @@ class Node(object):
 
         if episode_end:
             Returns = reward
-        elif depth >= max_depth: # Bootstrap the Monte Carlo Playout
-            Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board,axis=0)))
+        elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
+            Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board, axis=0)))
         else:  # Recursively continue
-            Returns = reward + self.gamma * self.simulate(model, env, depth=depth+1)
+            Returns = reward + self.gamma * self.simulate(model, env, depth=depth + 1)
 
         env.board.pop()
-
 
         if depth == 0:
             return Returns, move
         else:
-            noise = np.random.randn()/1e6
+            noise = np.random.randn() / 1e6
             return Returns + noise
