@@ -286,7 +286,7 @@ class Reinforce(object):
             else:
                 successor_state_value = self.agent.value_function[self.env.state]
             state_value += (prob * (
-                        reward + gamma * successor_state_value))  # sum up rewards and discounted successor state value
+                    reward + gamma * successor_state_value))  # sum up rewards and discounted successor state value
         return state_value
 
     def evaluate_policy(self, gamma=0.9, synchronous=True):

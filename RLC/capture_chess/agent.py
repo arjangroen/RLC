@@ -6,16 +6,16 @@ import keras.backend as K
 
 
 def policy_gradient_loss(Returns):
-    def modified_crossentropy(action,action_probs):
-        cost = (K.categorical_crossentropy(action,action_probs,from_logits=False,axis=1) * Returns)
+    def modified_crossentropy(action, action_probs):
+        cost = (K.categorical_crossentropy(action, action_probs, from_logits=False, axis=1) * Returns)
         return K.mean(cost)
-    return modified_crossentropy
 
+    return modified_crossentropy
 
 
 class Agent(object):
 
-    def __init__(self, gamma=0.5, network='linear', lr=0.01,verbose=0):
+    def __init__(self, gamma=0.5, network='linear', lr=0.01, verbose=0):
         """
         Agent that plays the white pieces in capture chess
         Args:
@@ -95,8 +95,8 @@ class Agent(object):
         """
         optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False)
         input_layer = Input(shape=(8, 8, 8), name='board_layer')
-        R = Input(shape=(1,),name='Rewards')
-        legal_moves = Input(shape=(4096,),name='legal_move_mask')
+        R = Input(shape=(1,), name='Rewards')
+        legal_moves = Input(shape=(4096,), name='legal_move_mask')
         inter_layer_1 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         inter_layer_2 = Conv2D(1, (1, 1), data_format="channels_first")(input_layer)  # 1,8,8
         flat_1 = Reshape(target_shape=(1, 64))(inter_layer_1)
@@ -104,10 +104,9 @@ class Agent(object):
         output_dot_layer = Dot(axes=1)([flat_1, flat_2])
         output_layer = Reshape(target_shape=(4096,))(output_dot_layer)
         softmax_layer = Activation('softmax')(output_layer)
-        legal_softmax_layer = Multiply()([legal_moves,softmax_layer])  # Select legal moves
-        self.model = Model(inputs=[input_layer,R,legal_moves], outputs=[legal_softmax_layer])
-        self.model.compile(optimizer=optimizer,loss=policy_gradient_loss(R))
-
+        legal_softmax_layer = Multiply()([legal_moves, softmax_layer])  # Select legal moves
+        self.model = Model(inputs=[input_layer, R, legal_moves], outputs=[legal_softmax_layer])
+        self.model.compile(optimizer=optimizer, loss=policy_gradient_loss(R))
 
     def network_update(self, minibatch):
         """
@@ -170,7 +169,7 @@ class Agent(object):
         """
         return self.fixed_model.predict(state) + np.random.randn() * 1e-9
 
-    def policy_gradient_update(self,states, actions, rewards, action_spaces,actor_critic=False):
+    def policy_gradient_update(self, states, actions, rewards, action_spaces, actor_critic=False):
         """
         Update parameters with Monte Carlo Policy Gradient algorithm
         Args:
@@ -183,31 +182,29 @@ class Agent(object):
         """
         n_steps = len(states)
         Returns = []
-        targets = np.zeros((n_steps,64,64))
+        targets = np.zeros((n_steps, 64, 64))
         for t in range(n_steps):
             action = actions[t]
-            targets[t,action[0],action[1]] = 1
+            targets[t, action[0], action[1]] = 1
             if actor_critic:
-                R = rewards[t,action[0]*64+action[1]]
+                R = rewards[t, action[0] * 64 + action[1]]
             else:
-                R = np.sum([r * self.gamma**i for i,r in enumerate(rewards[t:])])
+                R = np.sum([r * self.gamma ** i for i, r in enumerate(rewards[t:])])
             Returns.append(R)
-
 
         if not actor_critic:
             mean_return = np.mean(Returns)
             self.long_term_mean.append(mean_return)
-            train_returns = np.stack(Returns,axis=0)-np.mean(self.long_term_mean)
+            train_returns = np.stack(Returns, axis=0) - np.mean(self.long_term_mean)
         else:
-            train_returns = np.stack(Returns,axis=0)
-        #print(train_returns.shape)
-        targets = targets.reshape((n_steps,4096))
+            train_returns = np.stack(Returns, axis=0)
+        # print(train_returns.shape)
+        targets = targets.reshape((n_steps, 4096))
         self.weight_memory.append(self.model.get_weights())
-        self.model.fit(x=[np.stack(states,axis=0),
+        self.model.fit(x=[np.stack(states, axis=0),
                           train_returns,
-                          np.concatenate(action_spaces,axis=0)
-                         ],
-                       y=[np.stack(targets,axis=0)],
-                       verbose = self.verbose
-                      )
-
+                          np.concatenate(action_spaces, axis=0)
+                          ],
+                       y=[np.stack(targets, axis=0)],
+                       verbose=self.verbose
+                       )

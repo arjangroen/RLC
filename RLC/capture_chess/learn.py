@@ -4,9 +4,10 @@ import numpy as np
 from chess.pgn import Game
 import pandas as pd
 
+
 class Q_learning(object):
 
-    def __init__(self,agent,env,memsize=1000):
+    def __init__(self, agent, env, memsize=1000):
         """
         Reinforce object to learn capture chess
         Args:
@@ -22,8 +23,7 @@ class Q_learning(object):
         self.memory = []
         self.sampling_probs = []
 
-
-    def learn(self,iters=100,c=10):
+    def learn(self, iters=100, c=10):
         """
         Run the Q-learning algorithm. Play greedy on the final iter
         Args:
@@ -38,11 +38,11 @@ class Q_learning(object):
         """
         for k in range(iters):
             if k % c == 0:
-                print("iter",k)
+                print("iter", k)
                 self.agent.fix_model()
-            greedy = True if k == iters-1 else False
+            greedy = True if k == iters - 1 else False
             self.env.reset()
-            self.play_game(k,greedy=greedy)
+            self.play_game(k, greedy=greedy)
 
         pgn = Game.from_board(self.env.board)
         reward_smooth = pd.DataFrame(self.reward_trace)
@@ -50,7 +50,7 @@ class Q_learning(object):
 
         return pgn
 
-    def play_game(self,k,greedy=False,maxiter=25):
+    def play_game(self, k, greedy=False, maxiter=25):
         """
         Play a game of capture chess
         Args:
@@ -68,25 +68,25 @@ class Q_learning(object):
         turncount = 0
 
         # Here we determine the exploration rate. k is divided by 250 to slow down the exploration rate decay.
-        eps = max(0.05,1/(1+(k/250))) if not greedy else 0.
+        eps = max(0.05, 1 / (1 + (k / 250))) if not greedy else 0.
 
         # Play a game of chess
         while not episode_end:
             state = self.env.layer_board
-            explore = np.random.uniform(0,1) < eps  # determine whether to explore
+            explore = np.random.uniform(0, 1) < eps  # determine whether to explore
             if explore:
                 move = self.env.get_random_action()
                 move_from = move.from_square
                 move_to = move.to_square
             else:
-                action_values = self.agent.get_action_values(np.expand_dims(state,axis=0))
-                action_values = np.reshape(np.squeeze(action_values),(64,64))
+                action_values = self.agent.get_action_values(np.expand_dims(state, axis=0))
+                action_values = np.reshape(np.squeeze(action_values), (64, 64))
                 action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
-                action_values = np.multiply(action_values,action_space)
-                move_from = np.argmax(action_values,axis=None) // 64
-                move_to = np.argmax(action_values,axis=None) % 64
-                moves = [x for x in self.env.board.generate_legal_moves() if\
-                        x.from_square == move_from and x.to_square == move_to]
+                action_values = np.multiply(action_values, action_space)
+                move_from = np.argmax(action_values, axis=None) // 64
+                move_to = np.argmax(action_values, axis=None) % 64
+                moves = [x for x in self.env.board.generate_legal_moves() if \
+                         x.from_square == move_from and x.to_square == move_to]
                 if len(moves) == 0:  # If all legal moves have negative action value, explore.
                     move = self.env.get_random_action()
                     move_from = move.from_square
@@ -105,9 +105,8 @@ class Q_learning(object):
                 reward = 0
             if episode_end:
                 new_state = new_state * 0
-            self.memory.append([state,(move_from, move_to),reward,new_state])
+            self.memory.append([state, (move_from, move_to), reward, new_state])
             self.sampling_probs.append(1)
-
 
             self.reward_trace.append(reward)
 
@@ -115,7 +114,7 @@ class Q_learning(object):
 
         return self.env.board
 
-    def sample_memory(self,turncount):
+    def sample_memory(self, turncount):
         """
         Get a sample from memory for experience replay
         Args:
@@ -130,14 +129,14 @@ class Q_learning(object):
         minibatch = []
         memory = self.memory[:-turncount]
         probs = self.sampling_probs[:-turncount]
-        sample_probs = [probs[n]/np.sum(probs) for n in range(len(probs))]
-        indices = np.random.choice(range(len(memory)),min(1028,len(memory)),replace=True,p=sample_probs)
+        sample_probs = [probs[n] / np.sum(probs) for n in range(len(probs))]
+        indices = np.random.choice(range(len(memory)), min(1028, len(memory)), replace=True, p=sample_probs)
         for i in indices:
             minibatch.append(memory[i])
 
         return minibatch, indices
 
-    def update_agent(self,turncount):
+    def update_agent(self, turncount):
         """
         Update the agent using experience replay. Set the sampling probs with the td error
         Args:
@@ -147,9 +146,9 @@ class Q_learning(object):
 
         """
         if turncount < len(self.memory):
-            minibatch,indices = self.sample_memory(turncount)
+            minibatch, indices = self.sample_memory(turncount)
             td_errors = self.agent.network_update(minibatch)
-            for n,i in enumerate(indices):
+            for n, i in enumerate(indices):
                 self.sampling_probs[i] = np.abs(td_errors[n])
 
 
@@ -184,8 +183,7 @@ class Reinforce(object):
         for k in range(iters):
             self.env.reset()
             states, actions, rewards, action_spaces = self.play_game(k)
-            self.reinforce_agent(states,actions, rewards, action_spaces)
-
+            self.reinforce_agent(states, actions, rewards, action_spaces)
 
         pgn = Game.from_board(self.env.board)
         reward_smooth = pd.DataFrame(self.reward_trace)
@@ -220,11 +218,11 @@ class Reinforce(object):
             state = self.env.layer_board
             action_space = self.env.project_legal_moves()  # The environment determines which moves are legal
             action_probs = self.agent.model.predict([np.expand_dims(state, axis=0),
-                                                     np.zeros((1,1)),
-                                                     action_space.reshape(1,4096)])
+                                                     np.zeros((1, 1)),
+                                                     action_space.reshape(1, 4096)])
             self.action_value_mem.append(action_probs)
-            action_probs = action_probs/action_probs.sum()
-            move = np.random.choice(range(4096),p=np.squeeze(action_probs))
+            action_probs = action_probs / action_probs.sum()
+            move = np.random.choice(range(4096), p=np.squeeze(action_probs))
             move_from = move // 64
             move_to = move % 64
             moves = [x for x in self.env.board.generate_legal_moves() if \
@@ -245,14 +243,13 @@ class Reinforce(object):
                 new_state = new_state * 0
 
             states.append(state)
-            actions.append((move_from,move_to))
+            actions.append((move_from, move_to))
             rewards.append(reward)
-            action_spaces.append(action_space.reshape(1,4096))
+            action_spaces.append(action_space.reshape(1, 4096))
 
         self.reward_trace.append(np.sum(rewards))
 
         return states, actions, rewards, action_spaces
-
 
     def reinforce_agent(self, states, actions, rewards, action_spaces):
         """
@@ -263,7 +260,7 @@ class Reinforce(object):
         Returns:
 
         """
-        self.agent.policy_gradient_update(states, actions,rewards, action_spaces)
+        self.agent.policy_gradient_update(states, actions, rewards, action_spaces)
 
 
 class ActorCritic(object):
@@ -304,14 +301,13 @@ class ActorCritic(object):
             self.env.reset()
             end_state = self.play_game(k)
 
-
         pgn = Game.from_board(self.env.board)
         reward_smooth = pd.DataFrame(self.reward_trace)
         reward_smooth.rolling(window=10, min_periods=0).mean().plot()
 
         return pgn
 
-    def play_game(self,k,greedy=False,maxiter=25):
+    def play_game(self, k, greedy=False, maxiter=25):
         """
         Play a game of capture chess
         Args:
@@ -337,8 +333,8 @@ class ActorCritic(object):
                                                      np.zeros((1, 1)),
                                                      action_space.reshape(1, 4096)])
             self.action_value_mem.append(action_probs)
-            #print(action_probs)
-            #print(np.max(action_probs))
+            # print(action_probs)
+            # print(np.max(action_probs))
             action_probs = action_probs / action_probs.sum()
             move = np.random.choice(range(4096), p=np.squeeze(action_probs))
             move_from = move // 64
@@ -360,15 +356,15 @@ class ActorCritic(object):
             if episode_end:
                 new_state = new_state * 0
 
-            self.memory.append([state,(move_from, move_to),reward,new_state,action_space.reshape(1,4096)])
+            self.memory.append([state, (move_from, move_to), reward, new_state, action_space.reshape(1, 4096)])
             self.sampling_probs.append(1)
             self.reward_trace.append(reward)
-        
+
         self.update_actorcritic(turncount)
 
         return self.env.board
 
-    def sample_memory(self,turncount):
+    def sample_memory(self, turncount):
         """
         Get a sample from memory for experience replay
         Args:
@@ -383,8 +379,8 @@ class ActorCritic(object):
         minibatch = []
         memory = self.memory[:-turncount]
         probs = self.sampling_probs[:-turncount]
-        sample_probs = [probs[n]/np.sum(probs) for n in range(len(probs))]
-        indices = np.random.choice(range(len(memory)),min(1028,len(memory)),replace=False,p=sample_probs)
+        sample_probs = [probs[n] / np.sum(probs) for n in range(len(probs))]
+        indices = np.random.choice(range(len(memory)), min(1028, len(memory)), replace=False, p=sample_probs)
         for i in indices:
             minibatch.append(memory[i])
 
@@ -404,17 +400,16 @@ class ActorCritic(object):
             # Get a Q value from the critic
             states = [x[0] for x in minibatch]
             actions = [x[1] for x in minibatch]
-            Q_est = self.critic.get_action_values(np.stack(states,axis=0))
+            Q_est = self.critic.get_action_values(np.stack(states, axis=0))
             action_spaces = [x[4] for x in minibatch]
 
-            self.actor.policy_gradient_update(states, actions, Q_est, action_spaces,actor_critic=True)
+            self.actor.policy_gradient_update(states, actions, Q_est, action_spaces, actor_critic=True)
 
             # Update sampling probs
             for n, i in enumerate(indices):
                 self.sampling_probs[i] = np.abs(td_errors[n])
 
-
-    def update_critic(self,turncount):
+    def update_critic(self, turncount):
         """
         Update the agent using experience replay. Set the sampling probs with the td error
         Args:
@@ -429,9 +424,3 @@ class ActorCritic(object):
 
             for n, i in enumerate(indices):
                 self.sampling_probs[i] = np.abs(td_errors[n])
-
-
-
-
-
-        

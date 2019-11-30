@@ -15,9 +15,10 @@ mapper["B"] = 3
 mapper["Q"] = 4
 mapper["K"] = 5
 
+
 class Board(object):
 
-    def __init__(self,FEN=None):
+    def __init__(self, FEN=None):
         """
         Chess Board Environment
         Args:
@@ -36,7 +37,7 @@ class Board(object):
         Returns:
 
         """
-        self.action_space = np.zeros(shape=(64,64))
+        self.action_space = np.zeros(shape=(64, 64))
 
     def init_layer_board(self):
         """
@@ -62,7 +63,7 @@ class Board(object):
         if self.board.can_claim_draw():
             self.layer_board[7, :, :] = 1
 
-    def step(self,action):
+    def step(self, action):
         """
         Run a step
         Args:
@@ -110,7 +111,6 @@ class Board(object):
         legal_moves = np.random.choice(legal_moves)
         return legal_moves
 
-
     def project_legal_moves(self):
         """
         Create a mask of legal actions
@@ -119,7 +119,7 @@ class Board(object):
         self.action_space = np.zeros(shape=(64, 64))
         moves = [[x.from_square, x.to_square] for x in self.board.generate_legal_moves()]
         for move in moves:
-            self.action_space[move[0],move[1]] = 1
+            self.action_space[move[0], move[1]] = 1
         return self.action_space
 
     def get_material_value(self):
@@ -127,12 +127,11 @@ class Board(object):
         Sums up the material balance using Reinfield values
         Returns: The material balance on the board
         """
-        pawns = 1 * np.sum(self.layer_board[0,:,:])
-        rooks = 5 * np.sum(self.layer_board[1,:,:])
-        minor = 3 * np.sum(self.layer_board[2:4,:,:])
-        queen = 9 * np.sum(self.layer_board[4,:,:])
+        pawns = 1 * np.sum(self.layer_board[0, :, :])
+        rooks = 5 * np.sum(self.layer_board[1, :, :])
+        minor = 3 * np.sum(self.layer_board[2:4, :, :])
+        queen = 9 * np.sum(self.layer_board[4, :, :])
         return pawns + rooks + minor + queen
-
 
     def reset(self):
         """
