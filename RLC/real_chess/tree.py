@@ -89,7 +89,7 @@ class Node(object):
 
         if env.board.turn and random:
             move = np.random.choice([x for x in env.board.generate_legal_moves()])
-        elif env.board.turn:
+        else:
             successor_values = []
             for move in env.board.generate_legal_moves():
                 episode_end, reward = env.step(move)
