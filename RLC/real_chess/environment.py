@@ -18,14 +18,17 @@ mapper["K"] = 5
 
 class Board(object):
 
-    def __init__(self, opposing_agent, FEN=None):
+    def __init__(self, opposing_agent, FEN=None, capture_reward_factor=0.05):
         """
         Chess Board Environment
         Args:
             FEN: str
                 Starting FEN notation, if None then start in the default chess position
+            capture_reward_factor: float [0,inf]
+                reward for capturing a piece. Multiply material gain by this number. 0 for normal chess.
         """
         self.FEN = FEN
+        self.capture_reward_factor = capture_reward_factor
         self.board = chess.Board(self.FEN) if self.FEN else chess.Board()
         self.layer_board = np.zeros(shape=(8, 8, 8))
         self.init_layer_board()
@@ -94,7 +97,7 @@ class Board(object):
         self.board.push(action)
         self.update_layer_board(action)
         piece_balance_after = self.get_material_value()
-        auxiliary_reward = (piece_balance_after - piece_balance_before) / 100
+        auxiliary_reward = (piece_balance_after - piece_balance_before) * self.capture_reward_factor
         if self.board.result() == "*":
             reward = 0
             episode_end = False
