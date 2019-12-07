@@ -86,7 +86,7 @@ class Node(object):
         Returns:
             Playout result.
         """
-
+        board_in = env.board.fen()
         if env.board.turn and random:
             move = np.random.choice([x for x in env.board.generate_legal_moves()])
         else:
@@ -97,7 +97,7 @@ class Node(object):
                 if (env.board.result() == "1-0" and env.board.turn) or (
                         env.board.result() == "0-1" and not env.board.turn):
                     env.board.pop()
-                    env.pop_layer_board()
+                    env.init_layer_board()
                     break
                 else:
                     if env.board.turn:
@@ -107,7 +107,7 @@ class Node(object):
                         sucval = np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0)))
                     successor_values.append(sucval)
                     env.board.pop()
-                    env.pop_layer_board()
+                    env.init_layer_board()
 
             if not episode_end:
                 if env.board.turn:
@@ -132,6 +132,10 @@ class Node(object):
             Returns = reward + self.gamma * self.simulate(model, env, depth=depth + 1)
 
         env.board.pop()
+        env.init_layer_board()
+
+        board_out = env.board.fen()
+        assert board_in == board_out
 
         if depth == 0:
             return Returns, move

@@ -114,7 +114,7 @@ class TD_search(object):
                     if self.env.board.result() == "0-1":
                         max_move = move
                         self.env.board.pop()
-                        self.env.pop_layer_board()
+                        self.env.init_layer_board()
                         break
                     successor_state_value_opponent = self.env.opposing_agent.predict(
                         np.expand_dims(self.env.layer_board, axis=0))
@@ -123,7 +123,7 @@ class TD_search(object):
                         max_value = successor_state_value_opponent
 
                     self.env.board.pop()
-                    self.env.pop_layer_board()
+                    self.env.init_layer_board()
 
             if not (self.env.board.turn and max_move not in tree.children.keys()) or not k > start_mcts_after:
                 tree.children[max_move] = Node(gamma=0.9, parent=tree)
@@ -225,26 +225,27 @@ class TD_search(object):
 
         starttime = time.time()
         sim_count = 0
+        board_in = self.env.board.fen()
 
         # First make a prediction for each child state
         for move in self.env.board.generate_legal_moves():
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
 
-                episode_end, reward = self.env.step(move)
+            episode_end, reward = self.env.step(move)
 
-                if episode_end:
-                    successor_state_value = 0
-                else:
-                    successor_state_value = np.squeeze(
-                        self.agent.model.predict(np.expand_dims(self.env.layer_board, axis=0))
-                    )
+            if episode_end:
+                successor_state_value = 0
+            else:
+                successor_state_value = np.squeeze(
+                    self.agent.model.predict(np.expand_dims(self.env.layer_board, axis=0))
+                )
 
-                child_value = reward + self.gamma * successor_state_value
+            child_value = reward + self.gamma * successor_state_value
 
-                node.update_child(move, child_value)
-                self.env.board.pop()
-                self.env.pop_layer_board()
+            node.update_child(move, child_value)
+            self.env.board.pop()
+            self.env.init_layer_board()
         if not node.values:
             node.values = [0]
 
@@ -277,6 +278,7 @@ class TD_search(object):
                             self.env.board.pop()
                             self.env.init_layer_board()
                             node = node.parent
+                        break
                     else:
                         continue
 
@@ -299,7 +301,10 @@ class TD_search(object):
                 node = node.parent
 
                 self.env.board.pop()
-
-            self.env.init_layer_board()
+                self.env.init_layer_board()
             sim_count += 1
+        
+        board_out = self.env.board.fen()
+        assert board_in == board_out
+
         return node
