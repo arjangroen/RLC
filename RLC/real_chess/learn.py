@@ -168,8 +168,6 @@ class TD_search(object):
         piece_balance = self.env.get_material_value()
         self.piece_balance_trace.append(piece_balance)
         print("game ended with result", reward, "and material balance", piece_balance, "in", turncount, "halfmoves")
-        if np.abs(reward) == 1:
-            print(self.env.board)
 
         return self.env.board
 
@@ -303,7 +301,7 @@ class TD_search(object):
                 self.env.board.pop()
                 self.env.init_layer_board()
             sim_count += 1
-        
+
         board_out = self.env.board.fen()
         assert board_in == board_out
 
