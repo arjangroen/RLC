@@ -74,7 +74,7 @@ class Node(object):
         else:
             return self, None
 
-    def simulate(self, model, env, depth=0, max_depth=4, random=False):
+    def simulate(self, model, env, depth=0, max_depth=4, random=False, temperature=2):
         """
         Recursive Monte Carlo Playout
         Args:
@@ -82,6 +82,7 @@ class Node(object):
             env: the chess environment
             depth: The recursion depth
             max_depth: How deep to search
+            temperature: softmax temperature
 
         Returns:
             Playout result.
@@ -111,7 +112,7 @@ class Node(object):
 
             if not episode_end:
                 if env.board.turn:
-                    move_probas = softmax(np.array(successor_values), temperature=1)
+                    move_probas = softmax(np.array(successor_values), temperature=temperature)
                     moves = [x for x in env.board.generate_legal_moves()]
                 else:
                     move_probas = np.zeros(len(successor_values))
@@ -129,7 +130,7 @@ class Node(object):
         elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
             Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board, axis=0)))
         else:  # Recursively continue
-            Returns = reward + self.gamma * self.simulate(model, env, depth=depth + 1)
+            Returns = reward + self.gamma * self.simulate(model, env, depth=depth + 1,temperature=temperature)
 
         env.board.pop()
         env.init_layer_board()

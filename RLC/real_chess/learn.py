@@ -15,7 +15,7 @@ def sigmoid(x):
 
 class TD_search(object):
 
-    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=2000, batch_size=256):
+    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=2000, batch_size=256, temperature=2):
         """
         Chess algorithm that combines bootstrapped monte carlo tree search with Q Learning
         Args:
@@ -25,6 +25,7 @@ class TD_search(object):
             search_time: maximum time spent doing tree search
             memsize: Amount of training samples to keep in-memory
             batch_size: Size of the training batches
+            temperature: softmax temperature for mcts
         """
         self.env = env
         self.agent = agent
@@ -32,6 +33,7 @@ class TD_search(object):
         self.gamma = gamma
         self.memsize = memsize
         self.batch_size = batch_size
+        self.temperature = temperature
         self.reward_trace = []  # Keeps track of the rewards
         self.piece_balance_trace = []  # Keep track of the material value on the board
         self.ready = False  # Whether to start training
@@ -283,6 +285,7 @@ class TD_search(object):
             # Expand the game tree with a simulation
             Returns, move = node.simulate(self.agent.fixed_model,
                                           self.env,
+                                          temperature=self.temperature,
                                           depth=0)
             self.env.init_layer_board()
 
