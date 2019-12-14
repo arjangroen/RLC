@@ -1,6 +1,6 @@
 from keras.layers import Input, Dense, Flatten, Concatenate, Conv2D, Dropout
 from keras.losses import mean_squared_error
-from keras.models import Model, clone_model
+from keras.models import Model, clone_model, load_model
 from keras.optimizers import SGD, Adam, RMSprop
 import numpy as np
 
@@ -40,7 +40,7 @@ class GreedyAgent(object):
 
 class Agent(object):
 
-    def __init__(self, lr=0.003, network='simple'):
+    def __init__(self, lr=0.003, network='big'):
         self.optimizer = RMSprop(lr=lr)
         self.model = Model()
         self.proportional_error = False
