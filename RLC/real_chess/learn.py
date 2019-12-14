@@ -15,7 +15,7 @@ def sigmoid(x):
 
 class TD_search(object):
 
-    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=2000, batch_size=256, temperature=2):
+    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=2000, batch_size=256, temperature=1):
         """
         Chess algorithm that combines bootstrapped monte carlo tree search with Q Learning
         Args:

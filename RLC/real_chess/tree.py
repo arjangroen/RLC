@@ -74,7 +74,7 @@ class Node(object):
         else:
             return self, None
 
-    def simulate(self, model, env, depth=0, max_depth=4, random=False, temperature=2):
+    def simulate(self, model, env, depth=0, max_depth=4, random=False, temperature=1):
         """
         Recursive Monte Carlo Playout
         Args:

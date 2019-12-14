@@ -21,7 +21,7 @@ n_iters = 105
 
 
 print(opponent.predict(np.expand_dims(env.layer_board, axis=0)))
-learner.search_time = 10
+learner.search_time = 60
 learner.play_game(n_iters)
 pgn = Game.from_board(learner.env.board)
 with open("rlc_pgn","w") as log:

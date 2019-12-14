@@ -58,7 +58,7 @@ class Board(object):
             self.layer_board[6, 0, :] = 1
         else:
             self.layer_board[6, 0, :] = -1
-            self.layer_board[7, :, :] = 1
+        self.layer_board[7, :, :] = 1
 
     def update_layer_board(self, move=None):
         self._prev_layer_board = self.layer_board.copy()
