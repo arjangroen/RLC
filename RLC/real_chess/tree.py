@@ -94,9 +94,10 @@ class Node(object):
             successor_values = []
             for move in env.board.generate_legal_moves():
                 episode_end, reward = env.step(move)
+                result = env.board.result()
 
-                if (env.board.result() == "1-0" and env.board.turn) or (
-                        env.board.result() == "0-1" and not env.board.turn):
+                if (result == "1-0" and env.board.turn) or (
+                        result == "0-1" and not env.board.turn):
                     env.board.pop()
                     env.init_layer_board()
                     break
@@ -121,14 +122,17 @@ class Node(object):
                 if len(moves) == 1:
                     move = moves[0]
                 else:
-                    move = np.random.choice(moves, p=np.squeeze(move_probas))
+                    move_numbers = [x for x in range(len(moves))]
+                    move_number = np.random.choice(move_numbers, p=np.squeeze(move_probas))
+                    move = moves[move_number]
+                    expected_value = successor_values[move_number]
 
         episode_end, reward = env.step(move)
 
         if episode_end:
             Returns = reward
         elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
-            Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board, axis=0)))
+            Returns = reward + self.gamma * expected_value
         else:  # Recursively continue
             Returns = reward + self.gamma * self.simulate(model, env, depth=depth + 1,temperature=temperature)
 
