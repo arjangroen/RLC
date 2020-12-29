@@ -29,7 +29,7 @@ class TD_search(object):
         """
         self.env = env
         self.agent = agent
-        self.tree = Node(self.env)
+        self.tree = Node(self.env, gamma=gamma)
         self.gamma = gamma
         self.memsize = memsize
         self.batch_size = batch_size
@@ -82,7 +82,7 @@ class TD_search(object):
         """
         episode_end = False
         turncount = 0
-        tree = Node(self.env.board, gamma=self.gamma)  # Initialize the game tree
+        tree = self.tree.get_root()  # Initialize the game tree
 
         # Play a game of chess
         while not episode_end:
@@ -295,7 +295,7 @@ class TD_search(object):
             node.update_child(move, Returns)
 
             # Return to root node and backpropagate Returns
-            while node.parent:
+            while depth > 0:
                 latest_reward = node_rewards.pop(-1)
                 Returns = latest_reward + self.gamma * Returns
                 node.update(Returns)
@@ -303,6 +303,7 @@ class TD_search(object):
 
                 self.env.board.pop()
                 self.env.init_layer_board()
+                depth -= 1
             sim_count += 1
 
         board_out = self.env.board.fen()

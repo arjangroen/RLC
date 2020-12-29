@@ -1,5 +1,5 @@
 import numpy as np
-
+import sys
 
 def softmax(x, temperature=1):
     return np.exp(x / temperature) / np.sum(np.exp(x / temperature))
@@ -21,6 +21,23 @@ class Node(object):
         self.values = []  # reward + Returns
         self.gamma = gamma
         self.starting_value = 0
+
+    def clean(self, maxsize=1e9):
+        worst_move = None
+        worst_score = 1e3
+        if sys.getsizeof(self) > maxsize:
+            for move, child in self.children.items():
+                if np.max(child.values) < worst_score:
+                    worst_score = np.max(child.values)
+                    worst_move = move
+            del self.children[worst_move]
+
+    def get_root(self):
+        root = self
+        while root.parent:
+            root = root.parent
+        return root
+
 
     def update_child(self, move, Returns):
         """
