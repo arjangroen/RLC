@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+import gc
 
 def softmax(x, temperature=1):
     return np.exp(x / temperature) / np.sum(np.exp(x / temperature))
@@ -30,7 +31,11 @@ class Node(object):
                 if np.max(child.values) < worst_score:
                     worst_score = np.max(child.values)
                     worst_move = move
+            print("cleaning worst node", worst_move)
+            print("prior size", sys.getsizeof(self))
             del self.children[worst_move]
+            gc.collect()
+            print("new size", sys.getsizeof(self))
 
     def get_root(self):
         root = self

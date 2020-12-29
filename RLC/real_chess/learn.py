@@ -29,7 +29,7 @@ class TD_search(object):
         """
         self.env = env
         self.agent = agent
-        self.tree = Node(self.env, gamma=gamma)
+        self.tree = Node(board=self.env.board, gamma=gamma)
         self.gamma = gamma
         self.memsize = memsize
         self.batch_size = batch_size
@@ -83,12 +83,13 @@ class TD_search(object):
         episode_end = False
         turncount = 0
         tree = self.tree.get_root()  # Initialize the game tree
+        self.env.board.reset()
 
         # Play a game of chess
         while not episode_end:
             state = np.expand_dims(self.env.layer_board.copy(), axis=0)
             state_value = self.agent.predict(state)
-            tree = tree.clean()
+            tree.clean()
 
             # White's turn involves tree-search
             if self.env.board.turn:
@@ -227,6 +228,7 @@ class TD_search(object):
         starttime = time.time()
         sim_count = 0
         board_in = self.env.board.fen()
+        print('starting mcts')
 
         # First make a prediction for each child state
         for move in self.env.board.generate_legal_moves():

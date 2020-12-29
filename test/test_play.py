@@ -1,28 +1,18 @@
-import numpy as np  # linear algebra
-import pandas as pd  # data processing, CSV file I/O (e.g. pd.read_csv)
-import matplotlib.pyplot as plt
+from keras.models import load_model
 import os
-
+os.chdir('..')
 from RLC.real_chess import agent, environment, learn, tree
 import chess
 from chess.pgn import Game
 
+
 opponent = agent.GreedyAgent()
 env = environment.Board(opponent, FEN=None)
-player = agent.Agent(lr=0.001, network='big')
-player.fix_model()
-learner = learn.TD_search(env, player, gamma=0.8, search_time=1.5)
+player = agent.Agent(lr=0.0005,network='big')
+learner = learn.TD_search(env, player,gamma=0.9,search_time=0.9)
 node = tree.Node(learner.env.board, gamma=learner.gamma)
-
-w_before = learner.agent.model.get_weights()
-n_iters = 105
-
-
-
-
-print(opponent.predict(np.expand_dims(env.layer_board, axis=0)))
-learner.search_time = 60
-learner.play_game(n_iters)
-pgn = Game.from_board(learner.env.board)
-with open("rlc_pgn","w") as log:
-    log.write(str(pgn))
+player.model.summary()
+n_iters = 3  # maximum number of iterations
+timelimit = 25000 # maximum time for learning
+network_replacement_interval = 10  # For the stability of the nearal network updates, the network is not continuously replaced
+learner.learn(iters=n_iters,timelimit_seconds=timelimit,c=network_replacement_interval)
