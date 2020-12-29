@@ -228,7 +228,6 @@ class TD_search(object):
         starttime = time.time()
         sim_count = 0
         board_in = self.env.board.fen()
-        print('starting mcts')
 
         # First make a prediction for each child state
         for move in self.env.board.generate_legal_moves():
