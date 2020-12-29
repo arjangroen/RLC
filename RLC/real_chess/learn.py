@@ -88,6 +88,7 @@ class TD_search(object):
         while not episode_end:
             state = np.expand_dims(self.env.layer_board.copy(), axis=0)
             state_value = self.agent.predict(state)
+            tree = tree.clean()
 
             # White's turn involves tree-search
             if self.env.board.turn:
