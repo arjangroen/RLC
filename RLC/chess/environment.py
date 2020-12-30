@@ -1,5 +1,6 @@
 import chess
 import numpy as np
+from RLC.chess.tree import Tree
 
 mapper = {}
 mapper["p"] = 0
@@ -18,21 +19,14 @@ mapper["K"] = 5
 
 class Board(object):
 
-    def __init__(self, opposing_agent, FEN=None, capture_reward_factor=0.01):
+    def __init__(self):
         """
         Chess Board Environment
-        Args:
-            FEN: str
-                Starting FEN notation, if None then start in the default chess position
-            capture_reward_factor: float [0,inf]
-                reward for capturing a piece. Multiply material gain by this number. 0 for normal chess.
         """
-        self.FEN = FEN
-        self.capture_reward_factor = capture_reward_factor
-        self.board = chess.Board(self.FEN) if self.FEN else chess.Board()
+        self.board = chess.Board()
         self.layer_board = np.zeros(shape=(8, 8, 8))
         self.init_layer_board()
-        self.opposing_agent = opposing_agent
+        self.tree = Tree()
 
     def init_layer_board(self):
         """
@@ -68,22 +62,22 @@ class Board(object):
         self.layer_board = self._prev_layer_board.copy()
         self._prev_layer_board = None
 
-    def step(self, action):
+    def step(self, move):
         """
         Run a step
         Args:
-            action: python chess move
+            move: python chess move
         Returns:
             epsiode end: Boolean
                 Whether the episode has ended
             reward: float
                 Difference in material value after the move
         """
-        piece_balance_before = self.get_material_value()
-        self.board.push(action)
-        self.update_layer_board(action)
-        piece_balance_after = self.get_material_value()
-        auxiliary_reward = (piece_balance_after - piece_balance_before) * self.capture_reward_factor
+        self.board.push(move)
+        self.update_layer_board(move)
+        if move not in self.tree.children.keys():
+            self.tree.add_child(move)
+        self.tree = self.tree.get_down(move)
         result = self.board.result()
         if result == "*":
             reward = 0
@@ -97,31 +91,8 @@ class Board(object):
         elif result == "1/2-1/2":
             reward = 0
             episode_end = True
-        reward += auxiliary_reward
 
         return episode_end, reward
-
-    def get_random_action(self):
-        """
-        Sample a random action
-        Returns: move
-            A legal python chess move.
-
-        """
-        legal_moves = [x for x in self.board.generate_legal_moves()]
-        legal_moves = np.random.choice(legal_moves)
-        return legal_moves
-
-    def project_legal_moves(self):
-        """
-        Create a mask of legal actions
-        Returns: np.ndarray with shape (64,64)
-        """
-        self.action_space = np.zeros(shape=(64, 64))
-        moves = [[x.from_square, x.to_square] for x in self.board.generate_legal_moves()]
-        for move in moves:
-            self.action_space[move[0], move[1]] = 1
-        return self.action_space
 
     def get_material_value(self):
         """
@@ -140,5 +111,27 @@ class Board(object):
         Returns:
 
         """
-        self.board = chess.Board(self.FEN) if self.FEN else chess.Board()
+        self.board = chess.Board()
         self.init_layer_board()
+        self.tree = self.tree.get_root()
+
+    def reverse(self, reverse_layer_board=False):
+        self.board.pop()
+        if reverse_layer_board:
+            self.init_layer_board()
+        self.tree = self.tree.get_up()
+
+    def backprop(self, value, gamma):
+        root = self.tree
+        move_stack = []
+        while root.parent:
+            root = root.parent
+            move_stack.append(self.board.pop())
+            value = value * gamma
+            root.values.append(value)
+
+        # Return to checkpoint
+        i = 0
+        while not root.checkpoint:
+            self.env.step(move_stack.pop(0))
+

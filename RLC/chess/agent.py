@@ -4,11 +4,6 @@ from keras.models import Model, clone_model, load_model
 from keras.optimizers import SGD, Adam, RMSprop
 import numpy as np
 
-
-def softmax(x, temperature=1):
-    return np.exp(x / temperature) / np.sum(np.exp(x / temperature))
-
-
 class Agent(object):
 
     def __init__(self, color=1):
@@ -16,53 +11,93 @@ class Agent(object):
 
     def evaluate(self, move, env, gamma=0.9):
         episode_end, reward = env.step(move)
-        successor_value = self.predict(env.layer_board)
+        successor_value = self.predict(np.expand_dims(env.layer_board, axis=0))
         returns = reward + gamma * successor_value
-        env.board.pop()
-        env.init_layer_board()
+        env.reverse()
         return returns
 
     def predict(self, layer_board):
-        return np.random.randint(-5, 5) / 5
+        return np.random.randint(-3,3)
+
+    def TD_update(self, states, rewards, sucstates, episode_active, gamma=0.9):
+        pass
+
+    def MC_update(self, states, returns):
+        pass
+
+    def fix_model(self):
+        pass
+
+    def init_network(self):
+        pass
+
+    @staticmethod
+    def _random_uniform(values):
+        return np.random.choice(values)
+
+    @staticmethod
+    def _greedy(values):
+        return np.max(values)
+
+    @staticmethod
+    def _softmax(values):
+        return np.exp(values) / np.sum(np.exp(values))
+
+    def select_move_from_node(self, node):
+        """
+        Select a child node with Thompson sampling
+        :param sampler_fn: gives a value for a node
+        :param node: tree node
+        :return: best_move: key of selected child node
+        """
+        if not node.children:
+            return None
+        else:
+            best_move = None
+            best_value = self._random_uniform(node.values)
+            for move, child in node.children.items():
+                self._random_uniform([move])
+                value = self.color * self._random_uniform(child.values)
+                if value > best_value:
+                    best_move = move
+                    best_value = value
+            return best_move
+
+    def select_move_from_values(self, moves, values, greedy=False):
+        """
+        Select moves for simulation playout
+        :param moves: legal moves
+        :param values: valuation of those moves
+        :param greedy: whether to pick greedy
+        :return: move
+        """
+        values = self.color * np.array(values)
+        if greedy:
+            return moves[np.argmax(values)]
+        else:
+            move_probas = np.squeeze(self._softmax(values))
+            return np.random.choice(moves, p=move_probas)
 
 
-class RandomAgent(object):
-
-    def __init__(self, color=1):
-        self.color = color
-
-    def predict(self, board_layer):
-        return np.random.randint(-5, 5) / 5
-
-    def select_move(self, moves, successor_values):
-        return moves[np.argmax(successor_values)]
-
-
-class GreedyAgent(object):
+class GreedyAgent(Agent):
 
     def __init__(self, color=-1):
         self.color = color
 
-    def evaluate(self, layer_board, noise=True):
+    def predict(self, layer_board):
         layer_board1 = layer_board[0, :, :, :]
         pawns = 1 * np.sum(layer_board1[0, :, :])
         rooks = 5 * np.sum(layer_board1[1, :, :])
         minor = 3 * np.sum(layer_board1[2:4, :, :])
         queen = 9 * np.sum(layer_board1[4, :, :])
-
         maxscore = 40
         material = pawns + rooks + minor + queen
         board_value = self.color * material / maxscore
-        if noise:
-            added_noise = np.random.randn() / 1e3
+        added_noise = np.random.randn() / 1e3
         return board_value + added_noise
 
-    def select_move(self, moves, successor_values):
-        successor_values = np.array(successor_values) * self.color
-        return moves[np.argmax(successor_values)]
 
-
-class NeuralNetworkAgent(object):
+class NeuralNetworkAgent(Agent):
 
     def __init__(self, lr=0.003, color=1):
         self.color = color
@@ -70,6 +105,7 @@ class NeuralNetworkAgent(object):
         self.model = Model()
         self.proportional_error = False
         self.init_network()
+        self.fix_model()
 
     def fix_model(self):
         """
@@ -84,26 +120,25 @@ class NeuralNetworkAgent(object):
     def init_network(self):
         layer_state = Input(shape=(8, 8, 8), name='state')
 
-        openfile = Conv2D(3, (8, 1), padding='valid', activation=LeakyReLU(alpha=0.1), name='fileconv')(
+        openfile = Conv2D(3, (8, 1), padding='valid', activation='sigmoid', name='fileconv')(
             layer_state)  # 3,8,1
-        openrank = Conv2D(3, (1, 8), padding='valid', activation=LeakyReLU(alpha=0.1), name='rankconv')(
+        openrank = Conv2D(3, (1, 8), padding='valid', activation='sigmoid', name='rankconv')(
             layer_state)  # 3,1,8
-        quarters = Conv2D(3, (4, 4), padding='valid', activation=LeakyReLU(alpha=0.1), name='quarterconv',
+        quarters = Conv2D(3, (4, 4), padding='valid', activation='sigmoid', name='quarterconv',
                           strides=(4, 4))(
             layer_state)  # 3,2,2
-        large = Conv2D(8, (6, 6), padding='valid', activation=LeakyReLU(alpha=0.1), name='largeconv')(
+        large = Conv2D(8, (6, 6), padding='valid', activation='sigmoid', name='largeconv')(
             layer_state)  # 8,2,2
 
-        board1 = Conv2D(16, (3, 3), padding='valid', activation=LeakyReLU(alpha=0.1), name='board1')(
+        board1 = Conv2D(16, (3, 3), padding='valid', activation='sigmoid', name='board1')(
             layer_state)  # 16,6,6
-        board2 = Conv2D(20, (3, 3), padding='valid', activation=LeakyReLU(alpha=0.1), name='board2')(board1)  # 20,4,4
-        board3 = Conv2D(24, (3, 3), padding='valid', activation=LeakyReLU(alpha=0.1), name='board3')(board2)  # 24,2,2
+        board2 = Conv2D(20, (3, 3), padding='valid', activation='sigmoid', name='board2')(board1)  # 20,4,4
+        board3 = Conv2D(24, (3, 3), padding='valid', activation='sigmoid', name='board3')(board2)  # 24,2,2
 
         flat_file = Flatten()(openfile)
         flat_rank = Flatten()(openrank)
         flat_quarters = Flatten()(quarters)
         flat_large = Flatten()(large)
-
         flat_board = Flatten()(board1)
         flat_board3 = Flatten()(board3)
 
@@ -164,9 +199,3 @@ class NeuralNetworkAgent(object):
         td_errors = returns - V_state
 
         return td_errors
-
-    def select_move(self, moves, successor_values):
-        successor_values = self.color * np.array(successor_values)
-        move_probas = softmax(successor_values)
-        move = np.random.choice(moves, p=move_probas)
-        return move
