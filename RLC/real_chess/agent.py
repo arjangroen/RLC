@@ -117,7 +117,7 @@ class ActorCritic(object):
 
     def select_action(self, env):
         action_space = env.project_legal_moves()  # The environment determines which moves are legal
-        action_probs = self.model.predict([np.expand_dims(self.env.board, axis=0),
+        action_probs = self.model.predict([np.expand_dims(env.layer_board, axis=0),
                                                  np.zeros((1, 1)),
                                                  action_space.reshape(1, 4096)])
         self.action_value_mem.append(action_probs)
@@ -125,13 +125,10 @@ class ActorCritic(object):
         move = np.random.choice(range(4096), p=np.squeeze(action_probs))
         move_from = move // 64
         move_to = move % 64
-        moves = [x for x in self.env.board.generate_legal_moves() if \
+        moves = [x for x in env.board.generate_legal_moves() if \
                  x.from_square == move_from and x.to_square == move_to]
-        assert len(moves) > 0  # should not be possible
-        if len(moves) > 1:
-            move = np.random.choice(moves)  # If there are multiple max-moves, pick a random one.
-        elif len(moves) == 1:
-            move = moves[0]
+        move = moves[0]  # When promoting a pawn, multiple moves can have the same from-to squares
+        return move
 
     def network_update(self, minibatch):
         """
@@ -145,7 +142,6 @@ class ActorCritic(object):
                 array of temporal difference errors
 
         """
-
         # Prepare separate lists
         states, moves, rewards, new_states = [], [], [], []
         td_errors = []

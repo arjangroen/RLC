@@ -84,59 +84,30 @@ class ReinforcementLearning(object):
         # INITIALIZE GAME STATE
         episode_end = False
         turncount = 0
+        color = 1
         tree = self.tree.get_root()  # Initialize the game tree
         self.env.board.reset()
         # Play a game of chess
 
         while not episode_end:
-            state = np.expand_dims(self.env.layer_board.copy(), axis=0)
-            state_value = self.agent.predict(state)
+            state = np.expand_dims(self.env.layer_board, axis=0)
+            state_value = self.agent.get_action_values(state)
             tree.clean()
 
-            # White's turn involves tree-search
-            if self.env.board.turn:
-                # Do a Monte Carlo Tree Search after game iteration k
-                start_mcts_after = -1
-                if k > start_mcts_after:
-                    tree = self.mcts(tree)
-                    # Step the best move
-                    max_move = None
-                    max_value = np.NINF
-                    for move, child in tree.children.items():
-                        sampled_value = np.mean(child.values)
-                        if sampled_value > max_value:
-                            max_value = sampled_value
-                            max_move = move
-                else:
-                    max_move = np.random.choice([move for move in self.env.board.generate_legal_moves()])
-
-            # Black's turn is myopic
-            else:
-                max_move = None
-                max_value = np.NINF
-                for move in self.env.board.generate_legal_moves():
-                    self.env.step(move)
-                    if self.env.board.result() == "0-1":
-                        max_move = move
-                        self.env.board.pop()
-                        self.env.init_layer_board()
-                        break
-                    successor_state_value_opponent = self.env.opposing_agent.predict(
-                        np.expand_dims(self.env.layer_board, axis=0))
-                    if successor_state_value_opponent > max_value:
-                        max_move = move
-                        max_value = successor_state_value_opponent
-
-                    self.env.board.pop()
-                    self.env.init_layer_board()
-
-            if not (self.env.board.turn and max_move not in tree.children.keys()) or not k > start_mcts_after:
-                tree.children[max_move] = Node(gamma=0.9, parent=tree)
+            # Do a Monte Carlo Tree Search after game iteration k
+            tree = self.mcts(tree)
+            max_move = None
+            max_value = np.NINF
+            for move, child in tree.children.items():
+                sampled_value = np.mean(child.values) * color
+                if sampled_value > max_value:
+                    max_value = sampled_value
+                    max_move = move
 
             episode_end, reward = self.env.step(max_move)
+            color = color * -1
 
             tree = tree.children[max_move]
-            tree.parent = None
             gc.collect()
 
             sucstate = np.expand_dims(self.env.layer_board, axis=0)
@@ -236,6 +207,8 @@ class ReinforcementLearning(object):
         while starttime + self.search_time > time.time() or sim_count < self.min_sim_count:
             depth = 0
             color = 1
+            Returns = 0
+            episode_end = False
             node_rewards = []
 
             # 1. Select the best node from where to start MCTS
@@ -250,8 +223,20 @@ class ReinforcementLearning(object):
                     episode_end, reward = self.env.step(move)  # Update the environment to reflect the node
                     node_rewards.append(reward)
 
-            # 2. Expand the game tree
-
+            # 2. Expand the game tree with a new move
+            if not episode_end:
+                move = None
+                loop_max = 100
+                loop = 0
+                while move in node.children.keys() or not move:
+                    move = self.agent.select_action(self.env)
+                    loop += 1
+                    assert loop < loop_max, "Expand loop is not ending"
+                node.children[move] = Node(self.env.board, parent=node)
+                episode_end, reward = self.env.step(move)
+                node = node.children[move]
+                depth += 1
+                node_rewards.append(reward)
 
             # 3. Monte Carlo Simulation to make a proxy node value
             if not episode_end:
@@ -259,25 +244,22 @@ class ReinforcementLearning(object):
                                               self.env,
                                               temperature=self.temperature,
                                               depth=0)
+                node.update(Returns)
 
-            # 3. Expand the game tree and assign the value of the simulation
-            if move not in node.children.keys():
-                node.children[move] = Node(self.env.board, parent=node)
-            node.update_child(move, Returns)
+            # 4. Backpropagate Returns
+            while depth > 0:
+                node = node.parent
+                latest_reward = node_rewards.pop(-1)
+                Returns = latest_reward + self.gamma * Returns
+                node.update(Returns)
 
-                # Return to root node and backpropagate Returns
-                while depth > 0:
-                    latest_reward = node_rewards.pop(-1)
-                    Returns = latest_reward + self.gamma * Returns
-                    node.update(Returns)
-                    node = node.parent
+                self.env.board.pop()
+                self.env.init_layer_board()
+                depth -= 1
 
-                    self.env.board.pop()
-                    self.env.init_layer_board()
-                    depth -= 1
-                sim_count += 1
+            sim_count += 1
 
-            board_out = self.env.board.fen()
-            assert board_in == board_out
+        board_out = self.env.board.fen()
+        assert board_in == board_out
 
         return node

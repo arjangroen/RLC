@@ -94,6 +94,17 @@ class Board(object):
 
         return episode_end, reward
 
+    def project_legal_moves(self):
+        """
+        Create a mask of legal actions
+        Returns: np.ndarray with shape (64,64)
+        """
+        self.action_space = np.zeros(shape=(64, 64))
+        moves = [[x.from_square, x.to_square] for x in self.board.generate_legal_moves()]
+        for move in moves:
+            self.action_space[move[0], move[1]] = 1
+        return self.action_space
+
     def get_material_value(self):
         """
         Sums up the material balance using Reinfield values
@@ -133,5 +144,5 @@ class Board(object):
         # Return to checkpoint
         i = 0
         while not root.checkpoint:
-            self.env.step(move_stack.pop(0))
+            self.env.step(move_stack.pop(0)) # <- Bug?
 
