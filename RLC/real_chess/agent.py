@@ -117,7 +117,7 @@ class ActorCritic(object):
 
     def select_action(self, env):
         action_space = env.project_legal_moves()  # The environment determines which moves are legal
-        action_probs = self.model.predict([np.expand_dims(state, axis=0),
+        action_probs = self.model.predict([np.expand_dims(self.env.board, axis=0),
                                                  np.zeros((1, 1)),
                                                  action_space.reshape(1, 4096)])
         self.action_value_mem.append(action_probs)
