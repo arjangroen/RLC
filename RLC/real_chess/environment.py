@@ -18,7 +18,7 @@ mapper["K"] = 5
 
 class Board(object):
 
-    def __init__(self, opposing_agent, FEN=None, capture_reward_factor=0.01):
+    def __init__(self, FEN=None, capture_reward_factor=0.01):
         """
         Chess Board Environment
         Args:
@@ -32,7 +32,6 @@ class Board(object):
         self.board = chess.Board(self.FEN) if self.FEN else chess.Board()
         self.layer_board = np.zeros(shape=(8, 8, 8))
         self.init_layer_board()
-        self.opposing_agent = opposing_agent
 
     def init_layer_board(self):
         """

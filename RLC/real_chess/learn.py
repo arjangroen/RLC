@@ -13,7 +13,7 @@ def sigmoid(x):
     return 1 / (1 + math.exp(-x))
 
 
-class TD_search(object):
+class ReinforcementLearning(object):
 
     def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=2000, batch_size=256, temperature=1):
         """
@@ -93,7 +93,6 @@ class TD_search(object):
 
             # White's turn involves tree-search
             if self.env.board.turn:
-
                 # Do a Monte Carlo Tree Search after game iteration k
                 start_mcts_after = -1
                 if k > start_mcts_after:
