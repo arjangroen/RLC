@@ -80,12 +80,14 @@ class ReinforcementLearning(object):
         Returns:
             board: Chess environment on terminal state
         """
+
+        # INITIALIZE GAME STATE
         episode_end = False
         turncount = 0
         tree = self.tree.get_root()  # Initialize the game tree
         self.env.board.reset()
-
         # Play a game of chess
+
         while not episode_end:
             state = np.expand_dims(self.env.layer_board.copy(), axis=0)
             state_value = self.agent.predict(state)
@@ -228,25 +230,6 @@ class ReinforcementLearning(object):
         sim_count = 0
         board_in = self.env.board.fen()
 
-        # First make a prediction for each child state
-        for move in self.env.board.generate_legal_moves():
-            if move not in node.children.keys():
-                node.children[move] = Node(self.env.board, parent=node)
-
-            episode_end, reward = self.env.step(move)
-
-            if episode_end:
-                successor_state_value = 0
-            else:
-                successor_state_value = np.squeeze(
-                    self.agent.model.predict(np.expand_dims(self.env.layer_board, axis=0))
-                )
-
-            child_value = reward + self.gamma * successor_state_value
-
-            node.update_child(move, child_value)
-            self.env.board.pop()
-            self.env.init_layer_board()
         if not node.values:
             node.values = [0]
 
@@ -255,7 +238,7 @@ class ReinforcementLearning(object):
             color = 1
             node_rewards = []
 
-            # Select the best node from where to start MCTS
+            # 1. Select the best node from where to start MCTS
             while node.children:
                 node, move = node.select(color=color)
                 if not move:
@@ -266,48 +249,35 @@ class ReinforcementLearning(object):
                     color = color * -1  # switch color
                     episode_end, reward = self.env.step(move)  # Update the environment to reflect the node
                     node_rewards.append(reward)
-                    # Check best node is terminal
 
-                    if self.env.board.result() == "1-0" and depth == 1:  # -> Direct win for white, no need for mcts.
-                        self.env.board.pop()
-                        self.env.init_layer_board()
-                        node.update(1)
-                        node = node.parent
-                        return node
-                    elif episode_end:  # -> if the explored tree leads to a terminal state, simulate from root.
-                        while node.parent:
-                            self.env.board.pop()
-                            self.env.init_layer_board()
-                            node = node.parent
-                        break
-                    else:
-                        continue
+            # 2. Expand the game tree
 
-            # Expand the game tree with a simulation
-            Returns, move = node.simulate(self.agent.fixed_model,
-                                          self.env,
-                                          temperature=self.temperature,
-                                          depth=0)
-            self.env.init_layer_board()
 
+            # 3. Monte Carlo Simulation to make a proxy node value
+            if not episode_end:
+                Returns, move = node.simulate(self.agent.fixed_model,
+                                              self.env,
+                                              temperature=self.temperature,
+                                              depth=0)
+
+            # 3. Expand the game tree and assign the value of the simulation
             if move not in node.children.keys():
                 node.children[move] = Node(self.env.board, parent=node)
-
             node.update_child(move, Returns)
 
-            # Return to root node and backpropagate Returns
-            while depth > 0:
-                latest_reward = node_rewards.pop(-1)
-                Returns = latest_reward + self.gamma * Returns
-                node.update(Returns)
-                node = node.parent
+                # Return to root node and backpropagate Returns
+                while depth > 0:
+                    latest_reward = node_rewards.pop(-1)
+                    Returns = latest_reward + self.gamma * Returns
+                    node.update(Returns)
+                    node = node.parent
 
-                self.env.board.pop()
-                self.env.init_layer_board()
-                depth -= 1
-            sim_count += 1
+                    self.env.board.pop()
+                    self.env.init_layer_board()
+                    depth -= 1
+                sim_count += 1
 
-        board_out = self.env.board.fen()
-        assert board_in == board_out
+            board_out = self.env.board.fen()
+            assert board_in == board_out
 
         return node

@@ -9,7 +9,7 @@ from chess.pgn import Game
 
 opponent = agent.GreedyAgent()
 env = environment.Board(opponent, FEN=None)
-player = agent.Agent(lr=0.001, network='')
+player = agent.ActorCritic(lr=0.001, network='')
 learner = learn.ReinforcementLearning(env, player, gamma=0.8, search_time=1.5)
 node = tree.Node(learner.env.board, gamma=learner.gamma)
 player.model.summary()
