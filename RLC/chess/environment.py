@@ -124,14 +124,16 @@ class Board(object):
     def backprop(self, value, gamma):
         root = self.tree
         move_stack = []
+        root.values.append(value)
         while root.parent:
             root = root.parent
             move_stack.append(self.board.pop())
             value = value * gamma
             root.values.append(value)
 
+
         # Return to checkpoint
-        i = 0
-        while not root.checkpoint:
-            self.env.step(move_stack.pop(0))
+        self.tree = root
+        while not self.tree.checkpoint:
+            self.step(move_stack.pop())
 
