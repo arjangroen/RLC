@@ -1,8 +1,10 @@
-from keras.layers import Input, Dense, Flatten, Concatenate, Conv2D, Dropout, LeakyReLU
+from keras.layers import Input, Dense, Flatten, Concatenate, Conv2D, Dropout, LeakyReLU, Reshape, Activation, Multiply, BatchNormalization
 from keras.losses import mean_squared_error
 from keras.models import Model, clone_model, load_model
 from keras.optimizers import SGD, Adam, RMSprop
 import numpy as np
+import gc
+import keras.backend as K
 
 class Agent(object):
 
@@ -13,7 +15,8 @@ class Agent(object):
         episode_end, reward = env.step(move)
         successor_value = self.predict(np.expand_dims(env.layer_board, axis=0))
         returns = reward + gamma * successor_value
-        env.reverse()
+        env.reverse(reverse_layer_board=True)
+        del env.tree.children[move]; gc.collect()  # Free up memory
         return returns
 
     def predict(self, layer_board):
@@ -43,7 +46,7 @@ class Agent(object):
     def _softmax(values):
         return np.exp(values) / np.sum(np.exp(values))
 
-    def select_move_from_node(self, node):
+    def select_move_from_node(self, node, force_select=True):
         """
         Select a child node with Thompson sampling
         :param sampler_fn: gives a value for a node
@@ -54,9 +57,10 @@ class Agent(object):
             return None
         else:
             best_move = None
-            best_value = self._random_uniform(node.values)
+            best_value = np.NINF if force_select else self._random_uniform(node.values)
             for move, child in node.children.items():
-                self._random_uniform([move])
+                if not child.values:
+                    continue
                 value = self.color * self._random_uniform(child.values)
                 if value > best_value:
                     best_move = move
@@ -76,6 +80,8 @@ class Agent(object):
             return moves[np.argmax(values)]
         else:
             move_probas = np.squeeze(self._softmax(values))
+            if len(moves) == 1:
+                move_probas = [move_probas]
             return np.random.choice(moves, p=move_probas)
 
 
@@ -159,7 +165,7 @@ class NeuralNetworkAgent(Agent):
                            )
 
     def predict(self, board_layer):
-        return self.model.predict(board_layer)
+        return self.fixed_model.predict(board_layer)
 
     def TD_update(self, states, rewards, sucstates, episode_active, gamma=0.9):
         """

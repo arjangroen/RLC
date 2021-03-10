@@ -5,10 +5,10 @@ from keras.optimizers import SGD, Adam, RMSprop
 import numpy as np
 
 
+
+
 class RandomAgent(object):
 
-    def __init__(self, color=1):
-        self.color = color
 
     def predict(self, board_layer):
         return np.random.randint(-5, 5) / 5
@@ -44,16 +44,8 @@ class Agent(object):
         self.optimizer = RMSprop(lr=lr)
         self.model = Model()
         self.proportional_error = False
-        if network == 'simple':
-            self.init_simple_network()
-        elif network == 'super_simple':
-            self.init_super_simple_network()
-        elif network == 'alt':
-            self.init_altnet()
-        elif network == 'big':
-            self.init_bignet()
-        else:
-            self.init_network()
+        self.init_network()
+        self.fix_model()
 
     def fix_model(self):
         """

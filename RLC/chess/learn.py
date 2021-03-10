@@ -3,7 +3,7 @@ import time
 import math
 import gc
 from RLC.chess.montecarlo import PlayOut
-from RLC.chess.agent import NeuralNetworkAgent
+from RLC.chess.agent import NeuralNetworkAgent, GreedyAgent
 from RLC.chess.environment import Board
 
 
@@ -17,7 +17,7 @@ def sigmoid(x):
 
 class TD_search(object):
 
-    def __init__(self, env, white, black, gamma=0.9, search_time=1, memsize=2000, batch_size=64):
+    def __init__(self, env, white, black, gamma=0.9, search_time=1, memsize=5000, batch_size=64, max_sim_depth=1):
         """
         Chess algorithm that combines bootstrapped monte carlo tree search with Q Learning
         Args:
@@ -41,6 +41,7 @@ class TD_search(object):
         self.ready = False  # Whether to start training
         self.search_time = search_time
         self.min_sim_count = 10
+        self.max_sim_depth = max_sim_depth
 
         self.mem_state = np.zeros(shape=(1, 8, 8, 8))
         self.mem_sucstate = np.zeros(shape=(1, 8, 8, 8))
@@ -52,7 +53,21 @@ class TD_search(object):
         self.mem_returns_mc = np.zeros(shape=(1))
         self.mem_error_mc = np.zeros(shape=(1))
 
-    def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=80):
+    def init_random(self, train_iters=100):
+        i=0
+        while self.mem_state.shape[0] < self.memsize:
+            print("init random",self.mem_state.shape[0])
+            self.play_random()
+            self.env.reset()
+            self.env.tree.children = {}
+            i+=1
+        learning_player = self.white if self.learning_agent_color == 1 else self.black
+        for j in range(train_iters):
+            self.update_agent(learning_player)
+
+
+
+    def learn(self, iters=40, c=5, timelimit_seconds=36000, maxiter=80):
         """
         Start Reinforcement Learning Algorithm
         Args:
@@ -66,16 +81,40 @@ class TD_search(object):
         starttime = time.time()
         learning_player = self.white if self.learning_agent_color == 1 else self.black
         for k in range(iters):
+            print("iter", k)
             self.env.reset()
             if k % c == 0:
                 learning_player.fix_model()
-                print("iter", k)
             if k > c:
                 self.ready = True
             self.play_game(k, maxiter=maxiter)
             if starttime + timelimit_seconds < time.time():
                 break
         return self.env.board
+
+    def play_random(self):
+        episode_end = False
+        turncount = 0
+        while not episode_end:
+            moves = [x for x in self.env.board.generate_legal_moves()]
+            move = np.random.choice(moves)
+            state = np.expand_dims(self.env.layer_board.copy(), axis=0)
+            episode_end, reward = self.env.step(move)
+            if turncount > 200:
+                episode_end = True
+            sucstate = state = np.expand_dims(self.env.layer_board.copy(), axis=0)
+            error = 1.
+            episode_active = 1 - int(episode_end)
+            turncount+=1
+
+        if turncount <= 200:
+            print(turncount, reward)
+            self.mem_state = np.append(self.mem_state, state, axis=0)
+            self.mem_reward = np.append(self.mem_reward, reward)
+            self.mem_sucstate = np.append(self.mem_sucstate, sucstate, axis=0)
+            self.mem_error = np.append(self.mem_error, error)
+            self.reward_trace = np.append(self.reward_trace, reward)
+            self.mem_episode_active = np.append(self.mem_episode_active, episode_active)
 
     def play_game(self, k, maxiter=80):
         """
@@ -107,9 +146,10 @@ class TD_search(object):
             while time.time() < starttime + self.search_time and n_sims < self.min_sim_count:
                 self.mcts(self.white, self.black)
                 n_sims += 1
-            move = current_player.select_move_from_node(self.env.tree)
+            move = current_player.select_move_from_node(self.env.tree, force_select=True)
 
             # EXECUTE THE MOVE
+            self.env.tree.checkpoint = False  # Remove the checkpoint
             episode_end, reward = self.env.step(move)
             turncount += 1
 
@@ -142,8 +182,9 @@ class TD_search(object):
                 self.mem_episode_active = self.mem_episode_active[1:]
                 gc.collect()
 
-            if turncount % 10 == 0:
+            if turncount % 1 == 0:
                 self.update_agent(learning_player)
+                self.update_agent_mc(learning_player)
 
         piece_balance = self.env.get_material_value()
         self.piece_balance_trace.append(piece_balance)
@@ -170,7 +211,7 @@ class TD_search(object):
         """
         if self.ready:
             sampling_indices = np.random.choice([x for x in range(self.mem_state_mc.shape[0])],
-                                                min(self.mem_state.shape[0],
+                                                min(self.mem_state_mc.shape[0],
                                                     self.batch_size),
                                                 replace=False)
             states = self.mem_state_mc[sampling_indices]
@@ -222,7 +263,7 @@ class TD_search(object):
         episode_end = False
         while not selected:
             current_player = white if self.env.board.turn else black
-            move = current_player.select_move_from_node(self.env.tree)
+            move = current_player.select_move_from_node(self.env.tree, force_select=False)
             if move:
                 episode_end, reward = self.env.step(move)
                 returns = returns + self.gamma * reward
@@ -243,7 +284,8 @@ class TD_search(object):
 
     def simulate(self, white, black):
         playout = PlayOut()
-        returns = playout.sim(self.env, white, black)
+        returns = playout.sim(self.env, white, black, self.learning_agent_color)
+        self.env.init_layer_board()
         return returns
 
     def backprop(self, value, gamma):
@@ -255,4 +297,5 @@ if __name__ == '__main__':
     env = Board()
 
     learning_process = TD_search(white=white, black=black, env=env)
-    learning_process.learn()
+    learning_process.init_random()
+    learning_process.learn(iters=1000, timelimit_seconds=int(1e12))
