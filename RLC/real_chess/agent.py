@@ -56,44 +56,46 @@ class ActorCritic(nn.Module):
 
         # Critics learns the value function
         self.critic_0 = nn.Conv2d(in_channels=4, out_channels=1, kernel_size=(1, 1))
-        self.critic_1 = nn.Flatten()
-        self.critic_out = nn.Flatten()
+        self.critic_1 = nn.Flatten(start_dim=2)
+        self.critic_out = nn.Flatten(start_dim=2)
 
         self.actor_0 = nn.Conv2d(in_channels=4, out_channels=1, kernel_size=(1, 1))
-        self.actor_1 = nn.Flatten()
-        self.actor_2 = nn.Flatten()
+        self.actor_1 = nn.Flatten(start_dim=2)
+        self.actor_2 = nn.Flatten(start_dim=2)
         self.actor_out = nn.Softmax(dim=1)
 
-    def forward(self, state):
+    def forward(self, state, actionspace):
         base = self.model_base(state)
 
         critic_0 = self.critic_0(base)
-        critic_1 = self.critic_1(critic_0)
-        critic_dot = torch.matmul(critic_1.T, critic_1)
+        critic_1a = torch.reshape(critic_0, shape=(critic_0.shape[0], critic_0.shape[2] * critic_0.shape[3], critic_0.shape[1]))
+        critic_1b = torch.reshape(critic_0, shape=(critic_0.shape[0], critic_0.shape[1], critic_0.shape[2] * critic_0.shape[3]))
+        critic_dot = torch.matmul(critic_1a, critic_1b)
         critic_out = self.critic_out(critic_dot)
 
         actor_0 = self.actor_0(base)
-        actor_1 = self.actor_1(actor_0)
-        actor_dot = torch.matmul(actor_1.T, actor_1)
+        actor_1a = torch.reshape(actor_0, shape=(actor_0.shape[0], actor_0.shape[2] * actor_0.shape[3], actor_0.shape[1]))
+        actor_1b = torch.reshape(actor_0, shape=(actor_0.shape[0], actor_0.shape[1], actor_0.shape[2] * actor_0.shape[3]))
+        actor_dot = torch.matmul(actor_1a, actor_1b)
         actor_2 = self.actor_2(actor_dot)
-        actor_out = self.actor_out(actor_2)
+        actor_out = actionspace.mul(self.actor_out(actor_2))
 
         return actor_out, critic_out
 
-        def select_action(self, env):
-            action_space = env.project_legal_moves()  # The environment determines which moves are legal
-            action_probs = self.actor_model.predict([np.expand_dims(env.layer_board, axis=0),
-                                                     np.zeros((1, 1)),
-                                                     action_space.reshape(1, 4096)])
-            self.action_value_mem.append(action_probs)
-            action_probs = action_probs / action_probs.sum()
-            move = np.random.choice(range(4096), p=np.squeeze(action_probs))
-            move_from = move // 64
-            move_to = move % 64
-            moves = [x for x in env.board.generate_legal_moves() if \
-                     x.from_square == move_from and x.to_square == move_to]
-            move = moves[0]  # When promoting a pawn, multiple moves can have the same from-to squares
-            return move
+    def select_action(self, env):
+        action_space = env.project_legal_moves()  # The environment determines which moves are legal
+        action_probs = self.actor_model.predict([np.expand_dims(env.layer_board, axis=0),
+                                                 np.zeros((1, 1)),
+                                                 action_space.reshape(1, 4096)])
+        self.action_value_mem.append(action_probs)
+        action_probs = action_probs / action_probs.sum()
+        move = np.random.choice(range(4096), p=np.squeeze(action_probs))
+        move_from = move // 64
+        move_to = move % 64
+        moves = [x for x in env.board.generate_legal_moves() if \
+                 x.from_square == move_from and x.to_square == move_to]
+        move = moves[0]  # When promoting a pawn, multiple moves can have the same from-to squares
+        return move
 
         def network_update(self, minibatch):
             """
