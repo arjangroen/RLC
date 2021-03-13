@@ -1,6 +1,8 @@
 import numpy as np
 import sys
 import gc
+import torch
+
 
 def softmax(x, temperature=1):
     return np.exp(x / temperature) / np.sum(np.exp(x / temperature))
@@ -42,7 +44,6 @@ class Node(object):
         while root.parent:
             root = root.parent
         return root
-
 
     def update_child(self, move, Returns):
         """
@@ -96,7 +97,7 @@ class Node(object):
         else:
             return self, None
 
-    def simulate(self, model, env, depth=0, max_depth=4, random=False, temperature=1):
+    def simulate(self, fixed_agent, env, depth=0, max_depth=20, random=False, temperature=1):
         """
         Recursive Monte Carlo Playout
         Args:
@@ -109,57 +110,21 @@ class Node(object):
         Returns:
             Playout result.
         """
-        board_in = env.board.fen()
-        if env.board.turn and random:
-            move = np.random.choice([x for x in env.board.generate_legal_moves()])
-        else:
-            successor_values = []
-            for move in env.board.generate_legal_moves():
-                episode_end, reward = env.step(move)
-                result = env.board.result()
-
-                if (result == "1-0" and env.board.turn) or (
-                        result == "0-1" and not env.board.turn):
-                    env.board.pop()
-                    env.init_layer_board()
-                    break
-                else:
-                    if env.board.turn:
-                        sucval = reward + self.gamma * np.squeeze(
-                            model.predict(np.expand_dims(env.layer_board, axis=0)))
-                    else:
-                        sucval = np.squeeze(env.opposing_agent.predict(np.expand_dims(env.layer_board, axis=0)))
-                    successor_values.append(sucval)
-                    env.board.pop()
-                    env.init_layer_board()
-
-            if not episode_end:
-                if env.board.turn:
-                    move_probas = softmax(np.array(successor_values), temperature=temperature)
-                    moves = [x for x in env.board.generate_legal_moves()]
-                else:
-                    move_probas = np.zeros(len(successor_values))
-                    move_probas[np.argmax(successor_values)] = 1
-                    moves = [x for x in env.board.generate_legal_moves()]
-                if len(moves) == 1:
-                    move = moves[0]
-                else:
-                    move = np.random.choice(moves, p=np.squeeze(move_probas))
-
+        move, move_proba = fixed_agent.select_action(env)
         episode_end, reward = env.step(move)
 
         if episode_end:
             Returns = reward
         elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
-            Returns = reward + self.gamma * np.squeeze(model.predict(np.expand_dims(env.layer_board, axis=0)))
+            Returns = reward + self.gamma * fixed_agent(
+                torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float(),
+                torch.from_numpy(np.expand_dims(env.project_legal_moves(), axis=0)).float()
+            )[1].max()
         else:  # Recursively continue
-            Returns = reward + self.gamma * self.simulate(model, env, depth=depth + 1,temperature=temperature)
+            Returns = reward + self.gamma * self.simulate(fixed_agent, env, depth=depth + 1, temperature=temperature)
 
         env.board.pop()
         env.init_layer_board()
-
-        board_out = env.board.fen()
-        assert board_in == board_out
 
         if depth == 0:
             return Returns, move

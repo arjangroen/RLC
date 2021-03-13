@@ -63,7 +63,6 @@ class ActorCritic(nn.Module):
         self.actor_2 = nn.Flatten(start_dim=2)
         self.actor_out = nn.Softmax(dim=1)
 
-
     def forward(self, state, actionspace):
         base = self.model_base(state)
 
@@ -87,13 +86,14 @@ class ActorCritic(nn.Module):
         return actor_out, critic_out
 
     def select_action(self, env):
-        action_space = torch.from_numpy(np.expand_dims(env.project_legal_moves(),axis=0)).float()  # The environment determines which moves are legal
+        action_space = torch.from_numpy(np.expand_dims(env.project_legal_moves(),
+                                                       axis=0)).float()  # The environment determines which moves are legal
         state = torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
         action_probs, q_value_pred = self(state, action_space)
         action_probs = action_probs / action_probs.sum()
-        action_probs = action_probs.reshape(4096,).detach().numpy()
+        action_probs = action_probs.reshape(4096, ).detach().numpy()
         self.action_value_mem.append(action_probs)
-        move = np.random.choice(range(4096), p=np.squeeze(action_probs)),
+        move = np.random.choice(range(4096), p=action_probs)
         move_proba = action_probs[move]
         move_from = move // 64
         move_to = move % 64
@@ -113,10 +113,8 @@ class ActorCritic(nn.Module):
         :return:
         """
         q_values = fixed_model(states)[1]
-        #q_values[]
+        # q_values[]
         q_target = rewards + self.gamma * fixed_model(successor_states)[1][successor_action]
-
-
 
     def policy_gradient_update(self, states, actions, rewards, action_spaces, actor_critic=False):
         """
@@ -158,6 +156,7 @@ class ActorCritic(nn.Module):
                        verbose=self.verbose
                        )
 
+
 class RandomAgent(object):
 
     def predict(self, board_layer):
@@ -166,6 +165,7 @@ class RandomAgent(object):
     def select_move(self, board):
         moves = [x for x in board.generate_legal_moves()]
         return np.random.choice(moves)
+
 
 class GreedyAgent(object):
 
@@ -185,5 +185,3 @@ class GreedyAgent(object):
         if noise:
             added_noise = np.random.randn() / 1e3
         return board_value + added_noise
-
-

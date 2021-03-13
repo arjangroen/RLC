@@ -3,6 +3,7 @@ import time
 from RLC.real_chess.tree import Node
 import math
 import gc
+import torch
 
 
 def softmax(x, temperature=1):
@@ -29,6 +30,8 @@ class ReinforcementLearning(object):
         """
         self.env = env
         self.agent = agent
+        self.fixed_agent = type(agent)()
+        self.fixed_agent.load_state_dict(self.agent.state_dict())
         self.tree = Node(board=self.env.board, gamma=gamma)
         self.gamma = gamma
         self.memsize = memsize
@@ -90,9 +93,7 @@ class ReinforcementLearning(object):
         # Play a game of chess
 
         while not episode_end:
-            state = np.expand_dims(self.env.layer_board, axis=0)
-            state_value = self.agent.get_action_values(state)
-            tree.clean()
+            state = torch.from_numpy(np.expand_dims(self.env.layer_board, axis=0)).float()
 
             # Do a Monte Carlo Tree Search after game iteration k
             tree = self.mcts(tree)
@@ -229,7 +230,7 @@ class ReinforcementLearning(object):
                 loop_max = 100
                 loop = 0
                 while move in node.children.keys() or not move:
-                    move = self.agent.select_action(self.env)
+                    move, _ = self.agent.select_action(self.env)
                     loop += 1
                     assert loop < loop_max, "Expand loop is not ending"
                 node.children[move] = Node(self.env.board, parent=node)
@@ -240,7 +241,7 @@ class ReinforcementLearning(object):
 
             # 3. Monte Carlo Simulation to make a proxy node value
             if not episode_end:
-                Returns, move = node.simulate(self.agent.fixed_model,
+                Returns, move = node.simulate(self.fixed_agent,
                                               self.env,
                                               temperature=self.temperature,
                                               depth=0)
