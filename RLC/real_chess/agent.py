@@ -33,7 +33,7 @@ class ActorCritic(nn.Module):
         self.init_actorcritic()
         self.weight_memory = []
         self.long_term_mean = []
-
+        self.action_value_mem = []
 
     def fix_model(self):
         """
@@ -42,7 +42,6 @@ class ActorCritic(nn.Module):
         """
         pass
 
-
     def init_actorcritic(self):
         """
         Convnet net for policy gradients
@@ -50,9 +49,9 @@ class ActorCritic(nn.Module):
 
         """
         self.model_base = nn.Conv2d(in_channels=8,
-                               out_channels=4,
-                               kernel_size=(1, 1)
-                               )
+                                    out_channels=4,
+                                    kernel_size=(1, 1)
+                                    )
 
         # Critics learns the value function
         self.critic_0 = nn.Conv2d(in_channels=4, out_channels=1, kernel_size=(1, 1))
@@ -68,14 +67,18 @@ class ActorCritic(nn.Module):
         base = self.model_base(state)
 
         critic_0 = self.critic_0(base)
-        critic_1a = torch.reshape(critic_0, shape=(critic_0.shape[0], critic_0.shape[2] * critic_0.shape[3], critic_0.shape[1]))
-        critic_1b = torch.reshape(critic_0, shape=(critic_0.shape[0], critic_0.shape[1], critic_0.shape[2] * critic_0.shape[3]))
+        critic_1a = torch.reshape(critic_0,
+                                  shape=(critic_0.shape[0], critic_0.shape[2] * critic_0.shape[3], critic_0.shape[1]))
+        critic_1b = torch.reshape(critic_0,
+                                  shape=(critic_0.shape[0], critic_0.shape[1], critic_0.shape[2] * critic_0.shape[3]))
         critic_dot = torch.matmul(critic_1a, critic_1b)
         critic_out = self.critic_out(critic_dot)
 
         actor_0 = self.actor_0(base)
-        actor_1a = torch.reshape(actor_0, shape=(actor_0.shape[0], actor_0.shape[2] * actor_0.shape[3], actor_0.shape[1]))
-        actor_1b = torch.reshape(actor_0, shape=(actor_0.shape[0], actor_0.shape[1], actor_0.shape[2] * actor_0.shape[3]))
+        actor_1a = torch.reshape(actor_0,
+                                 shape=(actor_0.shape[0], actor_0.shape[2] * actor_0.shape[3], actor_0.shape[1]))
+        actor_1b = torch.reshape(actor_0,
+                                 shape=(actor_0.shape[0], actor_0.shape[1], actor_0.shape[2] * actor_0.shape[3]))
         actor_dot = torch.matmul(actor_1a, actor_1b)
         actor_2 = self.actor_2(actor_dot)
         actor_out = actionspace.mul(self.actor_out(actor_2))
@@ -83,12 +86,12 @@ class ActorCritic(nn.Module):
         return actor_out, critic_out
 
     def select_action(self, env):
-        action_space = env.project_legal_moves()  # The environment determines which moves are legal
-        action_probs = self.actor_model.predict([np.expand_dims(env.layer_board, axis=0),
-                                                 np.zeros((1, 1)),
-                                                 action_space.reshape(1, 4096)])
-        self.action_value_mem.append(action_probs)
+        action_space = torch.from_numpy(np.expand_dims(env.project_legal_moves(),axis=0)).float()  # The environment determines which moves are legal
+        state = torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
+        action_probs, q_value_pred = self(state, action_space)
         action_probs = action_probs / action_probs.sum()
+        action_probs = action_probs.reshape(4096,).detach().numpy()
+        self.action_value_mem.append(action_probs)
         move = np.random.choice(range(4096), p=np.squeeze(action_probs))
         move_from = move // 64
         move_to = move % 64
@@ -97,105 +100,59 @@ class ActorCritic(nn.Module):
         move = moves[0]  # When promoting a pawn, multiple moves can have the same from-to squares
         return move
 
-        def network_update(self, minibatch):
-            """
-            Update the Q-network using samples from the minibatch
-            Args:
-                minibatch: list
-                    The minibatch contains the states, moves, rewards and new states.
+    def network_update(self, states, moves, move_probas, rewards, successor_states):
+        """
+        Update the Q-network using samples from the minibatch
+        Args:
+            minibatch: list
+                The minibatch contains the states, moves, rewards and new states.
 
-            Returns:
-                td_errors: np.array
-                    array of temporal difference errors
+        Returns:
+            td_errors: np.array
+                array of temporal difference errors
 
-            """
-            # Prepare separate lists
-            states, moves, rewards, new_states = [], [], [], []
-            td_errors = []
-            episode_ends = []
-            for sample in minibatch:
-                states.append(sample[0])
-                moves.append(sample[1])
-                rewards.append(sample[2])
-                new_states.append(sample[3])
+        """
+        pass
 
-                # Episode end detection
-                if np.array_equal(sample[3], sample[3] * 0):
-                    episode_ends.append(0)
-                else:
-                    episode_ends.append(1)
+    def policy_gradient_update(self, states, actions, rewards, action_spaces, actor_critic=False):
+        """
+        Update parameters with Monte Carlo Policy Gradient algorithm
+        Args:
+            states: (list of tuples) state sequence in episode
+            actions: action sequence in episode
+            rewards: rewards sequence in episode
 
-            # The Q target
-            q_target = np.array(rewards) + np.array(episode_ends) * self.gamma * np.max(
-                self.fixed_model.predict(np.stack(new_states, axis=0)), axis=1)
+        Returns:
 
-            # The Q value for the remaining actions
-            q_state = self.model.predict(np.stack(states, axis=0))  # batch x 64 x 64
-
-            # Combine the Q target with the other Q values.
-            q_state = np.reshape(q_state, (len(minibatch), 64, 64))
-            for idx, move in enumerate(moves):
-                td_errors.append(q_state[idx, move[0], move[1]] - q_target[idx])
-                q_state[idx, move[0], move[1]] = q_target[idx]
-            q_state = np.reshape(q_state, (len(minibatch), 4096))
-
-            # Perform a step of minibatch Gradient Descent.
-            self.model.fit(x=np.stack(states, axis=0), y=q_state, epochs=1, verbose=0)
-
-            return td_errors
-
-        def get_action_values(self, state):
-            """
-            Get action values of a state
-            Args:
-                state: np.ndarray with shape (8,8,8)
-                    layer_board representation
-
-            Returns:
-                action values
-
-            """
-            return self.critic_model.predict(state) + np.random.randn() * 1e-9
-
-        def policy_gradient_update(self, states, actions, rewards, action_spaces, actor_critic=False):
-            """
-            Update parameters with Monte Carlo Policy Gradient algorithm
-            Args:
-                states: (list of tuples) state sequence in episode
-                actions: action sequence in episode
-                rewards: rewards sequence in episode
-
-            Returns:
-
-            """
-            n_steps = len(states)
-            Returns = []
-            targets = np.zeros((n_steps, 64, 64))
-            for t in range(n_steps):
-                action = actions[t]
-                targets[t, action[0], action[1]] = 1
-                if actor_critic:
-                    R = rewards[t, action[0] * 64 + action[1]]
-                else:
-                    R = np.sum([r * self.gamma ** i for i, r in enumerate(rewards[t:])])
-                Returns.append(R)
-
-            if not actor_critic:
-                mean_return = np.mean(Returns)
-                self.long_term_mean.append(mean_return)
-                train_returns = np.stack(Returns, axis=0) - np.mean(self.long_term_mean)
+        """
+        n_steps = len(states)
+        Returns = []
+        targets = np.zeros((n_steps, 64, 64))
+        for t in range(n_steps):
+            action = actions[t]
+            targets[t, action[0], action[1]] = 1
+            if actor_critic:
+                R = rewards[t, action[0] * 64 + action[1]]
             else:
-                train_returns = np.stack(Returns, axis=0)
-            # print(train_returns.shape)
-            targets = targets.reshape((n_steps, 4096))
-            self.weight_memory.append(self.model.get_weights())
-            self.model.fit(x=[np.stack(states, axis=0),
-                              train_returns,
-                              np.concatenate(action_spaces, axis=0)
-                              ],
-                           y=[np.stack(targets, axis=0)],
-                           verbose=self.verbose
-                           )
+                R = np.sum([r * self.gamma ** i for i, r in enumerate(rewards[t:])])
+            Returns.append(R)
+
+        if not actor_critic:
+            mean_return = np.mean(Returns)
+            self.long_term_mean.append(mean_return)
+            train_returns = np.stack(Returns, axis=0) - np.mean(self.long_term_mean)
+        else:
+            train_returns = np.stack(Returns, axis=0)
+        # print(train_returns.shape)
+        targets = targets.reshape((n_steps, 4096))
+        self.weight_memory.append(self.model.get_weights())
+        self.model.fit(x=[np.stack(states, axis=0),
+                          train_returns,
+                          np.concatenate(action_spaces, axis=0)
+                          ],
+                       y=[np.stack(targets, axis=0)],
+                       verbose=self.verbose
+                       )
 
     class RandomAgent(object):
 
