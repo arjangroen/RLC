@@ -97,7 +97,18 @@ class Node(object):
         else:
             return self, None
 
-    def simulate(self, fixed_agent, env, depth=0, max_depth=20, random=False, temperature=1):
+    def add_child(self, move):
+        self.children[move] = Node(parent=self)
+
+    def get_up(self):
+        return self.parent
+
+    def get_down(self, move):
+        return self.children[move]
+
+
+
+    def simulate(self, fixed_agent, env, depth=0, max_depth=10, random=False, temperature=1):
         """
         Recursive Monte Carlo Playout
         Args:
@@ -117,8 +128,7 @@ class Node(object):
             Returns = reward
         elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
             Returns = reward + self.gamma * fixed_agent(
-                torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float(),
-                torch.from_numpy(np.expand_dims(env.project_legal_moves(), axis=0)).float()
+                torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
             )[1].max()
         else:  # Recursively continue
             Returns = reward + self.gamma * self.simulate(fixed_agent, env, depth=depth + 1, temperature=temperature)

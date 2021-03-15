@@ -37,6 +37,18 @@ class Tree(object):
     def get_value(self, sampler_fn):
         return sampler_fn(self.values)
 
+    def update(self, Returns=None):
+        """
+        Update a node with observed Returns
+        Args:
+            Returns: Future returns
+
+        Returns:
+
+        """
+        if Returns:
+            self.values.append(Returns)
+
     def get_up(self):
         return self.parent
 

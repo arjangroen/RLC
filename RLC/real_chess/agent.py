@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 
+
 class ActorCritic(nn.Module):
 
     def __init__(self, gamma=0.5, lr=0.01, verbose=0):
@@ -32,7 +33,7 @@ class ActorCritic(nn.Module):
         The fixed model is the model used for bootstrapping
         Returns:
         """
-        pass
+        return self
 
     def init_actorcritic(self):
         """
@@ -55,7 +56,7 @@ class ActorCritic(nn.Module):
         self.actor_2 = nn.Flatten(start_dim=2)
         self.actor_out = nn.Softmax(dim=1)
 
-    def forward(self, state, actionspace):
+    def forward(self, state):
         base = self.model_base(state)
 
         critic_0 = self.critic_0(base)
@@ -73,7 +74,7 @@ class ActorCritic(nn.Module):
                                  shape=(actor_0.shape[0], actor_0.shape[1], actor_0.shape[2] * actor_0.shape[3]))
         actor_dot = torch.matmul(actor_1a, actor_1b)
         actor_2 = self.actor_2(actor_dot)
-        actor_out = actionspace.mul(self.actor_out(actor_2))
+        actor_out = self.actor_out(actor_2)
 
         return actor_out, critic_out
 
@@ -81,7 +82,8 @@ class ActorCritic(nn.Module):
         action_space = torch.from_numpy(np.expand_dims(env.project_legal_moves(),
                                                        axis=0)).float()  # The environment determines which moves are legal
         state = torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
-        action_probs, q_value_pred = self(state, action_space)
+        action_probs, q_value_pred = self(state)
+        action_probs = action_probs * action_space
         action_probs = action_probs / action_probs.sum()
         action_probs = action_probs.reshape(4096, ).detach().numpy()
         self.action_value_mem.append(action_probs)
@@ -94,7 +96,7 @@ class ActorCritic(nn.Module):
         move = moves[0]  # When promoting a pawn, multiple moves can have the same from-to squares
         return move, move_proba
 
-    def network_update(self, fixed_model, state, action, reward, successor_state, successor_action):
+    def network_update(self, fixed_model, episode_end, state, action, reward, successor_state, successor_action):
         """
         :param fixed_model, stationary ActorCritic model
         :param states: Tensor of shape (1, 8, 8, 8)
@@ -106,24 +108,29 @@ class ActorCritic(nn.Module):
         :return:
         """
 
-        # Calculate Q value for the critic head
-        bootstrapped_q_value = reward + self.gamma * fixed_model(successor_state)[0][1]
-        bootstrapped_q_value = torch.narrow(bootstrapped_q_value, successor_action.from_square, successor_action.to_square, 1)
-        q_value = self(state)[1]
-        q_value_target = q_value.detach().clone()
-        q_value_target[successor_action.from_square, successor_action.to_square] = bootstrapped_q_value
+        # Q VALUE LOSS
+        reward = torch.tensor(reward)
+        episode_end = torch.tensor(1 - int(episode_end))
+        bootstrapped_q_value = reward + episode_end * self.gamma * fixed_model(successor_state)[1][0]
+        bootstrapped_q_value_a = bootstrapped_q_value[successor_action.from_square,
+                                                           successor_action.to_square]
 
-        # Calculate the policy gradient
-        action_prob = self(state)[0][1]
-        action_prob_target = action_prob.detach().clone()
-        action_prob_target = action_prob_target[[0], action.from_square, action.to_square]
+        q_value = self(state)[1][0]
+        q_value_a = q_value[action.from_square, action.to_square]
 
+        q_value_loss = F.mse_loss(bootstrapped_q_value_a, q_value_a)
+
+        # POLICY GRADIENT
+        action_prob = self(state)[0][0]
+        action_prob_a = action_prob[successor_action.from_square, successor_action.to_square]
+        advantage = bootstrapped_q_value_a.clone().detach()
+        policy_gradient_loss = F.binary_cross_entropy(action_prob_a, torch.tensor(1).float()) * advantage
+
+        # GRADIENT DESCENT
+        total_loss = q_value_loss + policy_gradient_loss
         self.optimizer.zero_grad()
-
-        value_loss = torch.nn.MSELoss(q_value, q_value_target)
-        policy_gradient_loss = torch.nn.BCELoss(action_prob_target, torch.ones_like(action_prob_target))
-
-
+        total_loss.backward()
+        self.optimizer.step()
 
     def policy_gradient_update(self, states, actions, rewards, action_spaces, actor_critic=False):
         """

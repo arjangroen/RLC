@@ -32,7 +32,6 @@ class ReinforcementLearning(object):
         self.agent = agent
         self.fixed_agent = type(agent)()
         self.fixed_agent.load_state_dict(self.agent.state_dict())
-        self.tree = Node(board=self.env.board, gamma=gamma)
         self.gamma = gamma
         self.memsize = memsize
         self.batch_size = batch_size
@@ -43,7 +42,7 @@ class ReinforcementLearning(object):
         self.search_time = search_time
         self.min_sim_count = 10
 
-        self.memory = []
+        self.episode_memory = []
 
     def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=80):
         """
@@ -60,11 +59,12 @@ class ReinforcementLearning(object):
         for k in range(iters):
             self.env.reset()
             if k % c == 0:
-                self.agent.fix_model()
+                self.fixed_agent.load_state_dict(self.agent.state_dict())
                 print("iter", k)
             if k > c:
                 self.ready = True
             self.play_game(k, maxiter=maxiter)
+            self.update_agent()
             if starttime + timelimit_seconds < time.time():
                 break
         return self.env.board
@@ -85,7 +85,7 @@ class ReinforcementLearning(object):
         episode_end = False
         turncount = 0
         color = 1
-        tree = self.tree.get_root()  # Initialize the game tree
+        tree = self.env.tree.get_root()  # Initialize the game tree
         self.env.board.reset()
         # Play a game of chess
 
@@ -115,7 +115,7 @@ class ReinforcementLearning(object):
             if turncount > maxiter and not episode_end:
                 episode_end = True
 
-        self.memory.append(memory_sar)
+        self.episode_memory.append(memory_sar)
 
         piece_balance = self.env.get_material_value()
         self.piece_balance_trace.append(piece_balance)
@@ -129,12 +129,14 @@ class ReinforcementLearning(object):
         Returns:
             None
         """
-        if self.ready:
-            choice_indices, states, rewards, sucstates, episode_active = self.get_minibatch()
-            td_errors = self.agent.TD_update(states, rewards, sucstates, episode_active, gamma=self.gamma)
-            self.mem_error[choice_indices.tolist()] = td_errors
+        minibatch = self.get_minibatch()
+        for event in minibatch:
+            self.agent.network_update(self.fixed_agent, event[0], event[1], event[2], event[3], event[4], event[5])
 
-    def get_minibatch(self, prioritized=True):
+        if len(self.episode_memory) > self.memsize:
+            self.episode_memory = self.episode_memory[1:]
+
+    def get_minibatch(self):
         """
         Get a mini batch of experience
         Args:
@@ -143,26 +145,19 @@ class ReinforcementLearning(object):
         Returns:
 
         """
-        if prioritized:
-            sampling_priorities = np.abs(self.mem_error) + 1e-9
-        else:
-            sampling_priorities = np.ones(shape=self.mem_error.shape)
-        sampling_probs = sampling_priorities / np.sum(sampling_priorities)
-        sample_indices = [x for x in range(self.mem_state.shape[0])]
-        choice_indices = np.random.choice(sample_indices,
-                                          min(self.mem_state.shape[0],
-                                              self.batch_size),
-                                          p=np.squeeze(sampling_probs),
-                                          replace=False
-                                          )
-        states = self.mem_state[choice_indices]
-        rewards = self.mem_reward[choice_indices]
-        sucstates = self.mem_sucstate[choice_indices]
-        episode_active = self.mem_episode_active[choice_indices]
+        minibatch = []
+        for episode in self.episode_memory:
+            episode_len = len(episode)
+            learn_event_index = np.random.choice(range(episode_len-1))
+            episode_end = True if learn_event_index == episode_len-1 else False
+            state, action, reward = episode[learn_event_index][0], episode[learn_event_index][1], \
+                                    episode[learn_event_index][2]
+            successor_state, successor_action, _ = episode[learn_event_index+1][0], episode[learn_event_index+1][1], \
+                                    episode[learn_event_index+1][2]
+            minibatch.append([episode_end, state, action, reward, successor_state, successor_action])
+        return minibatch
 
-        return choice_indices, states, rewards, sucstates, episode_active
-
-    def mcts(self, node, color):
+    def mcts(self, color):
         """
         Run Monte Carlo Tree Search
         Args:
@@ -177,8 +172,8 @@ class ReinforcementLearning(object):
         sim_count = 0
         board_in = self.env.board.fen()
 
-        if not node.values:
-            node.values = [0]
+        if not self.env.tree.values:
+            self.env.tree.values = [0]
 
         while starttime + self.search_time > time.time() or sim_count < self.min_sim_count:
             depth = 0
@@ -188,7 +183,7 @@ class ReinforcementLearning(object):
 
             # 1. Select the best node from where to start MCTS
             while node.children:
-                node, move = node.select(color=color)
+                node, move = self.env.tree.select(color=color)
                 if not move:
                     # No move means that the node selects itself, not a child node.
                     break
@@ -208,10 +203,7 @@ class ReinforcementLearning(object):
                     loop += 1
                     if loop > loop_max:
                         break
-                if loop <= loop_max:
-                    node.children[move] = Node(self.env.board, parent=node)
                 episode_end, reward = self.env.step(move)
-                node = node.children[move]
                 depth += 1
                 node_rewards.append(reward)
 
@@ -222,6 +214,8 @@ class ReinforcementLearning(object):
                                               temperature=self.temperature,
                                               depth=0)
                 node.update(Returns)
+            else:
+                node.update(reward)
 
             # 4. Backpropagate Returns
             while depth > 0:

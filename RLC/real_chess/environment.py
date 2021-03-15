@@ -1,6 +1,6 @@
 import chess
 import numpy as np
-from RLC.chess.tree import Tree
+from RLC.real_chess.tree import Node
 
 mapper = {}
 mapper["p"] = 0
@@ -26,7 +26,7 @@ class Board(object):
         self.board = chess.Board()
         self.layer_board = np.zeros(shape=(8, 8, 8))
         self.init_layer_board()
-        self.tree = Tree()
+        self.tree = Node()
 
     def init_layer_board(self):
         """
@@ -135,14 +135,16 @@ class Board(object):
     def backprop(self, value, gamma):
         root = self.tree
         move_stack = []
+        root.values.append(value)
         while root.parent:
             root = root.parent
             move_stack.append(self.board.pop())
             value = value * gamma
             root.values.append(value)
 
+
         # Return to checkpoint
-        i = 0
-        while not root.checkpoint:
-            self.env.step(move_stack.pop(0)) # <- Bug?
+        self.tree = root
+        while not self.tree.checkpoint:
+            self.step(move_stack.pop())
 
