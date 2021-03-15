@@ -4,15 +4,6 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 
-
-def policy_gradient_loss(Returns):
-    def modified_crossentropy(action, action_probs):
-        cost = (K.categorical_crossentropy(action, action_probs, from_logits=False, axis=1) * Returns)
-        return K.mean(cost)
-
-    return modified_crossentropy
-
-
 class ActorCritic(nn.Module):
 
     def __init__(self, gamma=0.5, lr=0.01, verbose=0):
@@ -34,6 +25,7 @@ class ActorCritic(nn.Module):
         self.weight_memory = []
         self.long_term_mean = []
         self.action_value_mem = []
+        self.optimizer = torch.optim.RMSprop(self.parameters(), lr=0.01)
 
     def fix_model(self):
         """
@@ -102,19 +94,36 @@ class ActorCritic(nn.Module):
         move = moves[0]  # When promoting a pawn, multiple moves can have the same from-to squares
         return move, move_proba
 
-    def network_update(self, fixed_model, states, moves, move_probas, rewards, successor_states, successor_action):
+    def network_update(self, fixed_model, state, action, reward, successor_state, successor_action):
         """
         :param fixed_model, stationary ActorCritic model
-        :param states: Tensor of shape (n, 8, 8, 8)
-        :param moves: Tensor one-hot encoding of shape (n, 64, 64)
+        :param states: Tensor of shape (1, 8, 8, 8)
+        :param moves: chess.move
         :param move_probas: Scalar between [0,1]
         :param rewards: Scalar between [-1, 1]
-        :param successor_states: Tensor of shape (n, 8, 8, 8)
+        :param successor_states: Tensor of shape (1, 8, 8, 8)
+        :param successor_action: chess.move
         :return:
         """
-        q_values = fixed_model(states)[1]
-        # q_values[]
-        q_target = rewards + self.gamma * fixed_model(successor_states)[1][successor_action]
+
+        # Calculate Q value for the critic head
+        bootstrapped_q_value = reward + self.gamma * fixed_model(successor_state)[0][1]
+        bootstrapped_q_value = torch.narrow(bootstrapped_q_value, successor_action.from_square, successor_action.to_square, 1)
+        q_value = self(state)[1]
+        q_value_target = q_value.detach().clone()
+        q_value_target[successor_action.from_square, successor_action.to_square] = bootstrapped_q_value
+
+        # Calculate the policy gradient
+        action_prob = self(state)[0][1]
+        action_prob_target = action_prob.detach().clone()
+        action_prob_target = action_prob_target[[0], action.from_square, action.to_square]
+
+        self.optimizer.zero_grad()
+
+        value_loss = torch.nn.MSELoss(q_value, q_value_target)
+        policy_gradient_loss = torch.nn.BCELoss(action_prob_target, torch.ones_like(action_prob_target))
+
+
 
     def policy_gradient_update(self, states, actions, rewards, action_spaces, actor_critic=False):
         """

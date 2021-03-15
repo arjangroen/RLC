@@ -43,11 +43,7 @@ class ReinforcementLearning(object):
         self.search_time = search_time
         self.min_sim_count = 10
 
-        self.mem_state = np.zeros(shape=(1, 8, 8, 8))
-        self.mem_sucstate = np.zeros(shape=(1, 8, 8, 8))
-        self.mem_reward = np.zeros(shape=(1))
-        self.mem_error = np.zeros(shape=(1))
-        self.mem_episode_active = np.ones(shape=(1))
+        self.memory = []
 
     def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=80):
         """
@@ -85,6 +81,7 @@ class ReinforcementLearning(object):
         """
 
         # INITIALIZE GAME STATE
+        memory_sar = []  # state, action, reward
         episode_end = False
         turncount = 0
         color = 1
@@ -96,51 +93,29 @@ class ReinforcementLearning(object):
             state = torch.from_numpy(np.expand_dims(self.env.layer_board, axis=0)).float()
 
             # Do a Monte Carlo Tree Search after game iteration k
-            tree = self.mcts(tree)
+            tree = self.mcts(tree, color)
             max_move = None
             max_value = np.NINF
             for move, child in tree.children.items():
-                sampled_value = np.mean(child.values) * color
+                sampled_value = np.max(child.values) * color
                 if sampled_value > max_value:
                     max_value = sampled_value
                     max_move = move
 
+            # Execute the best move
             episode_end, reward = self.env.step(max_move)
             color = color * -1
 
             tree = tree.children[max_move]
+            memory_sar.append([state, max_move, reward])
+
             gc.collect()
-
-            sucstate = np.expand_dims(self.env.layer_board, axis=0)
-            new_state_value = self.agent.predict(sucstate)
-
-            error = reward + self.gamma * new_state_value - state_value
-            error = np.float(np.squeeze(error))
 
             turncount += 1
             if turncount > maxiter and not episode_end:
                 episode_end = True
 
-            episode_active = 0 if episode_end else 1
-
-            # construct training sample state, prediction, error
-            self.mem_state = np.append(self.mem_state, state, axis=0)
-            self.mem_reward = np.append(self.mem_reward, reward)
-            self.mem_sucstate = np.append(self.mem_sucstate, sucstate, axis=0)
-            self.mem_error = np.append(self.mem_error, error)
-            self.reward_trace = np.append(self.reward_trace, reward)
-            self.mem_episode_active = np.append(self.mem_episode_active, episode_active)
-
-            if self.mem_state.shape[0] > self.memsize:
-                self.mem_state = self.mem_state[1:]
-                self.mem_reward = self.mem_reward[1:]
-                self.mem_sucstate = self.mem_sucstate[1:]
-                self.mem_error = self.mem_error[1:]
-                self.mem_episode_active = self.mem_episode_active[1:]
-                gc.collect()
-
-            if turncount % 10 == 0:
-                self.update_agent()
+        self.memory.append(memory_sar)
 
         piece_balance = self.env.get_material_value()
         self.piece_balance_trace.append(piece_balance)
@@ -187,7 +162,7 @@ class ReinforcementLearning(object):
 
         return choice_indices, states, rewards, sucstates, episode_active
 
-    def mcts(self, node):
+    def mcts(self, node, color):
         """
         Run Monte Carlo Tree Search
         Args:
@@ -207,7 +182,6 @@ class ReinforcementLearning(object):
 
         while starttime + self.search_time > time.time() or sim_count < self.min_sim_count:
             depth = 0
-            color = 1
             Returns = 0
             episode_end = False
             node_rewards = []
@@ -227,13 +201,15 @@ class ReinforcementLearning(object):
             # 2. Expand the game tree with a new move
             if not episode_end:
                 move = None
-                loop_max = 100
+                loop_max = 20
                 loop = 0
                 while move in node.children.keys() or not move:
                     move, _ = self.agent.select_action(self.env)
                     loop += 1
-                    assert loop < loop_max, "Expand loop is not ending"
-                node.children[move] = Node(self.env.board, parent=node)
+                    if loop > loop_max:
+                        break
+                if loop <= loop_max:
+                    node.children[move] = Node(self.env.board, parent=node)
                 episode_end, reward = self.env.step(move)
                 node = node.children[move]
                 depth += 1
