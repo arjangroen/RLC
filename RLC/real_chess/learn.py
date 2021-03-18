@@ -4,6 +4,7 @@ from RLC.real_chess.tree import Node
 import math
 import gc
 import torch
+import pandas as pd
 
 
 def softmax(x, temperature=1):
@@ -16,7 +17,7 @@ def sigmoid(x):
 
 class ReinforcementLearning(object):
 
-    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=2000, batch_size=256, temperature=1):
+    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=16, batch_size=256, temperature=1):
         """
         Chess algorithm that combines bootstrapped monte carlo tree search with Q Learning
         Args:
@@ -44,7 +45,7 @@ class ReinforcementLearning(object):
 
         self.episode_memory = []
 
-    def learn(self, iters=40, c=5, timelimit_seconds=3600, maxiter=80):
+    def learn(self, iters=400, c=50, timelimit_seconds=36000, maxiter=70):
         """
         Start Reinforcement Learning Algorithm
         Args:
@@ -59,15 +60,65 @@ class ReinforcementLearning(object):
         for k in range(iters):
             self.env.reset()
             if k % c == 0:
-                self.fixed_agent.load_state_dict(self.agent.state_dict())
+                #self.test(k)
+                # self.fixed_agent.load_state_dict(self.agent.state_dict())
                 print("iter", k)
             if k > c:
                 self.ready = True
             self.play_game(k, maxiter=maxiter)
-            self.update_agent()
+            if k > 1:
+                self.update_agent()
             if starttime + timelimit_seconds < time.time():
                 break
         return self.env.board
+
+    def test(self, k):
+        results = []
+        testsize = 50
+        for i in range(testsize):
+            results.append(self.test_game(self.agent, self.fixed_agent))
+        for i in range(testsize):
+            results.append(self.test_game(self.fixed_agent, self.agent))
+        end_result = pd.DataFrame(results)
+        end_result.columns = ['result', 'material']
+        end_result['color'] = ['white'] * testsize + ['black'] * testsize
+        end_result.loc[end_result['color'] == 'black', 'result'] = end_result.loc[
+                                                                       end_result['color'] == 'black', 'result'] * -1
+
+        if end_result['result'].sum() > 5:
+            print("replacing fixed agent by updated agent")
+            self.fixed_agent.load_state_dict(self.agent.state_dict())
+        end_result.to_csv('end_result_' + str(k))
+
+    def test_game(self, white, black):
+
+        episode_end = False
+        turncount = 0
+        color = 1
+        self.env.node = self.env.node.get_root()  # Initialize the game tree
+        self.env.reset()
+        maxiter = 100
+
+        # Play a game of chess
+
+        while not episode_end:
+            current_player = white if color == 1 else black
+            state = torch.from_numpy(np.expand_dims(self.env.layer_board, axis=0)).float()
+            move, _ = current_player.select_action(self.env)
+            episode_end, reward = self.env.step(move)
+            color = color * -1
+
+            gc.collect()
+
+            turncount += 1
+            if turncount > maxiter and not episode_end:
+                episode_end = True
+
+        piece_balance = self.env.get_material_value()
+        self.piece_balance_trace.append(piece_balance)
+        print("game ended with result", reward, "and material balance", piece_balance, "in", turncount, "halfmoves")
+
+        return [reward, piece_balance]
 
     def play_game(self, k, maxiter=80):
         """
@@ -85,18 +136,18 @@ class ReinforcementLearning(object):
         episode_end = False
         turncount = 0
         color = 1
-        tree = self.env.tree.get_root()  # Initialize the game tree
-        self.env.board.reset()
+        self.env.node = self.env.node.get_root()  # Initialize the game tree
+        self.env.reset()
         # Play a game of chess
 
         while not episode_end:
             state = torch.from_numpy(np.expand_dims(self.env.layer_board, axis=0)).float()
 
             # Do a Monte Carlo Tree Search after game iteration k
-            tree = self.mcts(tree, color)
+            self.mcts(color)
             max_move = None
             max_value = np.NINF
-            for move, child in tree.children.items():
+            for move, child in self.env.node.children.items():
                 sampled_value = np.max(child.values) * color
                 if sampled_value > max_value:
                     max_value = sampled_value
@@ -106,7 +157,6 @@ class ReinforcementLearning(object):
             episode_end, reward = self.env.step(max_move)
             color = color * -1
 
-            tree = tree.children[max_move]
             memory_sar.append([state, max_move, reward])
 
             gc.collect()
@@ -124,38 +174,55 @@ class ReinforcementLearning(object):
         return self.env.board
 
     def update_agent(self):
-        """
-        Update the Agent with TD learning
-        Returns:
-            None
-        """
-        minibatch = self.get_minibatch()
-        for event in minibatch:
-            self.agent.network_update(self.fixed_agent, event[0], event[1], event[2], event[3], event[4], event[5])
+
+        episode_actives, states, moves, rewards, successor_states, successor_actions = self.get_minibatch()
+        self.agent.network_update(self.fixed_agent, episode_actives, states, moves, rewards, successor_states, successor_actions)
 
         if len(self.episode_memory) > self.memsize:
             self.episode_memory = self.episode_memory[1:]
 
     def get_minibatch(self):
         """
-        Get a mini batch of experience
-        Args:
-            prioritized:
-
+        Update the Agent with TD learning
         Returns:
-
+            episode_active: Tensor of shape (n_samples, 1)
+            current_turn: Tensor of shape (n_samples, 1)
+            states: Tensor of shape (n_samples, 8, 8, 8)
+            moves: list[chess.move]
+            rewards: Tensor of shape (n_samples, 1)
+            successor_states: Tensor of shape (n_samples, 8, 8, 8)
+            successor_action: list[chess.move]
         """
-        minibatch = []
+        episode_actives = []
+        states = []
+        moves = []
+        rewards = []
+        successor_states = []
+        successor_actions = []
+
         for episode in self.episode_memory:
             episode_len = len(episode)
-            learn_event_index = np.random.choice(range(episode_len-1))
-            episode_end = True if learn_event_index == episode_len-1 else False
+            learn_event_index = np.random.choice(range(episode_len - 1))
+
+            episode_active = torch.tensor([1.]).float() if learn_event_index == episode_len - 1 else torch.tensor([0.]).float()
             state, action, reward = episode[learn_event_index][0], episode[learn_event_index][1], \
                                     episode[learn_event_index][2]
-            successor_state, successor_action, _ = episode[learn_event_index+1][0], episode[learn_event_index+1][1], \
-                                    episode[learn_event_index+1][2]
-            minibatch.append([episode_end, state, action, reward, successor_state, successor_action])
-        return minibatch
+            successor_state, successor_action, _ = episode[learn_event_index + 1][0], episode[learn_event_index + 1][1], \
+                                                   episode[learn_event_index + 1][2]
+            episode_actives.append(episode_active)
+            states.append(state)
+            moves.append(action)
+            rewards.append(reward)
+            successor_states.append(successor_state)
+            successor_actions.append(successor_action)
+
+        episode_actives = torch.cat(episode_actives, dim=0).unsqueeze(dim=1)
+        states = torch.cat(states, dim=0)
+        rewards = torch.tensor(rewards).unsqueeze(dim=1)
+        successor_states = torch.cat(successor_states, dim=0)
+
+
+        return episode_actives, states, moves, rewards, successor_states, successor_actions
 
     def mcts(self, color):
         """
@@ -172,8 +239,8 @@ class ReinforcementLearning(object):
         sim_count = 0
         board_in = self.env.board.fen()
 
-        if not self.env.tree.values:
-            self.env.tree.values = [0]
+        if not self.env.node.values:
+            self.env.node.values = [0]
 
         while starttime + self.search_time > time.time() or sim_count < self.min_sim_count:
             depth = 0
@@ -182,8 +249,8 @@ class ReinforcementLearning(object):
             node_rewards = []
 
             # 1. Select the best node from where to start MCTS
-            while node.children:
-                node, move = self.env.tree.select(color=color)
+            while self.env.node.children:
+                self.env.node, move = self.env.node.select(color=color)
                 if not move:
                     # No move means that the node selects itself, not a child node.
                     break
@@ -198,7 +265,7 @@ class ReinforcementLearning(object):
                 move = None
                 loop_max = 20
                 loop = 0
-                while move in node.children.keys() or not move:
+                while move in self.env.node.children.keys() or not move:
                     move, _ = self.agent.select_action(self.env)
                     loop += 1
                     if loop > loop_max:
@@ -209,28 +276,23 @@ class ReinforcementLearning(object):
 
             # 3. Monte Carlo Simulation to make a proxy node value
             if not episode_end:
-                Returns, move = node.simulate(self.fixed_agent,
-                                              self.env,
-                                              temperature=self.temperature,
-                                              depth=0)
-                node.update(Returns)
+                Returns, move = self.env.node.simulate(self.fixed_agent,
+                                                       self.env,
+                                                       depth=0)
             else:
-                node.update(reward)
+                Returns = 0  # episode is over, no future returns
 
             # 4. Backpropagate Returns
+            self.env.node.update(Returns)
             while depth > 0:
-                node = node.parent
+                self.env.reverse()
                 latest_reward = node_rewards.pop(-1)
                 Returns = latest_reward + self.gamma * Returns
-                node.update(Returns)
+                self.env.node.update(Returns)
 
-                self.env.board.pop()
-                self.env.init_layer_board()
                 depth -= 1
 
             sim_count += 1
 
-        board_out = self.env.board.fen()
-        assert board_in == board_out
-
-        return node
+            board_out = self.env.board.fen()
+            assert board_in == board_out

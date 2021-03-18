@@ -16,7 +16,7 @@ class Agent(object):
         successor_value = self.predict(np.expand_dims(env.layer_board, axis=0))
         returns = reward + gamma * successor_value
         env.reverse(reverse_layer_board=True)
-        del env.tree.children[move]; gc.collect()  # Free up memory
+        del env.node.children[move]; gc.collect()  # Free up memory
         return returns
 
     def predict(self, layer_board):

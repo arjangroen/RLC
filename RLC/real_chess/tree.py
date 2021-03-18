@@ -58,7 +58,7 @@ class Node(object):
         child = self.children[move]
         child.values.append(Returns)
 
-    def update(self, Returns=None):
+    def update(self, Returns):
         """
         Update a node with observed Returns
         Args:
@@ -67,8 +67,7 @@ class Node(object):
         Returns:
 
         """
-        if Returns:
-            self.values.append(Returns)
+        self.values.append(Returns)
 
     def select(self, color=1):
         """
@@ -83,10 +82,10 @@ class Node(object):
         """
         assert color == 1 or color == -1, "color has to be white (1) or black (-1)"
         if self.children:
-            max_sample = np.random.choice(color * np.array(self.values))
+            max_sample = np.random.choice(self.values) * color
             max_move = None
             for move, child in self.children.items():
-                child_sample = np.random.choice(color * np.array(child.values))
+                child_sample = np.random.choice(child.values) * color
                 if child_sample > max_sample:
                     max_sample = child_sample
                     max_move = move
@@ -106,9 +105,7 @@ class Node(object):
     def get_down(self, move):
         return self.children[move]
 
-
-
-    def simulate(self, fixed_agent, env, depth=0, max_depth=10, random=False, temperature=1):
+    def simulate(self, fixed_agent, env, depth=0, max_depth=10):
         """
         Recursive Monte Carlo Playout
         Args:
@@ -121,22 +118,30 @@ class Node(object):
         Returns:
             Playout result.
         """
+
         move, move_proba = fixed_agent.select_action(env)
         episode_end, reward = env.step(move)
 
         if episode_end:
             Returns = reward
         elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
-            Returns = reward + self.gamma * fixed_agent(
-                torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
-            )[1].max()
+            if env.board.turn:
+                Returns = reward + self.gamma * fixed_agent(
+                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
+                )[1].max()
+            else:
+                Returns = reward + self.gamma * fixed_agent(
+                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
+                )[1].min()
+            Returns = Returns.detach().numpy()
         else:  # Recursively continue
-            Returns = reward + self.gamma * self.simulate(fixed_agent, env, depth=depth + 1, temperature=temperature)
+            Returns = reward + self.gamma * self.simulate(fixed_agent, env, depth=depth + 1)
 
-        env.board.pop()
-        env.init_layer_board()
+        env.reverse()
+        del env.node.children[move]
 
         if depth == 0:
+            gc.collect()
             return Returns, move
         else:
             noise = np.random.randn() / 1e6

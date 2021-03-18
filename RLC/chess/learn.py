@@ -59,7 +59,7 @@ class TD_search(object):
             print("init random",self.mem_state.shape[0])
             self.play_random()
             self.env.reset()
-            self.env.tree.children = {}
+            self.env.node.children = {}
             i+=1
         learning_player = self.white if self.learning_agent_color == 1 else self.black
         for j in range(train_iters):
@@ -133,7 +133,7 @@ class TD_search(object):
         learning_player = self.white if self.learning_agent_color == 1 else self.black
         # Play a game of chess
         while not episode_end:
-            self.env.tree.clean(color=current_player.color)  # Memory management, delete least relevant move
+            self.env.node.clean(color=current_player.color)  # Memory management, delete least relevant move
 
             starttime = time.time()
             n_sims = 0
@@ -146,10 +146,10 @@ class TD_search(object):
             while time.time() < starttime + self.search_time and n_sims < self.min_sim_count:
                 self.mcts(self.white, self.black)
                 n_sims += 1
-            move = current_player.select_move_from_node(self.env.tree, force_select=True)
+            move = current_player.select_move_from_node(self.env.node, force_select=True)
 
             # EXECUTE THE MOVE
-            self.env.tree.checkpoint = False  # Remove the checkpoint
+            self.env.node.checkpoint = False  # Remove the checkpoint
             episode_end, reward = self.env.step(move)
             turncount += 1
 
@@ -257,13 +257,13 @@ class TD_search(object):
         self.backprop(returns, gamma=self.gamma)
 
     def select(self, white, black):
-        self.env.tree.checkpoint = True
+        self.env.node.checkpoint = True
         selected = False
         returns = 0
         episode_end = False
         while not selected:
             current_player = white if self.env.board.turn else black
-            move = current_player.select_move_from_node(self.env.tree, force_select=False)
+            move = current_player.select_move_from_node(self.env.node, force_select=False)
             if move:
                 episode_end, reward = self.env.step(move)
                 returns = returns + self.gamma * reward

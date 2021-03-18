@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 class ActorCritic(nn.Module):
 
-    def __init__(self, gamma=0.5, lr=0.01, verbose=0):
+    def __init__(self, gamma=0.9, lr=0.001, verbose=0):
         """
         Agent that plays the white pieces in capture chess
         Args:
@@ -26,7 +26,7 @@ class ActorCritic(nn.Module):
         self.weight_memory = []
         self.long_term_mean = []
         self.action_value_mem = []
-        self.optimizer = torch.optim.RMSprop(self.parameters(), lr=0.01)
+        self.optimizer = torch.optim.RMSprop(self.parameters(), lr=lr)
 
     def fix_model(self):
         """
@@ -96,81 +96,48 @@ class ActorCritic(nn.Module):
         move = moves[0]  # When promoting a pawn, multiple moves can have the same from-to squares
         return move, move_proba
 
-    def network_update(self, fixed_model, episode_end, state, action, reward, successor_state, successor_action):
+    def network_update(self, fixed_model, episode_active, state, actions, reward, successor_state, successor_actions):
         """
+        self.fixed_agent, episode_actives, states, moves, rewards, successor_states, successor_actions
         :param fixed_model, stationary ActorCritic model
-        :param states: Tensor of shape (1, 8, 8, 8)
-        :param moves: chess.move
-        :param move_probas: Scalar between [0,1]
-        :param rewards: Scalar between [-1, 1]
-        :param successor_states: Tensor of shape (1, 8, 8, 8)
-        :param successor_action: chess.move
+        :param states: Tensor of shape (n_samples, 8, 8, 8)
+        :param actions: list[chess.move]
+        :param rewards: Tensor of shape (n_samples, 1)
+        :param successor_states: Tensor of shape (n_samples, 8, 8, 8)
+        :param successor_actions: list[chess.move]
         :return:
         """
 
+        bootstrapped_q_values = reward.unsqueeze(dim=2) + episode_active.unsqueeze(dim=2) * torch.tensor(self.gamma) * \
+                                fixed_model(successor_state)[1]
+        action_probs, q_values = self(state)
+        q_values_target = q_values.clone().detach()
+        action_probs_list = []
+        bootstrapped_q_values_a_list = []
         # Q VALUE LOSS
-        reward = torch.tensor(reward)
-        episode_end = torch.tensor(1 - int(episode_end))
-        bootstrapped_q_value = reward + episode_end * self.gamma * fixed_model(successor_state)[1][0]
-        bootstrapped_q_value_a = bootstrapped_q_value[successor_action.from_square,
-                                                           successor_action.to_square]
+        for i in range(len(actions)):
+            bootstrapped_q_value_a = bootstrapped_q_values[[i], successor_actions[i].from_square,
+                                                           successor_actions[i].to_square].float()
+            if successor_state[0, 6, 0, :].detach().numpy().sum() == 8.0:
+                bootstrapped_q_values_a_list.append(bootstrapped_q_value_a)
+            else:
+                bootstrapped_q_values_a_list.append(-bootstrapped_q_value_a)
+            q_values_target[[i], actions[i].from_square, actions[i].to_square] = bootstrapped_q_value_a.detach()
+            action_probs_list.append(action_probs[[i], actions[i].from_square, actions[i].to_square])
 
-        q_value = self(state)[1][0]
-        q_value_a = q_value[action.from_square, action.to_square]
-
-        q_value_loss = F.mse_loss(bootstrapped_q_value_a, q_value_a)
+        q_value_loss = F.mse_loss(q_values, q_values_target)
 
         # POLICY GRADIENT
-        action_prob = self(state)[0][0]
-        action_prob_a = action_prob[successor_action.from_square, successor_action.to_square]
-        advantage = bootstrapped_q_value_a.clone().detach()
-        policy_gradient_loss = F.binary_cross_entropy(action_prob_a, torch.tensor(1).float()) * advantage
+        action_probs = torch.cat(action_probs_list, dim=0).unsqueeze(dim=1)
+        advantages = torch.cat(bootstrapped_q_values_a_list, dim=0).unsqueeze(dim=1).detach()
+        policy_gradient_loss = F.binary_cross_entropy(action_probs, torch.ones_like(action_probs.detach())) * advantages
 
         # GRADIENT DESCENT
-        total_loss = q_value_loss + policy_gradient_loss
+        total_loss = q_value_loss + policy_gradient_loss.sum()
         self.optimizer.zero_grad()
         total_loss.backward()
         self.optimizer.step()
-
-    def policy_gradient_update(self, states, actions, rewards, action_spaces, actor_critic=False):
-        """
-        Update parameters with Monte Carlo Policy Gradient algorithm
-        Args:
-            states: (list of tuples) state sequence in episode
-            actions: action sequence in episode
-            rewards: rewards sequence in episode
-
-        Returns:
-
-        """
-        n_steps = len(states)
-        Returns = []
-        targets = np.zeros((n_steps, 64, 64))
-        for t in range(n_steps):
-            action = actions[t]
-            targets[t, action[0], action[1]] = 1
-            if actor_critic:
-                R = rewards[t, action[0] * 64 + action[1]]
-            else:
-                R = np.sum([r * self.gamma ** i for i, r in enumerate(rewards[t:])])
-            Returns.append(R)
-
-        if not actor_critic:
-            mean_return = np.mean(Returns)
-            self.long_term_mean.append(mean_return)
-            train_returns = np.stack(Returns, axis=0) - np.mean(self.long_term_mean)
-        else:
-            train_returns = np.stack(Returns, axis=0)
-        # print(train_returns.shape)
-        targets = targets.reshape((n_steps, 4096))
-        self.weight_memory.append(self.model.get_weights())
-        self.model.fit(x=[np.stack(states, axis=0),
-                          train_returns,
-                          np.concatenate(action_spaces, axis=0)
-                          ],
-                       y=[np.stack(targets, axis=0)],
-                       verbose=self.verbose
-                       )
+        print("updated AC")
 
 
 class RandomAgent(object):

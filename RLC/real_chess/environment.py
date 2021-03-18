@@ -26,7 +26,7 @@ class Board(object):
         self.board = chess.Board()
         self.layer_board = np.zeros(shape=(8, 8, 8))
         self.init_layer_board()
-        self.tree = Node()
+        self.node = Node()
 
     def init_layer_board(self):
         """
@@ -73,11 +73,14 @@ class Board(object):
             reward: float
                 Difference in material value after the move
         """
+        piece_balance_before = self.get_material_value()
         self.board.push(move)
         self.update_layer_board(move)
-        if move not in self.tree.children.keys():
-            self.tree.add_child(move)
-        self.tree = self.tree.get_down(move)
+        piece_balance_after = self.get_material_value()
+        auxiliary_reward = (piece_balance_after - piece_balance_before) / 100.
+        if move not in self.node.children.keys():
+            self.node.add_child(move)
+        self.node = self.node.get_down(move)
         result = self.board.result()
         if result == "*":
             reward = 0
@@ -92,7 +95,7 @@ class Board(object):
             reward = 0
             episode_end = True
 
-        return episode_end, reward
+        return episode_end, reward + auxiliary_reward
 
     def project_legal_moves(self):
         """
@@ -124,27 +127,11 @@ class Board(object):
         """
         self.board = chess.Board()
         self.init_layer_board()
-        self.tree = self.tree.get_root()
+        self.node = self.node.get_root()
+        self.node.children = {}
 
     def reverse(self, reverse_layer_board=False):
         self.board.pop()
         if reverse_layer_board:
             self.init_layer_board()
-        self.tree = self.tree.get_up()
-
-    def backprop(self, value, gamma):
-        root = self.tree
-        move_stack = []
-        root.values.append(value)
-        while root.parent:
-            root = root.parent
-            move_stack.append(self.board.pop())
-            value = value * gamma
-            root.values.append(value)
-
-
-        # Return to checkpoint
-        self.tree = root
-        while not self.tree.checkpoint:
-            self.step(move_stack.pop())
-
+        self.node = self.node.get_up()
