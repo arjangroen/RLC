@@ -272,6 +272,7 @@ class ReinforcementLearning(object):
                         break
                 episode_end, reward = self.env.step(move)
                 depth += 1
+                color = color * -1
                 node_rewards.append(reward)
 
             # 3. Monte Carlo Simulation to make a proxy node value

@@ -85,10 +85,9 @@ class ActorCritic(nn.Module):
         action_probs, q_value_pred = self(state)
         action_probs = action_probs * action_space
         action_probs = action_probs / action_probs.sum()
-        action_probs = action_probs.reshape(4096, ).detach().numpy()
-        self.action_value_mem.append(action_probs)
-        move = np.random.choice(range(4096), p=action_probs)
-        move_proba = action_probs[move]
+        action_probs = action_probs.detach().numpy().reshape(1, 4096)
+        move = np.random.choice(range(4096), p=action_probs[0])
+        move_proba = action_probs[0][move]
         move_from = move // 64
         move_to = move % 64
         moves = [x for x in env.board.generate_legal_moves() if \

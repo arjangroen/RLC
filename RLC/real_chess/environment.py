@@ -1,6 +1,7 @@
 import chess
 import numpy as np
 from RLC.real_chess.tree import Node
+import warnings
 
 mapper = {}
 mapper["p"] = 0
@@ -75,6 +76,8 @@ class Board(object):
         """
         piece_balance_before = self.get_material_value()
         self.board.push(move)
+        if not self.board.is_valid():
+            warnings.warn("Invalid position reached.")
         self.update_layer_board(move)
         piece_balance_after = self.get_material_value()
         auxiliary_reward = (piece_balance_after - piece_balance_before) / 100.
