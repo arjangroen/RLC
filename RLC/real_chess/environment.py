@@ -75,15 +75,13 @@ class Board(object):
                 Difference in material value after the move
         """
         piece_balance_before = self.get_material_value()
+        color = 1 if self.board.turn else -1
         self.board.push(move)
         if not self.board.is_valid():
             warnings.warn("Invalid position reached.")
         self.update_layer_board(move)
         piece_balance_after = self.get_material_value()
-        auxiliary_reward = (piece_balance_after - piece_balance_before) / 100.
-        if move not in self.node.children.keys():
-            self.node.add_child(move)
-        self.node = self.node.get_down(move)
+        auxiliary_reward = (piece_balance_after - piece_balance_before) / 20.
         result = self.board.result()
         if result == "*":
             reward = 0
@@ -98,7 +96,10 @@ class Board(object):
             reward = 0
             episode_end = True
 
-        return episode_end, reward + auxiliary_reward
+        if reward == 0:
+            reward = reward + auxiliary_reward
+
+        return episode_end, reward
 
     def project_legal_moves(self):
         """
@@ -133,8 +134,6 @@ class Board(object):
         self.node = self.node.get_root()
         self.node.children = {}
 
-    def reverse(self, reverse_layer_board=False):
+    def reverse(self):
         self.board.pop()
-        if reverse_layer_board:
-            self.init_layer_board()
-        self.node = self.node.get_up()
+        self.init_layer_board()

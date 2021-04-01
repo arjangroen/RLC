@@ -8,12 +8,12 @@ learning_agent = ActorCritic()
 opposing_agent = ActorCritic()
 board = Board()
 
-R = ReinforcementLearning(board, learning_agent)
-board = R.learn(iters=1)
+R = ReinforcementLearning(board, learning_agent, search_time=1)
+board = R.learn(iters=1000)
 pgn = Game.from_board(board)
 
 with open(f'game_{datetime.datetime.now().isoformat(timespec="seconds")}.pgn', 'w') as file:
-    file.write(pgn)
+    file.write(str(pgn))
 
 
 

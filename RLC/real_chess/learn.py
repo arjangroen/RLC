@@ -17,7 +17,7 @@ def sigmoid(x):
 
 class ReinforcementLearning(object):
 
-    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=16, batch_size=256, temperature=1):
+    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=128, batch_size=128, temperature=1):
         """
         Chess algorithm that combines bootstrapped monte carlo tree search with Q Learning
         Args:
@@ -45,7 +45,7 @@ class ReinforcementLearning(object):
 
         self.episode_memory = []
 
-    def learn(self, iters=400, c=50, timelimit_seconds=36000, maxiter=70):
+    def learn(self, iters=400, c=10, timelimit_seconds=36000, maxiter=70):
         """
         Start Reinforcement Learning Algorithm
         Args:
@@ -60,8 +60,8 @@ class ReinforcementLearning(object):
         for k in range(iters):
             self.env.reset()
             if k % c == 0:
-                #self.test(k)
-                # self.fixed_agent.load_state_dict(self.agent.state_dict())
+                self.test(k)
+                self.fixed_agent.load_state_dict(self.agent.state_dict())
                 print("iter", k)
             if k > c:
                 self.ready = True
@@ -74,11 +74,11 @@ class ReinforcementLearning(object):
 
     def test(self, k):
         results = []
-        testsize = 50
+        testsize = 10
         for i in range(testsize):
-            results.append(self.test_game(self.agent, self.fixed_agent))
+            results.append(self.test_game(self.agent, self.fixed_agent, random=-1))
         for i in range(testsize):
-            results.append(self.test_game(self.fixed_agent, self.agent))
+            results.append(self.test_game(self.fixed_agent, self.agent, random=1))
         end_result = pd.DataFrame(results)
         end_result.columns = ['result', 'material']
         end_result['color'] = ['white'] * testsize + ['black'] * testsize
@@ -90,23 +90,28 @@ class ReinforcementLearning(object):
             self.fixed_agent.load_state_dict(self.agent.state_dict())
         end_result.to_csv('end_result_' + str(k))
 
-    def test_game(self, white, black):
+    def test_game(self, white, black, random=None):
 
         episode_end = False
         turncount = 0
         color = 1
         self.env.node = self.env.node.get_root()  # Initialize the game tree
         self.env.reset()
-        maxiter = 100
+        maxiter = 70
+        Returns = 0
 
         # Play a game of chess
 
         while not episode_end:
             current_player = white if color == 1 else black
             state = torch.from_numpy(np.expand_dims(self.env.layer_board, axis=0)).float()
-            move, _ = current_player.select_action(self.env)
+            if random == color:
+                move = np.random.choice([m for m in self.env.board.generate_legal_moves()])
+            else:
+                move, _ = current_player.select_action(self.env, greedy=True)
             episode_end, reward = self.env.step(move)
             color = color * -1
+            Returns += reward
 
             gc.collect()
 
@@ -118,9 +123,9 @@ class ReinforcementLearning(object):
         self.piece_balance_trace.append(piece_balance)
         print("game ended with result", reward, "and material balance", piece_balance, "in", turncount, "halfmoves")
 
-        return [reward, piece_balance]
+        return [reward, Returns]
 
-    def play_game(self, k, maxiter=80):
+    def play_game(self, k, maxiter=100):
         """
         Play a chess game and learn from it
         Args:
@@ -155,6 +160,7 @@ class ReinforcementLearning(object):
 
             # Execute the best move
             episode_end, reward = self.env.step(max_move)
+            self.env.node = self.env.node.children[max_move]
             color = color * -1
 
             memory_sar.append([state, max_move, reward])
@@ -200,11 +206,14 @@ class ReinforcementLearning(object):
         successor_states = []
         successor_actions = []
 
-        for episode in self.episode_memory:
+        for i in range(len(self.episode_memory)):
+            episode = self.episode_memory[i]
             episode_len = len(episode)
-            learn_event_index = np.random.choice(range(episode_len - 1))
+            if episode_len < 2:
+                continue
+            learn_event_index = episode_len-2
 
-            episode_active = torch.tensor([1.]).float() if learn_event_index == episode_len - 1 else torch.tensor([0.]).float()
+            episode_active = torch.tensor([0.]).float() if learn_event_index == episode_len - 1 else torch.tensor([1.]).float()
             state, action, reward = episode[learn_event_index][0], episode[learn_event_index][1], \
                                     episode[learn_event_index][2]
             successor_state, successor_action, _ = episode[learn_event_index + 1][0], episode[learn_event_index + 1][1], \
@@ -215,6 +224,7 @@ class ReinforcementLearning(object):
             rewards.append(reward)
             successor_states.append(successor_state)
             successor_actions.append(successor_action)
+            self.episode_memory[i] = self.episode_memory[i][:-2]
 
         episode_actives = torch.cat(episode_actives, dim=0).unsqueeze(dim=1)
         states = torch.cat(states, dim=0)
@@ -224,7 +234,7 @@ class ReinforcementLearning(object):
 
         return episode_actives, states, moves, rewards, successor_states, successor_actions
 
-    def mcts(self, color):
+    def mcts(self, starting_color):
         """
         Run Monte Carlo Tree Search
         Args:
@@ -247,6 +257,7 @@ class ReinforcementLearning(object):
             Returns = 0
             episode_end = False
             node_rewards = []
+            color = starting_color
 
             # 1. Select the best node from where to start MCTS
             while self.env.node.children:
@@ -271,6 +282,9 @@ class ReinforcementLearning(object):
                     if loop > loop_max:
                         break
                 episode_end, reward = self.env.step(move)
+                if move not in self.env.node.children.keys():
+                    self.env.node.add_child(move)
+                self.env.node = self.env.node.get_down(move)
                 depth += 1
                 color = color * -1
                 node_rewards.append(reward)
@@ -287,6 +301,7 @@ class ReinforcementLearning(object):
             self.env.node.update(Returns)
             while depth > 0:
                 self.env.reverse()
+                self.env.node = self.env.node.parent
                 latest_reward = node_rewards.pop(-1)
                 Returns = latest_reward + self.gamma * Returns
                 self.env.node.update(Returns)

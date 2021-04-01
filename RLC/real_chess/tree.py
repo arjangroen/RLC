@@ -105,7 +105,7 @@ class Node(object):
     def get_down(self, move):
         return self.children[move]
 
-    def simulate(self, fixed_agent, env, depth=0, max_depth=10):
+    def simulate(self, fixed_agent, env, depth=0, max_depth=5):
         """
         Recursive Monte Carlo Playout
         Args:
@@ -138,7 +138,6 @@ class Node(object):
             Returns = reward + self.gamma * self.simulate(fixed_agent, env, depth=depth + 1)
 
         env.reverse()
-        del env.node.children[move]
 
         if depth == 0:
             gc.collect()
