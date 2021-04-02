@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 class ActorCritic(nn.Module):
 
-    def __init__(self, gamma=0.9, lr=0.001, verbose=0):
+    def __init__(self, gamma=0.9, lr=0.0003, verbose=0):
         """
         Agent that plays the white pieces in capture chess
         Args:
@@ -147,7 +147,7 @@ class ActorCritic(nn.Module):
         # POLICY GRADIENT
         colors_vec = torch.cat(colors, dim=0).unsqueeze(dim=1).unsqueeze(dim=2).detach()
         advantages_vec = torch.cat(advantages, dim=0).unsqueeze(dim=1).unsqueeze(dim=2).detach() * colors_vec
-        #advantages_vec = (advantages_vec - advantages_vec.mean()) / advantages_vec.std()
+        advantages_vec = (advantages_vec - advantages_vec.mean()) / advantages_vec.std()
         # q_baseline = q_values.mean(dim=-1, keepdim=True).mean(dim=-2, keepdim=True)
         # advantages = (q_values_target - q_baseline) * colors_vec
         action_probs_flat = torch.flatten(action_probs, start_dim=1)

@@ -41,7 +41,7 @@ class ReinforcementLearning(object):
         self.piece_balance_trace = []  # Keep track of the material value on the board
         self.ready = False  # Whether to start training
         self.search_time = search_time
-        self.min_sim_count = 10
+        self.min_sim_count = 3
 
         self.episode_memory = []
 
@@ -161,9 +161,10 @@ class ReinforcementLearning(object):
             # Execute the best move
             episode_end, reward = self.env.step(max_move)
             self.env.node = self.env.node.children[max_move]
-            color = color * -1
 
             memory_sar.append([state, max_move, reward])
+
+            color = color * -1
 
             gc.collect()
 
