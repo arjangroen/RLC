@@ -8,7 +8,7 @@ learning_agent = ActorCritic()
 opposing_agent = ActorCritic()
 board = Board()
 
-R = ReinforcementLearning(board, learning_agent, search_time=1)
+R = ReinforcementLearning(board, learning_agent, search_time=.1)
 board = R.learn(iters=1000)
 pgn = Game.from_board(board)
 

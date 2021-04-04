@@ -3,11 +3,12 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
+torch.autograd.set_detect_anomaly(True)
 
 
 class ActorCritic(nn.Module):
 
-    def __init__(self, gamma=0.9, lr=0.0003, verbose=0):
+    def __init__(self, gamma=0.9, lr=300., verbose=0):
         """
         Agent that plays the white pieces in capture chess
         Args:
@@ -26,7 +27,7 @@ class ActorCritic(nn.Module):
         self.weight_memory = []
         self.long_term_mean = []
         self.action_value_mem = []
-        self.optimizer = torch.optim.RMSprop(self.parameters(), lr=lr)
+        self.optimizer = torch.optim.SGD(self.parameters(), lr=lr, momentum=0.)
 
     def fix_model(self):
         """
@@ -45,6 +46,10 @@ class ActorCritic(nn.Module):
                                     out_channels=4,
                                     kernel_size=(1, 1),
                                     )
+        self.model_base_b = nn.Conv2d(in_channels=8,
+                                      out_channels=4,
+                                      kernel_size=(1, 1)
+                                      )
 
         # Critics learns the value function
         self.critic_0_a = nn.Conv2d(in_channels=4, out_channels=2, kernel_size=(1, 1))
@@ -64,12 +69,17 @@ class ActorCritic(nn.Module):
         self.actor_out = nn.Softmax(2)
 
     def forward(self, state):
-        base = self.model_base(state)
-        base_activation = F.sigmoid(base)
-        #base = state
+        state_b = state.clone()
 
-        critic_0_a = F.sigmoid(self.critic_0_a(base_activation))
-        critic_0_b = F.sigmoid(self.critic_0_b(base_activation))
+        base = self.model_base(state)
+        base_activation = torch.sigmoid(base)
+        # base = state
+
+        base_b = self.model_base_b(state_b)
+        base_activation_b = torch.sigmoid(base_b)
+
+        critic_0_a = torch.sigmoid(self.critic_0_a(base_activation))
+        critic_0_b = torch.sigmoid(self.critic_0_b(base_activation))
         critic_1_a_flat = self.critic_0_a_flat(critic_0_a)
         critic_1_b_flat = self.critic_0_b_flat(critic_0_b)
         critic_2a = self.critic_2a(critic_1_a_flat)
@@ -78,8 +88,8 @@ class ActorCritic(nn.Module):
         critic_dot = torch.bmm(critic_2a.unsqueeze(-1), critic_2b.unsqueeze(-2))
         critic_out = self.critic_out(critic_dot)
 
-        actor_0_a = F.sigmoid(self.actor_0_a(base_activation))
-        actor_0_b = F.sigmoid(self.actor_0_b(base_activation))
+        actor_0_a = torch.sigmoid(self.actor_0_a(base_activation_b))
+        actor_0_b = torch.sigmoid(self.actor_0_b(base_activation_b))
         actor_1a = self.actor_0_a_flat(actor_0_a)
         actor_1b = self.actor_0_b_flat(actor_0_b)
         actor_2a = self.actor_2a(actor_1a)
@@ -155,12 +165,16 @@ class ActorCritic(nn.Module):
 
         policy_gradient_loss = (F.cross_entropy(action_probs_flat, target_action_probs_flat.argmax(dim=1),
                                                 reduction='none') * advantages_vec[:, 0, 0]).mean()
-        print(policy_gradient_loss)
+        loss_balance = policy_gradient_loss / q_value_loss
+
+        print("LOSS RATIO PG_LOSS / Q_LOSS:", loss_balance)
 
         # GRADIENT DESCENT
-        total_loss = q_value_loss + policy_gradient_loss
+        #total_loss = q_value_loss + policy_gradient_loss
         self.optimizer.zero_grad()
-        total_loss.backward()
+        q_value_loss.backward()
+        #self.optimizer.step()
+        policy_gradient_loss.backward()
         self.optimizer.step()
         print("updated AC")
         self.verify_update(state, actions, q_values_target, q_values, advantages_vec, action_probs)
@@ -196,6 +210,7 @@ class ActorCritic(nn.Module):
             print("\nMOVE PROBA BEFORE:", action_prob_before)
             print("ADVANTAGE", advantages[[i]])
             print("MOVE PROBA AFTER:", action_prob_after)
+            print("MOVE PROBA CHANGE:", action_prob_after - action_prob_before)
 
         print("\nBATCH Q-LOSS BEFORE", q_loss_pre_batch)
         print("BATCH Q-LOSS AFTER", q_loss_post_batch)

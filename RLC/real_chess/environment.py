@@ -81,7 +81,7 @@ class Board(object):
             warnings.warn("Invalid position reached.")
         self.update_layer_board(move)
         piece_balance_after = self.get_material_value()
-        auxiliary_reward = (piece_balance_after - piece_balance_before) / 20.
+        auxiliary_reward = (piece_balance_after - piece_balance_before)
         result = self.board.result()
         if result == "*":
             reward = 0

@@ -17,7 +17,7 @@ def sigmoid(x):
 
 class ReinforcementLearning(object):
 
-    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=128, batch_size=128, temperature=1):
+    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=256, batch_size=256, temperature=1):
         """
         Chess algorithm that combines bootstrapped monte carlo tree search with Q Learning
         Args:
@@ -41,7 +41,7 @@ class ReinforcementLearning(object):
         self.piece_balance_trace = []  # Keep track of the material value on the board
         self.ready = False  # Whether to start training
         self.search_time = search_time
-        self.min_sim_count = 3
+        self.min_sim_count = 0
 
         self.episode_memory = []
 
@@ -61,13 +61,15 @@ class ReinforcementLearning(object):
             self.env.reset()
             if k % c == 0:
                 self.test(k)
+                if k > 1:
+                    self.update_agent()
                 self.fixed_agent.load_state_dict(self.agent.state_dict())
                 print("iter", k)
+                self.min_sim_count += .1
+
             if k > c:
                 self.ready = True
             self.play_game(k, maxiter=maxiter)
-            if k > 1:
-                self.update_agent()
             if starttime + timelimit_seconds < time.time():
                 break
         return self.env.board
