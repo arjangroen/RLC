@@ -17,7 +17,7 @@ def sigmoid(x):
 
 class ReinforcementLearning(object):
 
-    def __init__(self, env, agent, gamma=0.9, search_time=1, memsize=256, batch_size=256, temperature=1):
+    def __init__(self, env, agent, gamma=0.8, search_time=1, memsize=512, batch_size=512, temperature=1):
         """
         Chess algorithm that combines bootstrapped monte carlo tree search with Q Learning
         Args:
@@ -45,7 +45,7 @@ class ReinforcementLearning(object):
 
         self.episode_memory = []
 
-    def learn(self, iters=400, c=10, timelimit_seconds=36000, maxiter=70):
+    def learn(self, iters=400, c=10, timelimit_seconds=80000, maxiter=70):
         """
         Start Reinforcement Learning Algorithm
         Args:
@@ -58,12 +58,15 @@ class ReinforcementLearning(object):
         """
         starttime = time.time()
         for k in range(iters):
+            self.fixed_agent.load_state_dict(self.agent.state_dict())
             self.env.reset()
-            if k % c == 0:
+            if k > 1 and k % 3 == 0:
+                #self.update_agent()
+                pass
+            if k % c == 0 and k > 0:
                 self.test(k)
-                if k > 1:
-                    self.update_agent()
-                self.fixed_agent.load_state_dict(self.agent.state_dict())
+
+
                 print("iter", k)
                 self.min_sim_count += .1
 
@@ -110,7 +113,7 @@ class ReinforcementLearning(object):
             if random == color:
                 move = np.random.choice([m for m in self.env.board.generate_legal_moves()])
             else:
-                move, _ = current_player.select_action(self.env, greedy=True)
+                move, _ = current_player.select_action(self.env, greedy=False)
             episode_end, reward = self.env.step(move)
             color = color * -1
             Returns += reward
@@ -185,7 +188,8 @@ class ReinforcementLearning(object):
     def update_agent(self):
 
         episode_actives, states, moves, rewards, successor_states, successor_actions = self.get_minibatch()
-        self.agent.network_update(self.fixed_agent, episode_actives, states, moves, rewards, successor_states, successor_actions)
+        for i in range(1):
+            self.agent.network_update(self.fixed_agent, episode_actives, states, moves, rewards, successor_states, successor_actions)
 
         if len(self.episode_memory) > self.memsize:
             self.episode_memory = self.episode_memory[1:]
@@ -212,9 +216,10 @@ class ReinforcementLearning(object):
         for i in range(len(self.episode_memory)):
             episode = self.episode_memory[i]
             episode_len = len(episode)
-            if episode_len < 2:
+            subtract = np.random.choice([2,3,4,5])
+            if episode_len < subtract:
                 continue
-            learn_event_index = episode_len-2
+            learn_event_index = episode_len-subtract
 
             episode_active = torch.tensor([0.]).float() if learn_event_index == episode_len - 1 else torch.tensor([1.]).float()
             state, action, reward = episode[learn_event_index][0], episode[learn_event_index][1], \
@@ -227,7 +232,7 @@ class ReinforcementLearning(object):
             rewards.append(reward)
             successor_states.append(successor_state)
             successor_actions.append(successor_action)
-            self.episode_memory[i] = self.episode_memory[i][:-2]
+            self.episode_memory[i] = self.episode_memory[i][:-subtract]
 
         episode_actives = torch.cat(episode_actives, dim=0).unsqueeze(dim=1)
         states = torch.cat(states, dim=0)
@@ -297,6 +302,8 @@ class ReinforcementLearning(object):
                 Returns, move = self.env.node.simulate(self.fixed_agent,
                                                        self.env,
                                                        depth=0)
+                action_space = self.env.project_legal_moves()
+                self.agent.network_update_mc(self.env.layer_board, move, Returns, action_space)
             else:
                 Returns = 0  # episode is over, no future returns
 

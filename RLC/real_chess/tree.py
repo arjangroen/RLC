@@ -10,7 +10,7 @@ def softmax(x, temperature=1):
 
 class Node(object):
 
-    def __init__(self, board=None, parent=None, gamma=0.9):
+    def __init__(self, board=None, parent=None, gamma=0.8):
         """
         Game Node for Monte Carlo Tree Search
         Args:
@@ -105,7 +105,7 @@ class Node(object):
     def get_down(self, move):
         return self.children[move]
 
-    def simulate(self, fixed_agent, env, depth=0, max_depth=5):
+    def simulate(self, fixed_agent, env, depth=0, max_depth=10):
         """
         Recursive Monte Carlo Playout
         Args:
