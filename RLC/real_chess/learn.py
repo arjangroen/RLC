@@ -282,7 +282,7 @@ class ReinforcementLearning(object):
                 loop_max = 20
                 loop = 0
                 while move in self.env.node.children.keys() or not move:
-                    move, _ = self.agent.select_action(self.env)
+                    move, _ = self.fixed_agent.select_action(self.env)
                     loop += 1
                     if loop > loop_max:
                         break
