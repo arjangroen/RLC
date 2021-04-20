@@ -132,17 +132,14 @@ class Node(object):
         if episode_end:
             Returns = reward
         elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
-            action_space = torch.from_numpy(np.expand_dims(env.project_legal_moves(),
-                                                           axis=0)).float()
+
             if env.board.turn:
                 Returns = reward + self.gamma * fixed_agent(
-                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float(),
-                    action_space
+                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
                 )[1].max()
             else:
                 Returns = reward + self.gamma * fixed_agent(
-                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float(),
-                    action_space
+                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
                 )[1].min()  # Assuming black chooses lowest Q value
             Returns = Returns.detach().numpy()
         else:  # Recursively continue

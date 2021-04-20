@@ -1,23 +1,13 @@
 import numpy as np
 import time
-from RLC.real_chess.tree import Node
-import math
 import gc
 import torch
 import pandas as pd
 
 
-def softmax(x, temperature=1):
-    return np.exp(x / temperature) / np.sum(np.exp(x / temperature))
-
-
-def sigmoid(x):
-    return 1 / (1 + math.exp(-x))
-
-
 class ReinforcementLearning(object):
 
-    def __init__(self, env, agent, gamma=0.8, search_time=1, memsize=512, batch_size=512, temperature=1):
+    def __init__(self, env, agent, gamma=0.8, search_time=1, memsize=512, batch_size=512):
         """
         Chess algorithm that combines bootstrapped monte carlo tree search with Q Learning
         Args:
@@ -27,26 +17,22 @@ class ReinforcementLearning(object):
             search_time: maximum time spent doing tree search
             memsize: Amount of training samples to keep in-memory
             batch_size: Size of the training batches
-            temperature: softmax temperature for mcts
         """
         self.env = env
-        self.agent = agent
-        self.fixed_agent = type(agent)()
+        self.agent = agent  # The agent that's learning
+        self.fixed_agent = type(agent)()  # The agent that's bootstrapped from
         self.fixed_agent.load_state_dict(self.agent.state_dict())
-        self.gamma = gamma
-        self.memsize = memsize
-        self.batch_size = batch_size
-        self.temperature = temperature
+        self.gamma = gamma  # Discount rate for future returns
+        self.memsize = memsize  # Amount of steps to be kept in memory for experience replay
+        self.batch_size = batch_size  # Batch size for TD Learning
         self.reward_trace = []  # Keeps track of the rewards
         self.piece_balance_trace = []  # Keep track of the material value on the board
-        self.ready = False  # Whether to start training
-        self.search_time = search_time
-        self.min_sim_count = 1
+        self.search_time = search_time  # How long to do MCTS
+        self.min_sim_count = 1  # Minimal amount of playouts in MCTS
+        self.episode_memory = []  # Experience replay memory
+        self.best_so_far = 5  # Best test result so far
 
-        self.episode_memory = []
-        self.best_so_far = 5
-
-    def learn(self, iters=400, c=10, timelimit_seconds=80000, maxiter=70):
+    def learn(self, iters=400, c=10, timelimit_seconds=80000, maxiter=70, test_at_zero=True):
         """
         Start Reinforcement Learning Algorithm
         Args:
@@ -60,12 +46,8 @@ class ReinforcementLearning(object):
         starttime = time.time()
         for k in range(iters):
             self.env.reset()
-            if k > 1 and k % 3 == 0:
-                # self.update_agent()
-                pass
-            if k % c == 0 and k > 0:
+            if k % c == 0 and (test_at_zero or k > 0):
                 self.test(k)
-
                 print("iter", k)
                 if self.min_sim_count < 100:
                     self.min_sim_count += .1
@@ -77,6 +59,11 @@ class ReinforcementLearning(object):
         return self.env.board
 
     def test(self, k):
+        """
+        Test the performance against the fixed agent or against a random agent.
+        :param int k: test iteration
+        :return:
+        """
         results = []
         testsize = 10
         for i in range(testsize):
@@ -99,6 +86,13 @@ class ReinforcementLearning(object):
         end_result.to_csv('end_result_' + str(k))
 
     def test_game(self, white, black, random=None):
+        """
+        Play a test game
+        :param white: Player who plays as white
+        :param black: Player who plays as white
+        :param random: color who plays random (1 for white, -1 for black, else both agents play their policy)
+        :return:
+        """
 
         episode_end = False
         turncount = 0
@@ -188,7 +182,7 @@ class ReinforcementLearning(object):
 
         return self.env.board
 
-    def update_agent(self):
+    def td_update_agent(self):
 
         episode_actives, states, moves, rewards, successor_states, successor_actions = self.get_minibatch()
         for i in range(1):
@@ -275,9 +269,7 @@ class ReinforcementLearning(object):
             while self.env.node.children:
                 legal_moves = self.env.board.generate_legal_moves()
                 state = torch.from_numpy(np.expand_dims(self.env.layer_board, axis=0)).float()
-                action_space = torch.from_numpy(np.expand_dims(self.env.project_legal_moves(),
-                                                               axis=0)).float()
-                _, q_values = self.fixed_agent(state, action_space)
+                _, q_values = self.fixed_agent(state)
                 self.env.node, move = self.env.node.select(color=color, legal_moves=legal_moves, q_values=q_values)
                 depth += 1
                 color = color * -1  # switch color
