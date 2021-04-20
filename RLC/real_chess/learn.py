@@ -41,9 +41,10 @@ class ReinforcementLearning(object):
         self.piece_balance_trace = []  # Keep track of the material value on the board
         self.ready = False  # Whether to start training
         self.search_time = search_time
-        self.min_sim_count = 0
+        self.min_sim_count = 1
 
         self.episode_memory = []
+        self.best_so_far = 5
 
     def learn(self, iters=400, c=10, timelimit_seconds=80000, maxiter=70):
         """
@@ -58,18 +59,16 @@ class ReinforcementLearning(object):
         """
         starttime = time.time()
         for k in range(iters):
-            self.fixed_agent.load_state_dict(self.agent.state_dict())
             self.env.reset()
             if k > 1 and k % 3 == 0:
-                #self.update_agent()
+                # self.update_agent()
                 pass
             if k % c == 0 and k > 0:
                 self.test(k)
 
-
                 print("iter", k)
-                self.min_sim_count += .1
-
+                if self.min_sim_count < 100:
+                    self.min_sim_count += .1
             if k > c:
                 self.ready = True
             self.play_game(k, maxiter=maxiter)
@@ -85,12 +84,16 @@ class ReinforcementLearning(object):
         for i in range(testsize):
             results.append(self.test_game(self.fixed_agent, self.agent, random=1))
         end_result = pd.DataFrame(results)
-        end_result.columns = ['result', 'material']
+        end_result.columns = ['result', 'Return']
         end_result['color'] = ['white'] * testsize + ['black'] * testsize
         end_result.loc[end_result['color'] == 'black', 'result'] = end_result.loc[
                                                                        end_result['color'] == 'black', 'result'] * -1
+        end_result.loc[end_result['color'] == 'black', 'Return'] = end_result.loc[
+                                                                             end_result[
+                                                                                 'color'] == 'black', 'Return'] * -1
 
-        if end_result['result'].sum() > 5:
+        if end_result['Return'].median() > self.best_so_far:
+            self.best_so_far = end_result['Return'].median()
             print("replacing fixed agent by updated agent")
             self.fixed_agent.load_state_dict(self.agent.state_dict())
         end_result.to_csv('end_result_' + str(k))
@@ -189,7 +192,8 @@ class ReinforcementLearning(object):
 
         episode_actives, states, moves, rewards, successor_states, successor_actions = self.get_minibatch()
         for i in range(1):
-            self.agent.network_update(self.fixed_agent, episode_actives, states, moves, rewards, successor_states, successor_actions)
+            self.agent.td_update(self.fixed_agent, episode_actives, states, moves, rewards, successor_states,
+                                 successor_actions)
 
         if len(self.episode_memory) > self.memsize:
             self.episode_memory = self.episode_memory[1:]
@@ -216,12 +220,13 @@ class ReinforcementLearning(object):
         for i in range(len(self.episode_memory)):
             episode = self.episode_memory[i]
             episode_len = len(episode)
-            subtract = np.random.choice([2,3,4,5])
+            subtract = np.random.choice([2, 3, 4, 5])
             if episode_len < subtract:
                 continue
-            learn_event_index = episode_len-subtract
+            learn_event_index = episode_len - subtract
 
-            episode_active = torch.tensor([0.]).float() if learn_event_index == episode_len - 1 else torch.tensor([1.]).float()
+            episode_active = torch.tensor([0.]).float() if learn_event_index == episode_len - 1 else torch.tensor(
+                [1.]).float()
             state, action, reward = episode[learn_event_index][0], episode[learn_event_index][1], \
                                     episode[learn_event_index][2]
             successor_state, successor_action, _ = episode[learn_event_index + 1][0], episode[learn_event_index + 1][1], \
@@ -238,7 +243,6 @@ class ReinforcementLearning(object):
         states = torch.cat(states, dim=0)
         rewards = torch.tensor(rewards).unsqueeze(dim=1)
         successor_states = torch.cat(successor_states, dim=0)
-
 
         return episode_actives, states, moves, rewards, successor_states, successor_actions
 
@@ -269,15 +273,16 @@ class ReinforcementLearning(object):
 
             # 1. Select the best node from where to start MCTS
             while self.env.node.children:
-                self.env.node, move = self.env.node.select(color=color)
-                if not move:
-                    # No move means that the node selects itself, not a child node.
-                    break
-                else:
-                    depth += 1
-                    color = color * -1  # switch color
-                    episode_end, reward = self.env.step(move)  # Update the environment to reflect the node
-                    node_rewards.append(reward)
+                legal_moves = self.env.board.generate_legal_moves()
+                state = torch.from_numpy(np.expand_dims(self.env.layer_board, axis=0)).float()
+                action_space = torch.from_numpy(np.expand_dims(self.env.project_legal_moves(),
+                                                               axis=0)).float()
+                _, q_values = self.fixed_agent(state, action_space)
+                self.env.node, move = self.env.node.select(color=color, legal_moves=legal_moves, q_values=q_values)
+                depth += 1
+                color = color * -1  # switch color
+                episode_end, reward = self.env.step(move)  # Update the environment to reflect the node
+                node_rewards.append(reward)
 
             # 2. Expand the game tree with a new move
             if not episode_end:

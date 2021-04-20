@@ -9,102 +9,135 @@ torch.autograd.set_detect_anomaly(True)
 
 class ActorCritic(nn.Module):
 
-    def __init__(self, gamma=0.8, lr=.0005, verbose=0):
+    def __init__(self, gamma=0.8, lr=.001, verbose=0):
         """
-        Agent that plays the white pieces in capture chess
+        Agent that plays the white pieces in capture chess.
+        The action space is defined as a combination of a "source square" and a "target square".
+        The actor gives an action probability for each square combination.
+        The critic gives an action value for each square combination.
         Args:
             gamma: float
                 Temporal discount factor
             network: str
                 'linear' or 'conv'
             lr: float
-                Learning rate, ideally around 0.1
+                Learning rate, ideally around 0.001
         """
         super(ActorCritic, self).__init__()
         self.gamma = gamma
         self.lr = lr
         self.verbose = verbose
-        self.init_actorcritic()
-        self.weight_memory = []
-        self.long_term_mean = []
-        self.action_value_mem = []
-        self.optimizer = torch.optim.SGD(self.parameters(), lr=lr, momentum=0.)
+        self.init_actor()
+        self.init_critic()
+        self.optimizer = torch.optim.SGD(self.parameters(), lr=lr, momentum=0.0)
 
-    def fix_model(self):
+    def init_actor(self):
         """
-        The fixed model is the model used for bootstrapping
-        Returns:
+        Defines the actor/policy network, who calculates the action probabilities.
+        :return:
         """
-        return self
+        self.identity_l = torch.nn.Sequential(
+            nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
+            nn.Flatten(),
+            nn.Tanh()
+        )  # The identiy serves as a 'score per square'
+        self.identity_r = torch.nn.Sequential(
+            nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
+            nn.Flatten(),
+            nn.Tanh()
+        )  # The identiy serves as a 'score per square'
+        self.convolutions = torch.nn.Sequential(
+            nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3),
+            nn.LeakyReLU(negative_slope=.1),
+            nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3),
+            nn.LeakyReLU(negative_slope=.1),
+        )
+        self.convolutions_left = torch.nn.Sequential(
+            nn.Conv2d(in_channels=8, out_channels=4, kernel_size=1),
+            nn.Flatten(),
+            nn.LeakyReLU(negative_slope=.1)
+        )
+        self.convolutions_right = torch.nn.Sequential(
+            nn.Conv2d(in_channels=8, out_channels=4, kernel_size=1),
+            nn.Flatten(),
+            nn.LeakyReLU(negative_slope=.1)
+        )
+        self.actor_output_left = nn.Softmax()
+        self.actor_output_right = nn.Softmax()
 
-    def init_actorcritic(self):
+    def init_critic(self):
         """
-        Convnet net for policy gradients
-        Returns:
-
+        Initialize the critic, who calculates the action values.
+        :return:
         """
-        self.model_base = nn.Conv2d(in_channels=8,
-                                    out_channels=2,
-                                    kernel_size=(1, 1),
-                                    )
-        self.model_base_b = nn.Conv2d(in_channels=8,
-                                      out_channels=2,
-                                      kernel_size=(1, 1)
-                                      )
-
-        # Critics learns the value function
-        self.critic_0_a = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=(1, 1))
-        self.critic_0_b = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=(1, 1))
-        self.critic_0_a_flat = nn.Flatten(start_dim=1)
-        self.critic_0_b_flat = nn.Flatten(start_dim=1)
-        self.critic_2a = nn.Linear(in_features=64, out_features=64)
-        self.critic_2b = nn.Linear(in_features=64, out_features=64)
-        self.critic_out = nn.Flatten(start_dim=2)
-
-        self.actor_0_a = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=(1, 1))
-        self.actor_0_b = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=(1, 1))
-        self.actor_0_a_flat = nn.Flatten(start_dim=1)
-        self.actor_0_b_flat = nn.Flatten(start_dim=1)
-        self.actor_2a = nn.Linear(in_features=64, out_features=64)
-        self.actor_2b = nn.Linear(in_features=64, out_features=64)
-        self.actor_out = nn.Softmax(2)
+        self.critic_identity_l = torch.nn.Sequential(
+            nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
+            nn.Flatten(),
+            nn.Tanh()
+        )
+        self.critic_identity_r = torch.nn.Sequential(
+            nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
+            nn.Flatten(),
+            nn.Tanh()
+        )
+        self.critic_convolutions = torch.nn.Sequential(
+            nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3),
+            nn.LeakyReLU(negative_slope=.1),
+            nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3),
+            nn.LeakyReLU(negative_slope=.1),
+        )
+        self.critic_convolutions_left = torch.nn.Sequential(
+            nn.Conv2d(in_channels=8, out_channels=4, kernel_size=1),
+            nn.Flatten(),
+            nn.LeakyReLU(negative_slope=.1)
+        )
+        self.critic_convolutions_right = torch.nn.Sequential(
+            nn.Conv2d(in_channels=8, out_channels=4, kernel_size=1),
+            nn.Flatten(),
+            nn.LeakyReLU(negative_slope=.1)
+        )
 
     def forward(self, state):
-        state_b = state.clone()
+        """
+        A forward pass through the neural network
+        :param state: torch.Tensor of (1, 8, 8, 8)
+        :return: (action_probabilites, q_values)
+        """
 
-        base = self.model_base(state)
-        base_activation = torch.sigmoid(base)
-        # base = state
+        actor_identity_l = self.identity_l(state)
+        actor_identity_r = self.identity_r(state)
+        actor_convolutions = self.convolutions(state.clone())
+        actor_convolutions_left = self.convolutions_left(actor_convolutions)
+        actor_convolutions_right = self.convolutions_right(actor_convolutions)
+        actor_left = self.actor_output_left(actor_identity_l + actor_convolutions_left)
+        actor_right = self.actor_output_right(actor_identity_r + actor_convolutions_right)
 
-        base_b = self.model_base_b(state_b)
-        base_activation_b = torch.sigmoid(base_b)
+        a_dot = torch.bmm(actor_left.unsqueeze(-1), actor_right.unsqueeze(-2))
 
-        critic_0_a = torch.sigmoid(self.critic_0_a(base_activation))
-        critic_0_b = torch.sigmoid(self.critic_0_b(base_activation))
-        critic_1_a_flat = self.critic_0_a_flat(critic_0_a)
-        critic_1_b_flat = self.critic_0_b_flat(critic_0_b)
-        critic_2a = torch.tanh(self.critic_2a(critic_1_a_flat))
-        critic_2b = self.critic_2b(critic_1_b_flat)
+        critic_identity_l = self.critic_identity_l(state.clone())
+        critic_identity_r = self.critic_identity_r(state.clone())
+        critic_convolutions = self.critic_convolutions(state.clone())
+        critic_convolutions_left = self.critic_convolutions_left(critic_convolutions)
+        critic_convolutions_right = self.critic_convolutions_right(critic_convolutions)
+        critic_left = critic_convolutions_left + critic_identity_l
+        critic_right = critic_convolutions_right + critic_identity_r
 
-        critic_dot = torch.bmm(critic_2a.unsqueeze(-1), critic_2b.unsqueeze(-2))
-        critic_out = self.critic_out(critic_dot)
+        critic_dot = torch.bmm(critic_left.unsqueeze(-1), critic_right.unsqueeze(-2))
 
-        actor_0_a = torch.sigmoid(self.actor_0_a(base_activation_b))
-        actor_0_b = torch.sigmoid(self.actor_0_b(base_activation_b))
-        actor_1a = self.actor_0_a_flat(actor_0_a)
-        actor_1b = self.actor_0_b_flat(actor_0_b)
-        actor_2a = torch.tanh(self.actor_2a(actor_1a))
-        actor_2b = self.actor_2b(actor_1b)
-        actor_dot = torch.bmm(actor_2a.unsqueeze(-1), actor_2b.unsqueeze(-2)).unsqueeze(dim=1)
-        actor_out = self.actor_out(actor_dot.view(*actor_dot.size()[:2], -1)).view_as(actor_dot).squeeze(dim=1)
+        return a_dot, critic_dot
 
-        return actor_out, critic_out
 
     def select_action(self, env, greedy=False):
+        """
+        Select an action using the action probabilites supplied by the actor
+        :param env: Python chess environment
+        :param bool greedy: Whether to always pick the most probable action
+        :return: a move and its probability
+        """
         action_space = torch.from_numpy(np.expand_dims(env.project_legal_moves(),
                                                        axis=0)).float()  # The environment determines which moves are legal
         state = torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
-        action_probs, q_value_pred = self(state)
+        action_probs, q_value_pred = self(state, action_space)
         action_probs = action_probs * action_space
         action_probs = action_probs / action_probs.sum()
         action_probs = action_probs.detach().numpy().reshape(1, 4096)
@@ -120,9 +153,9 @@ class ActorCritic(nn.Module):
         move = moves[0]  # When promoting a pawn, multiple moves can have the same from-to squares
         return move, move_proba
 
-    def network_update(self, fixed_model, episode_active, state, actions, reward, successor_state, successor_actions):
+    def td_update(self, fixed_model, episode_active, state, actions, reward, successor_state, successor_actions):
         """
-        self.fixed_agent, episode_actives, states, moves, rewards, successor_states, successor_actions
+        Performs a Temporal Difference Update on the network
         :param fixed_model, stationary ActorCritic model
         :param states: Tensor of shape (n_samples, 8, 8, 8)
         :param actions: list[chess.move]
@@ -171,9 +204,10 @@ class ActorCritic(nn.Module):
         action_probs_flat = torch.flatten(action_probs, start_dim=1)
         target_action_probs_flat = torch.flatten(target_action_probs, start_dim=1)
 
-        policy_gradient_loss = -((target_action_probs_flat * torch.log(action_probs_flat)).sum(dim=1) * advantages_vec[:,
-                                                                                                      0,
-                                                                                                      0]).mean()
+        policy_gradient_loss = -(
+                (target_action_probs_flat * torch.log(action_probs_flat)).sum(dim=1) * advantages_vec[:,
+                                                                                       0,
+                                                                                       0]).mean()
         loss_balance = policy_gradient_loss / q_value_loss
 
         print("LOSS RATIO PG_LOSS / Q_LOSS:", loss_balance)
@@ -185,15 +219,29 @@ class ActorCritic(nn.Module):
         total_loss.backward()
         self.optimizer.step()
         print("updated AC")
-        self.verify_update(state, actions, q_target_vec, q_pred_vec, advantages_vec, action_probs)
+        self.verify_td_update(state, actions, q_target_vec, q_pred_vec, advantages_vec, action_probs)
 
-    def legalize_action_probs(self, action_probs, action_space_tensor):
-        action_probs_legal = action_probs * action_space_tensor
+    def legalize_action_probs(self, action_probs, action_space_tensor, eps=1e-6):
+        """
+        Sets the probability of illegal moves to 0 and re-normalizes the probabilities over the action space
+        :param action_probs: torch.tensor = Action probabilites gives by the policy
+        :param action_space_tensor: torch.tensor = Action Space
+        :param eps: float = Small number for numerical stability
+        :return: torch.tensor = action_probs_legal_normalized
+        """
+        action_probs_legal = action_probs * action_space_tensor + torch.tensor([eps]).float()
         action_probs_legal_normalized = action_probs_legal / action_probs_legal.sum()
         return action_probs_legal_normalized
 
-
     def network_update_mc(self, state, move, Returns, action_space):
+        """
+        Update the actor and the critic based on observed Returns in Monte Carlo simulations
+        :param torch.tensor state: The root state of the board
+        :param move: The move that was taken
+        :param Returns: The observed return in the Monte Carlo simulations
+        :param action_space: The action space
+        :return:
+        """
         Returns_tensor = torch.tensor([Returns]).float()
         state_tensor = torch.from_numpy(state).unsqueeze(dim=0).float()
         action_space_tensor = torch.from_numpy(action_space).unsqueeze(dim=0).float()
@@ -201,23 +249,26 @@ class ActorCritic(nn.Module):
             color = torch.Tensor([-1.])
         else:
             color = torch.Tensor([1.])
-        action_probs, q_values = self(state_tensor)
+        action_probs, q_values = self(state_tensor, action_space_tensor)
         action_probs_legal = self.legalize_action_probs(action_probs, action_space_tensor)
+
+        # Adjust advantage for mean advantage
+        q_copy = q_values.clone().detach()
+        advantage = (Returns_tensor - (q_copy * action_space_tensor).mean())
 
         predicted_returns = q_values[[0], move.from_square, move.to_square]
         proba = action_probs_legal[[0], move.from_square, move.to_square]
         q_value_loss = F.mse_loss(Returns_tensor, predicted_returns)
-        policy_gradient_loss = -torch.log(proba) * Returns_tensor * color
+        policy_gradient_loss = -torch.log(proba) * advantage * color
         total_loss = q_value_loss + policy_gradient_loss
 
         self.optimizer.zero_grad()
         total_loss.backward()
         self.optimizer.step()
 
-
         # VERIFY
         print("\nupdated AC")
-        action_probs_post, q_values_post = self(state_tensor)
+        action_probs_post, q_values_post = self(state_tensor, action_space_tensor)
         action_probs_post_legal = self.legalize_action_probs(action_probs_post, action_space_tensor)
         predicted_returns_post = q_values_post[[0], move.from_square, move.to_square]
         proba_post = action_probs_post_legal[[0], move.from_square, move.to_square]
@@ -225,18 +276,17 @@ class ActorCritic(nn.Module):
         print("\nLEARNED POLICY")
         print("COLOR: ", color)
         print("Returns ", Returns)
-        print("Advantage", Returns_tensor*color)
-        print("expected ", predicted_returns)
-        print("new expected ", predicted_returns_post)
+        print("Advantage", advantage * color)
         print("proba ", proba)
         print("new proba ", proba_post)
         print("Change in proba", proba_post - proba)
+
+        print("expected ", predicted_returns)
+        print("new expected ", predicted_returns_post)
         print("Change in Q", predicted_returns_post - predicted_returns)
         print("Loss reduction Q", F.mse_loss(Returns_tensor, predicted_returns_post) - q_value_loss)
 
-
-
-    def verify_update(self, state, actions, q_values_target, q_values_before, advantages, action_probs_before):
+    def verify_td_update(self, state, actions, q_values_target, q_values_before, advantages, action_probs_before):
         action_probs_after, q_values_after = self(state)
         q_loss_pre_batch = 0
         q_loss_post_batch = 0
@@ -280,20 +330,7 @@ class ActorCritic(nn.Module):
 
         print("\nBATCH Q-LOSS BEFORE", q_loss_pre_batch / q_loss_post_batch.shape[0])
         print("BATCH Q-LOSS AFTER", q_loss_post_batch / q_loss_post_batch.shape[0])
-        print("ADVANTAGE_PROBA_CORREL",np.corrcoef(x=advantages_numpy, y=proba_changes_numpy)[0,1])
-
-    def MonteCarlo_update(self, state, actions, returns):
-        """
-        self.fixed_agent, episode_actives, states, moves, rewards, successor_states, successor_actions
-        :param fixed_model, stationary ActorCritic model
-        :param states: Tensor of shape (n_samples, 8, 8, 8)
-        :param actions: list[chess.move]
-        :param rewards: Tensor of shape (n_samples, 1)
-        :param successor_states: Tensor of shape (n_samples, 8, 8, 8)
-        :param successor_actions: list[chess.move]
-        :return:
-        """
-        raise NotImplementedError
+        print("ADVANTAGE_PROBA_CORREL", np.corrcoef(x=advantages_numpy, y=proba_changes_numpy)[0, 1])
 
 
 class RandomAgent(object):
@@ -304,23 +341,3 @@ class RandomAgent(object):
     def select_move(self, board):
         moves = [x for x in board.generate_legal_moves()]
         return np.random.choice(moves)
-
-
-class GreedyAgent(object):
-
-    def __init__(self, color=-1):
-        self.color = color
-
-    def predict(self, layer_board, noise=True):
-        layer_board1 = layer_board[0, :, :, :]
-        pawns = 1 * np.sum(layer_board1[0, :, :])
-        rooks = 5 * np.sum(layer_board1[1, :, :])
-        minor = 3 * np.sum(layer_board1[2:4, :, :])
-        queen = 9 * np.sum(layer_board1[4, :, :])
-
-        maxscore = 40
-        material = pawns + rooks + minor + queen
-        board_value = self.color * material / maxscore
-        if noise:
-            added_noise = np.random.randn() / 1e3
-        return board_value + added_noise

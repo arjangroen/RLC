@@ -69,32 +69,32 @@ class Node(object):
         """
         self.values.append(Returns)
 
-    def select(self, color=1):
+    def get_ucb(self, move, c, color=1, q=None):
         """
-        Use Thompson sampling to select the best child node
-        Args:
-            color: Whether to select for white or black
+        Calculate the UCB
+        :return: UCB
+        """
+        Na = 1
+        if move in self.children.keys():
+            q = np.mean(np.array(self.children[move].values) * color)
+            Na = len(self.children[move].values)
+        confidence_interval = c * np.sqrt(np.log(len(self.values)) / Na)
+        return q + confidence_interval
 
-        Returns:
-            (node, move)
-            node: the selected node
-            move: the selected move
-        """
-        assert color == 1 or color == -1, "color has to be white (1) or black (-1)"
-        if self.children:
-            max_sample = np.random.choice(self.values) * color
-            max_move = None
-            for move, child in self.children.items():
-                child_sample = np.random.choice(child.values) * color
-                if child_sample > max_sample:
-                    max_sample = child_sample
-                    max_move = move
-            if max_move:
-                return self.children[max_move], max_move
+    def select(self, color=1, legal_moves=None, q_values=None):
+        max_value = np.NINF
+        max_move = None
+        for move in legal_moves:
+            if move in self.children.keys():
+                child_value = self.get_ucb(move, 2, color)
             else:
-                return self, None
-        else:
-            return self, None
+                child_value = self.get_ucb(move, 2,  color=color, q=q_values[0, move.from_square, move.to_square].detach().numpy())
+            if child_value > max_value:
+                max_move = move
+                max_value = child_value
+        if max_move not in self.children.keys():
+            self.add_child(max_move)
+        return self.children[max_move], max_move
 
     def add_child(self, move):
         self.children[move] = Node(parent=self)
@@ -105,7 +105,7 @@ class Node(object):
     def get_down(self, move):
         return self.children[move]
 
-    def simulate(self, fixed_agent, env, depth=0, max_depth=10):
+    def simulate(self, fixed_agent, env, depth=0, max_depth=10, eps=.25):
         """
         Recursive Monte Carlo Playout
         Args:
@@ -119,20 +119,31 @@ class Node(object):
             Playout result.
         """
 
-        move, move_proba = fixed_agent.select_action(env)
+        explore = np.random.uniform(0, 1) < eps
+
+        if explore:
+            legal_moves = [x for x in env.board.generate_legal_moves()]
+            move = np.random.choice(legal_moves)
+            move_proba = torch.Tensor([1 / len(legal_moves)]).float()
+        else:
+            move, move_proba = fixed_agent.select_action(env)
         episode_end, reward = env.step(move)
 
         if episode_end:
             Returns = reward
         elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
+            action_space = torch.from_numpy(np.expand_dims(env.project_legal_moves(),
+                                                           axis=0)).float()
             if env.board.turn:
                 Returns = reward + self.gamma * fixed_agent(
-                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
+                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float(),
+                    action_space
                 )[1].max()
             else:
                 Returns = reward + self.gamma * fixed_agent(
-                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
-                )[1].min()
+                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float(),
+                    action_space
+                )[1].min()  # Assuming black chooses lowest Q value
             Returns = Returns.detach().numpy()
         else:  # Recursively continue
             Returns = reward + self.gamma * self.simulate(fixed_agent, env, depth=depth + 1)

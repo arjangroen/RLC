@@ -87,10 +87,10 @@ class Board(object):
             reward = 0
             episode_end = False
         elif result == "1-0":
-            reward = 1
+            reward = 10.
             episode_end = True
         elif result == "0-1":
-            reward = -1
+            reward = -10.
             episode_end = True
         elif result == "1/2-1/2":
             reward = 0
