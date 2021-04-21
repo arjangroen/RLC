@@ -29,7 +29,7 @@ class ActorCritic(nn.Module):
         self.verbose = verbose
         self.init_actor()
         self.init_critic()
-        self.optimizer = torch.optim.SGD(self.parameters(), lr=lr, momentum=0.0)
+        self.optimizer = torch.optim.RMSprop(self.parameters(), lr=lr)
 
     def init_actor(self):
         """
@@ -62,8 +62,8 @@ class ActorCritic(nn.Module):
             nn.Flatten(),
             nn.LeakyReLU(negative_slope=.1)
         )
-        self.actor_output_left = nn.Softmax()
-        self.actor_output_right = nn.Softmax()
+        self.actor_output_left = nn.LogSoftmax(dim=1)
+        self.actor_output_right = nn.LogSoftmax(dim=1)
 
     def init_critic(self):
         """
@@ -109,8 +109,8 @@ class ActorCritic(nn.Module):
         actor_convolutions = self.convolutions(state.clone())
         actor_convolutions_left = self.convolutions_left(actor_convolutions)
         actor_convolutions_right = self.convolutions_right(actor_convolutions)
-        actor_left = self.actor_output_left(actor_identity_l + actor_convolutions_left)
-        actor_right = self.actor_output_right(actor_identity_r + actor_convolutions_right)
+        actor_left = torch.exp(self.actor_output_left(actor_identity_l + actor_convolutions_left))
+        actor_right = torch.exp(self.actor_output_right(actor_identity_r + actor_convolutions_right))
 
         a_dot = torch.bmm(actor_left.unsqueeze(-1), actor_right.unsqueeze(-2))
 
@@ -137,7 +137,7 @@ class ActorCritic(nn.Module):
         action_space = torch.from_numpy(np.expand_dims(env.project_legal_moves(),
                                                        axis=0)).float()  # The environment determines which moves are legal
         state = torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
-        action_probs, q_value_pred = self(state, action_space)
+        action_probs, q_value_pred = self(state)
         action_probs = action_probs * action_space
         action_probs = action_probs / action_probs.sum()
         action_probs = action_probs.detach().numpy().reshape(1, 4096)
@@ -249,7 +249,7 @@ class ActorCritic(nn.Module):
             color = torch.Tensor([-1.])
         else:
             color = torch.Tensor([1.])
-        action_probs, q_values = self(state_tensor, action_space_tensor)
+        action_probs, q_values = self(state_tensor)
         action_probs_legal = self.legalize_action_probs(action_probs, action_space_tensor)
 
         # Adjust advantage for mean advantage
@@ -268,7 +268,7 @@ class ActorCritic(nn.Module):
 
         # VERIFY
         print("\nupdated AC")
-        action_probs_post, q_values_post = self(state_tensor, action_space_tensor)
+        action_probs_post, q_values_post = self(state_tensor)
         action_probs_post_legal = self.legalize_action_probs(action_probs_post, action_space_tensor)
         predicted_returns_post = q_values_post[[0], move.from_square, move.to_square]
         proba_post = action_probs_post_legal[[0], move.from_square, move.to_square]
