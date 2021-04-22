@@ -83,7 +83,14 @@ class ReinforcementLearning(object):
             self.best_so_far = end_result['Return'].median()
             print("replacing fixed agent by updated agent")
             self.fixed_agent.load_state_dict(self.agent.state_dict())
+            self.save_agent()
         end_result.to_csv('end_result_' + str(k))
+
+    def save_agent(self):
+        checkpoint = {'agent': type(self.fixed_agent)(),
+                      'state_dict': self.fixed_agent.state_dict(),
+                      'optimizer': self.fixed_agent.optimizer.state_dict()}
+        torch.save(checkpoint, 'agent.pth')
 
     def test_game(self, white, black, random=None):
         """

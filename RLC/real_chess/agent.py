@@ -39,28 +39,28 @@ class ActorCritic(nn.Module):
         self.identity_l = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
             nn.Flatten(),
-            nn.Tanh()
+            nn.LeakyReLU(negative_slope=.05)
         )  # The identiy serves as a 'score per square'
         self.identity_r = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
             nn.Flatten(),
-            nn.Tanh()
+            nn.LeakyReLU(negative_slope=.05)
         )  # The identiy serves as a 'score per square'
         self.convolutions = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3),
-            nn.LeakyReLU(negative_slope=.1),
+            nn.LeakyReLU(negative_slope=.05),
             nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3),
-            nn.LeakyReLU(negative_slope=.1),
+            nn.LeakyReLU(negative_slope=.05)
         )
         self.convolutions_left = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=4, kernel_size=1),
             nn.Flatten(),
-            nn.LeakyReLU(negative_slope=.1)
+            nn.LeakyReLU(negative_slope=.05)
         )
         self.convolutions_right = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=4, kernel_size=1),
             nn.Flatten(),
-            nn.LeakyReLU(negative_slope=.1)
+            nn.LeakyReLU(negative_slope=.05)
         )
         self.actor_output_left = nn.LogSoftmax(dim=1)
         self.actor_output_right = nn.LogSoftmax(dim=1)
@@ -138,8 +138,7 @@ class ActorCritic(nn.Module):
                                                        axis=0)).float()  # The environment determines which moves are legal
         state = torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
         action_probs, q_value_pred = self(state)
-        action_probs = action_probs * action_space
-        action_probs = action_probs / action_probs.sum()
+        action_probs = self.legalize_action_probs(action_probs, action_space)
         action_probs = action_probs.detach().numpy().reshape(1, 4096)
         if greedy:
             move = np.argmax(action_probs[0])
@@ -229,7 +228,7 @@ class ActorCritic(nn.Module):
         :param eps: float = Small number for numerical stability
         :return: torch.tensor = action_probs_legal_normalized
         """
-        action_probs_legal = action_probs * action_space_tensor + torch.tensor([eps]).float()
+        action_probs_legal = (action_probs + torch.tensor([eps]).float()) * action_space_tensor
         action_probs_legal_normalized = action_probs_legal / action_probs_legal.sum()
         return action_probs_legal_normalized
 
