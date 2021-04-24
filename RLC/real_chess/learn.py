@@ -51,9 +51,8 @@ class ReinforcementLearning(object):
                 print("iter", k)
                 if self.min_sim_count < 100:
                     self.min_sim_count += .1
-            if k > c:
-                self.ready = True
             self.play_game(k, maxiter=maxiter)
+            self.td_update_agent()
             if starttime + timelimit_seconds < time.time():
                 break
         return self.env.board
@@ -65,7 +64,7 @@ class ReinforcementLearning(object):
         :return:
         """
         results = []
-        testsize = 10
+        testsize = 25
         for i in range(testsize):
             results.append(self.test_game(self.agent, self.fixed_agent, random=-1))
         for i in range(testsize):
@@ -83,14 +82,16 @@ class ReinforcementLearning(object):
             self.best_so_far = end_result['Return'].median()
             print("replacing fixed agent by updated agent")
             self.fixed_agent.load_state_dict(self.agent.state_dict())
-            self.save_agent()
+            self.save_agent(k='best')
+        else:
+            self.save_agent(k=str(k))
         end_result.to_csv('end_result_' + str(k))
 
-    def save_agent(self):
-        checkpoint = {'agent': type(self.fixed_agent)(),
-                      'state_dict': self.fixed_agent.state_dict(),
-                      'optimizer': self.fixed_agent.optimizer.state_dict()}
-        torch.save(checkpoint, 'agent.pth')
+    def save_agent(self, k='last'):
+        checkpoint = {'agent': type(self.agent)(),
+                      'state_dict': self.agent.state_dict(),
+                      'optimizer': self.agent.optimizer.state_dict()}
+        torch.save(checkpoint, f'agent_{k}.pth')
 
     def test_game(self, white, black, random=None):
         """
@@ -146,7 +147,7 @@ class ReinforcementLearning(object):
         """
 
         # INITIALIZE GAME STATE
-        memory_sar = []  # state, action, reward
+        memory_sara = []  # state, action, reward, actionspace
         episode_end = False
         turncount = 0
         color = 1
@@ -156,6 +157,7 @@ class ReinforcementLearning(object):
 
         while not episode_end:
             state = torch.from_numpy(np.expand_dims(self.env.layer_board, axis=0)).float()
+            action_space = torch.from_numpy(np.expand_dims(self.env.project_legal_moves(), axis=0)).float()
 
             # Do a Monte Carlo Tree Search after game iteration k
             self.mcts(color)
@@ -171,7 +173,7 @@ class ReinforcementLearning(object):
             episode_end, reward = self.env.step(max_move)
             self.env.node = self.env.node.children[max_move]
 
-            memory_sar.append([state, max_move, reward])
+            memory_sara.append([state, max_move, reward, action_space])
 
             color = color * -1
 
@@ -181,20 +183,19 @@ class ReinforcementLearning(object):
             if turncount > maxiter and not episode_end:
                 episode_end = True
 
-        self.episode_memory.append(memory_sar)
+        self.episode_memory.append(memory_sara)
 
         piece_balance = self.env.get_material_value()
-        self.piece_balance_trace.append(piece_balance)
         print("game ended with result", reward, "and material balance", piece_balance, "in", turncount, "halfmoves")
 
         return self.env.board
 
     def td_update_agent(self):
 
-        episode_actives, states, moves, rewards, successor_states, successor_actions = self.get_minibatch()
+        episode_actives, states, moves, rewards, successor_states, successor_actions, action_spaces = self.get_minibatch()
         for i in range(1):
             self.agent.td_update(self.fixed_agent, episode_actives, states, moves, rewards, successor_states,
-                                 successor_actions)
+                                 successor_actions, action_spaces)
 
         if len(self.episode_memory) > self.memsize:
             self.episode_memory = self.episode_memory[1:]
@@ -217,6 +218,7 @@ class ReinforcementLearning(object):
         rewards = []
         successor_states = []
         successor_actions = []
+        action_spaces = []
 
         for i in range(len(self.episode_memory)):
             episode = self.episode_memory[i]
@@ -232,20 +234,23 @@ class ReinforcementLearning(object):
                                     episode[learn_event_index][2]
             successor_state, successor_action, _ = episode[learn_event_index + 1][0], episode[learn_event_index + 1][1], \
                                                    episode[learn_event_index + 1][2]
+            action_space = episode[learn_event_index][3]
             episode_actives.append(episode_active)
             states.append(state)
             moves.append(action)
             rewards.append(reward)
             successor_states.append(successor_state)
             successor_actions.append(successor_action)
+            action_spaces.append(action_space)
             self.episode_memory[i] = self.episode_memory[i][:-subtract]
 
         episode_actives = torch.cat(episode_actives, dim=0).unsqueeze(dim=1)
         states = torch.cat(states, dim=0)
         rewards = torch.tensor(rewards).unsqueeze(dim=1)
         successor_states = torch.cat(successor_states, dim=0)
+        action_spaces = torch.cat(action_spaces)
 
-        return episode_actives, states, moves, rewards, successor_states, successor_actions
+        return episode_actives, states, moves, rewards, successor_states, successor_actions, action_spaces
 
     def mcts(self, starting_color):
         """
@@ -307,7 +312,7 @@ class ReinforcementLearning(object):
                                                        self.env,
                                                        depth=0)
                 action_space = self.env.project_legal_moves()
-                self.agent.network_update_mc(self.env.layer_board, move, Returns, action_space)
+                self.agent.mc_update_agent(self.env.layer_board, move, Returns, action_space)
             else:
                 Returns = 0  # episode is over, no future returns
 

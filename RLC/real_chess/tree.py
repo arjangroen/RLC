@@ -25,20 +25,6 @@ class Node(object):
         self.gamma = gamma
         self.starting_value = 0
 
-    def clean(self, maxsize=1e9):
-        worst_move = None
-        worst_score = 1e3
-        if sys.getsizeof(self) > maxsize:
-            for move, child in self.children.items():
-                if np.max(child.values) < worst_score:
-                    worst_score = np.max(child.values)
-                    worst_move = move
-            print("cleaning worst node", worst_move)
-            print("prior size", sys.getsizeof(self))
-            del self.children[worst_move]
-            gc.collect()
-            print("new size", sys.getsizeof(self))
-
     def get_root(self):
         root = self
         while root.parent:
@@ -86,9 +72,9 @@ class Node(object):
         max_move = None
         for move in legal_moves:
             if move in self.children.keys():
-                child_value = self.get_ucb(move, 2, color)
+                child_value = self.get_ucb(move, 1, color)
             else:
-                child_value = self.get_ucb(move, 2,  color=color, q=q_values[0, move.from_square, move.to_square].detach().numpy())
+                child_value = self.get_ucb(move, 1,  color=color, q=q_values[0, move.from_square, move.to_square].detach().numpy())
             if child_value > max_value:
                 max_move = move
                 max_value = child_value

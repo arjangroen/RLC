@@ -9,7 +9,7 @@ torch.autograd.set_detect_anomaly(True)
 
 class ActorCritic(nn.Module):
 
-    def __init__(self, gamma=0.8, lr=.001, verbose=0):
+    def __init__(self, gamma=0.8, lr=.01, verbose=0):
         """
         Agent that plays the white pieces in capture chess.
         The action space is defined as a combination of a "source square" and a "target square".
@@ -29,7 +29,9 @@ class ActorCritic(nn.Module):
         self.verbose = verbose
         self.init_actor()
         self.init_critic()
-        self.optimizer = torch.optim.RMSprop(self.parameters(), lr=lr)
+        self.optimizer = torch.optim.SGD(self.parameters(), lr=lr)
+        self.historical_pg_losses = torch.tensor([0.]).float()
+        self.replay_importance = []
 
     def init_actor(self):
         """
@@ -38,27 +40,33 @@ class ActorCritic(nn.Module):
         """
         self.identity_l = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
+            nn.BatchNorm2d(1),
             nn.Flatten(),
             nn.LeakyReLU(negative_slope=.05)
         )  # The identiy serves as a 'score per square'
         self.identity_r = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
+            nn.BatchNorm2d(1),
             nn.Flatten(),
             nn.LeakyReLU(negative_slope=.05)
         )  # The identiy serves as a 'score per square'
         self.convolutions = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3),
+            nn.BatchNorm2d(8),
             nn.LeakyReLU(negative_slope=.05),
             nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3),
+            nn.BatchNorm2d(8),
             nn.LeakyReLU(negative_slope=.05)
         )
         self.convolutions_left = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=4, kernel_size=1),
+            nn.BatchNorm2d(4),
             nn.Flatten(),
             nn.LeakyReLU(negative_slope=.05)
         )
         self.convolutions_right = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=4, kernel_size=1),
+            nn.BatchNorm2d(4),
             nn.Flatten(),
             nn.LeakyReLU(negative_slope=.05)
         )
@@ -72,27 +80,33 @@ class ActorCritic(nn.Module):
         """
         self.critic_identity_l = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
+            nn.BatchNorm2d(1),
             nn.Flatten(),
             nn.Tanh()
         )
         self.critic_identity_r = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
+            nn.BatchNorm2d(1),
             nn.Flatten(),
             nn.Tanh()
         )
         self.critic_convolutions = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3),
+            nn.BatchNorm2d(8),
             nn.LeakyReLU(negative_slope=.1),
             nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3),
+            nn.BatchNorm2d(8),
             nn.LeakyReLU(negative_slope=.1),
         )
         self.critic_convolutions_left = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=4, kernel_size=1),
+            nn.BatchNorm2d(4),
             nn.Flatten(),
             nn.LeakyReLU(negative_slope=.1)
         )
         self.critic_convolutions_right = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=4, kernel_size=1),
+            nn.BatchNorm2d(4),
             nn.Flatten(),
             nn.LeakyReLU(negative_slope=.1)
         )
@@ -105,7 +119,7 @@ class ActorCritic(nn.Module):
         """
 
         actor_identity_l = self.identity_l(state)
-        actor_identity_r = self.identity_r(state)
+        actor_identity_r = self.identity_r(state.clone())
         actor_convolutions = self.convolutions(state.clone())
         actor_convolutions_left = self.convolutions_left(actor_convolutions)
         actor_convolutions_right = self.convolutions_right(actor_convolutions)
@@ -125,7 +139,6 @@ class ActorCritic(nn.Module):
         critic_dot = torch.bmm(critic_left.unsqueeze(-1), critic_right.unsqueeze(-2))
 
         return a_dot, critic_dot
-
 
     def select_action(self, env, greedy=False):
         """
@@ -152,7 +165,8 @@ class ActorCritic(nn.Module):
         move = moves[0]  # When promoting a pawn, multiple moves can have the same from-to squares
         return move, move_proba
 
-    def td_update(self, fixed_model, episode_active, state, actions, reward, successor_state, successor_actions):
+    def td_update(self, fixed_model, episode_active, state, actions, reward, successor_state, successor_actions,
+                  action_spaces):
         """
         Performs a Temporal Difference Update on the network
         :param fixed_model, stationary ActorCritic model
@@ -161,6 +175,7 @@ class ActorCritic(nn.Module):
         :param rewards: Tensor of shape (n_samples, 1)
         :param successor_states: Tensor of shape (n_samples, 8, 8, 8)
         :param successor_actions: list[chess.move]
+        :param action_spaces: Tensor for shape (n_samples, 64, 64)
         :return:
         """
 
@@ -197,16 +212,16 @@ class ActorCritic(nn.Module):
         # POLICY GRADIENT
         colors_vec = torch.cat(colors, dim=0).unsqueeze(dim=1).unsqueeze(dim=2).detach()
         advantages_vec = q_target_vec.unsqueeze(dim=1).unsqueeze(dim=2).detach() * colors_vec
-        # advantages_vec = advantages_vec / advantages_vec.std()
-        # q_baseline = q_values.mean(dim=-1, keepdim=True).mean(dim=-2, keepdim=True)
-        # advantages = (q_values_target - q_baseline) * colors_vec
-        action_probs_flat = torch.flatten(action_probs, start_dim=1)
+
+        action_spaces_flat = torch.flatten(action_spaces, start_dim=1)
+        action_probs_flat = torch.flatten(action_probs, start_dim=1) + torch.Tensor([1e-6]).float()
+        action_probs_flat_legal = self.legalize_action_probs(action_probs_flat, action_spaces_flat)
+
         target_action_probs_flat = torch.flatten(target_action_probs, start_dim=1)
 
-        policy_gradient_loss = -(
-                (target_action_probs_flat * torch.log(action_probs_flat)).sum(dim=1) * advantages_vec[:,
-                                                                                       0,
-                                                                                       0]).mean()
+        crossentropy = torch.nn.CrossEntropyLoss()(action_probs_flat_legal, target_action_probs_flat.argmax(dim=1))
+
+        policy_gradient_loss = crossentropy * advantages_vec[:,0,0].mean()
         loss_balance = policy_gradient_loss / q_value_loss
 
         print("LOSS RATIO PG_LOSS / Q_LOSS:", loss_balance)
@@ -232,7 +247,7 @@ class ActorCritic(nn.Module):
         action_probs_legal_normalized = action_probs_legal / action_probs_legal.sum()
         return action_probs_legal_normalized
 
-    def network_update_mc(self, state, move, Returns, action_space):
+    def mc_update_agent(self, state, move, Returns, action_space):
         """
         Update the actor and the critic based on observed Returns in Monte Carlo simulations
         :param torch.tensor state: The root state of the board
@@ -241,6 +256,11 @@ class ActorCritic(nn.Module):
         :param action_space: The action space
         :return:
         """
+        assert action_space[move.from_square, move.to_square] == 1
+        n_legal_actions = action_space.sum()
+        if n_legal_actions == 1:
+            return
+        entropy_level = 1./n_legal_actions
         Returns_tensor = torch.tensor([Returns]).float()
         state_tensor = torch.from_numpy(state).unsqueeze(dim=0).float()
         action_space_tensor = torch.from_numpy(action_space).unsqueeze(dim=0).float()
@@ -257,12 +277,24 @@ class ActorCritic(nn.Module):
 
         predicted_returns = q_values[[0], move.from_square, move.to_square]
         proba = action_probs_legal[[0], move.from_square, move.to_square]
+
+        # This update is off-policy. Normally the behavior policy accounts correction for this
+        # For now, we don't update if the algorithm is moving towards a deterministic outcome.
+        # This is a bit of an ugly solution -> more research needed.
+
         q_value_loss = F.mse_loss(Returns_tensor, predicted_returns)
         policy_gradient_loss = -torch.log(proba) * advantage * color
-        total_loss = q_value_loss + policy_gradient_loss
+        importance = (policy_gradient_loss > self.historical_pg_losses).float().mean().detach()
+        total_loss = q_value_loss + policy_gradient_loss * importance
+
+        # The chance updating to proportional to the relative size of the loss.
+        self.historical_pg_losses = torch.cat((self.historical_pg_losses,policy_gradient_loss.clone().detach()))
+        if len(self.historical_pg_losses) > 1000:
+            self.historical_pg_losses = self.historical_pg_losses[1:]
 
         self.optimizer.zero_grad()
         total_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.parameters(),1.)
         self.optimizer.step()
 
         # VERIFY
