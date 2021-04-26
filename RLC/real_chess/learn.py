@@ -32,7 +32,7 @@ class ReinforcementLearning(object):
         self.episode_memory = []  # Experience replay memory
         self.best_so_far = 5  # Best test result so far
 
-    def learn(self, iters=400, c=10, timelimit_seconds=80000, maxiter=70, test_at_zero=True):
+    def learn(self, iters=400, c=10, timelimit_seconds=80000, maxiter=70, test_at_zero=False):
         """
         Start Reinforcement Learning Algorithm
         Args:
@@ -52,7 +52,7 @@ class ReinforcementLearning(object):
                 if self.min_sim_count < 100:
                     self.min_sim_count += .1
             self.play_game(k, maxiter=maxiter)
-            self.td_update_agent()
+            #self.td_update_agent()
             if starttime + timelimit_seconds < time.time():
                 break
         return self.env.board

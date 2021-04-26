@@ -29,7 +29,7 @@ class ActorCritic(nn.Module):
         self.verbose = verbose
         self.init_actor()
         self.init_critic()
-        self.optimizer = torch.optim.SGD(self.parameters(), lr=lr)
+        self.optimizer = torch.optim.RMSprop(self.parameters(), lr=lr)
         self.historical_pg_losses = torch.tensor([0.]).float()
         self.replay_importance = []
 
@@ -40,13 +40,13 @@ class ActorCritic(nn.Module):
         """
         self.identity_l = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
-            nn.BatchNorm2d(1),
+            #nn.BatchNorm2d(1),
             nn.Flatten(),
             nn.LeakyReLU(negative_slope=.05)
         )  # The identiy serves as a 'score per square'
         self.identity_r = torch.nn.Sequential(
             nn.Conv2d(in_channels=8, out_channels=1, kernel_size=1),
-            nn.BatchNorm2d(1),
+            #nn.BatchNorm2d(1),
             nn.Flatten(),
             nn.LeakyReLU(negative_slope=.05)
         )  # The identiy serves as a 'score per square'
@@ -72,6 +72,9 @@ class ActorCritic(nn.Module):
         )
         self.actor_output_left = nn.LogSoftmax(dim=1)
         self.actor_output_right = nn.LogSoftmax(dim=1)
+
+        self.cross_entropy_loss = nn.CrossEntropyLoss()
+        self.kl_div_loss = nn.KLDivLoss()
 
     def init_critic(self):
         """
@@ -219,7 +222,7 @@ class ActorCritic(nn.Module):
 
         target_action_probs_flat = torch.flatten(target_action_probs, start_dim=1)
 
-        crossentropy = torch.nn.CrossEntropyLoss()(action_probs_flat_legal, target_action_probs_flat.argmax(dim=1))
+        crossentropy = self.cross_entropy_loss(action_probs_flat_legal, target_action_probs_flat.argmax(dim=1))
 
         policy_gradient_loss = crossentropy * advantages_vec[:,0,0].mean()
         loss_balance = policy_gradient_loss / q_value_loss
@@ -260,8 +263,7 @@ class ActorCritic(nn.Module):
         n_legal_actions = action_space.sum()
         if n_legal_actions == 1:
             return
-        entropy_level = 1./n_legal_actions
-        Returns_tensor = torch.tensor([Returns]).float()
+        Returns_tensor = torch.tensor(Returns).float()
         state_tensor = torch.from_numpy(state).unsqueeze(dim=0).float()
         action_space_tensor = torch.from_numpy(action_space).unsqueeze(dim=0).float()
         if state_tensor[0, 6, 0, :].detach().numpy().sum() == -8.0:
@@ -270,6 +272,10 @@ class ActorCritic(nn.Module):
             color = torch.Tensor([1.])
         action_probs, q_values = self(state_tensor)
         action_probs_legal = self.legalize_action_probs(action_probs, action_space_tensor)
+
+        #entropy = torch.ones_like(action_space_tensor) / torch.tensor([4096.]).float()
+        alpha = torch.tensor([1e3])
+        entropy_bonus = alpha * -(torch.log(action_probs) * action_probs).mean().mean()
 
         # Adjust advantage for mean advantage
         q_copy = q_values.clone().detach()
@@ -284,8 +290,7 @@ class ActorCritic(nn.Module):
 
         q_value_loss = F.mse_loss(Returns_tensor, predicted_returns)
         policy_gradient_loss = -torch.log(proba) * advantage * color
-        importance = (policy_gradient_loss > self.historical_pg_losses).float().mean().detach()
-        total_loss = q_value_loss + policy_gradient_loss * importance
+        total_loss = q_value_loss + policy_gradient_loss- entropy_bonus # Entropy regularization
 
         # The chance updating to proportional to the relative size of the loss.
         self.historical_pg_losses = torch.cat((self.historical_pg_losses,policy_gradient_loss.clone().detach()))
@@ -305,6 +310,9 @@ class ActorCritic(nn.Module):
         proba_post = action_probs_post_legal[[0], move.from_square, move.to_square]
 
         print("\nLEARNED POLICY")
+        print("Q LOSS", q_value_loss)
+        print("ENTROPY_BONUS",entropy_bonus)
+        print("POLICY_GRADIENT LOSS", policy_gradient_loss)
         print("COLOR: ", color)
         print("Returns ", Returns)
         print("Advantage", advantage * color)

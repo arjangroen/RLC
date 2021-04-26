@@ -106,7 +106,6 @@ class Node(object):
         """
 
         explore = np.random.uniform(0, 1) < eps
-
         if explore:
             legal_moves = [x for x in env.board.generate_legal_moves()]
             move = np.random.choice(legal_moves)
@@ -115,21 +114,24 @@ class Node(object):
             move, move_proba = fixed_agent.select_action(env)
         episode_end, reward = env.step(move)
 
+        new_state = torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
+        all_probas, new_qs = fixed_agent(new_state)
+        entropy_bonus = (-torch.log(all_probas) * all_probas).mean().mean()
+        reward = reward + entropy_bonus
+
         if episode_end:
-            Returns = reward
+            Returns = reward.detach().numpy()
         elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
 
             if env.board.turn:
-                Returns = reward + self.gamma * fixed_agent(
-                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
-                )[1].max()
+                Returns = reward + self.gamma * new_qs.max()
             else:
-                Returns = reward + self.gamma * fixed_agent(
-                    torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
-                )[1].min()  # Assuming black chooses lowest Q value
+                Returns = reward + self.gamma * new_qs.min()
+                  # Assuming black chooses lowest Q value
             Returns = Returns.detach().numpy()
         else:  # Recursively continue
             Returns = reward + self.gamma * self.simulate(fixed_agent, env, depth=depth + 1)
+            Returns = Returns.detach().numpy()
 
         env.reverse()
 
