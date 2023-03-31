@@ -27,7 +27,7 @@ class Board(object):
         self.board = chess.Board()
         self.layer_board = np.zeros(shape=(8, 8, 8))
         self.init_layer_board()
-        self.node = Node()
+        self.node = Node(gamma=0.5)
 
     def init_layer_board(self):
         """
@@ -48,7 +48,7 @@ class Board(object):
                 sign = -1
             layer = mapper[piece.symbol()]
             self.layer_board[layer, row, col] = sign
-            #self.layer_board[6, :, :] = 1 / self.board.fullmove_number
+            # self.layer_board[6, :, :] = 1 / self.board.fullmove_number
         if self.board.turn:
             self.layer_board[6, :, :] = 1
         else:
@@ -107,9 +107,11 @@ class Board(object):
         Returns: np.ndarray with shape (64,64)
         """
         self.action_space = np.zeros(shape=(64, 64))
-        moves = [[x.from_square, x.to_square] for x in self.board.generate_legal_moves()]
+        moves = [[x.from_square, x.to_square]
+                 for x in self.board.generate_legal_moves()]
         for move in moves:
             self.action_space[move[0], move[1]] = 1
+
         return self.action_space
 
     def get_material_value(self):
