@@ -28,7 +28,7 @@ class ReinforcementLearning(object):
         self.reward_trace = []  # Keeps track of the rewards
         self.piece_balance_trace = []  # Keep track of the material value on the board
         self.search_time = search_time  # How long to do MCTS
-        self.min_sim_count = 1  # Minimal amount of playouts in MCTS
+        self.min_sim_count = 25  # Minimal amount of playouts in MCTS
         self.episode_memory = []  # Experience replay memory
         self.best_so_far = 0.001  # Best test result so far
         self.mc_replay_buffer = []
@@ -49,6 +49,7 @@ class ReinforcementLearning(object):
         for k in range(iters):
             self.env.reset()
             if k % c == 0 and (test_at_zero or k > 0):
+                self.td_update_agent()
 
                 train_on_buffer_frac = 1/4
                 n_samples = int(len(self.mc_replay_buffer)
@@ -56,8 +57,8 @@ class ReinforcementLearning(object):
                 for _ in range(n_samples):
                     training_example = self.mc_replay_buffer.pop(
                         np.random.randint(0, len(self.mc_replay_buffer)))
-                    self.agent.mc_update_agent(
-                        *training_example, self.fixed_agent)
+                    # self.agent.mc_update_agent(
+                    #    *training_example, self.fixed_agent)
                 self.test(k)
                 print("iter", k)
             self.play_game(k, maxiter=self.maxiter)
@@ -73,7 +74,7 @@ class ReinforcementLearning(object):
         :return:
         """
         results = []
-        testsize = 100
+        testsize = 10
         for i in range(testsize):
             results.append(self.test_game(
                 self.agent, self.fixed_agent, random=-1))
@@ -189,7 +190,8 @@ class ReinforcementLearning(object):
             episode_end, reward = self.env.step(max_move)
             self.env.node = self.env.node.children[max_move]
 
-            memory_sara.append([state, max_move, reward, action_space])
+            memory_sara.append(
+                [state, max_move, reward, action_space, episode_end])
 
             color = color * -1
 
@@ -201,18 +203,14 @@ class ReinforcementLearning(object):
 
         self.episode_memory.append(memory_sara)
 
-        piece_balance = self.env.get_material_value()
-        print("game ended with result", reward, "and material balance",
-              piece_balance, "in", turncount, "halfmoves")
-
         return self.env.board
 
     def td_update_agent(self):
 
-        episode_actives, states, moves, rewards, successor_states, successor_actions, action_spaces = self.get_minibatch()
+        episode_actives, states, moves, rewards, successor_states, successor_moves, action_spaces = self.get_minibatch()
         for i in range(1):
             self.agent.td_update(self.fixed_agent, episode_actives, states, moves, rewards, successor_states,
-                                 successor_actions, action_spaces)
+                                 successor_moves, action_spaces)
 
         if len(self.episode_memory) > self.memsize:
             self.episode_memory = self.episode_memory[1:]
@@ -234,32 +232,40 @@ class ReinforcementLearning(object):
         moves = []
         rewards = []
         successor_states = []
-        successor_actions = []
+        successor_moves = []
         action_spaces = []
 
         for i in range(len(self.episode_memory)):
+            if len(self.episode_memory) < (i+1):
+                break
             episode = self.episode_memory[i]
-            episode_len = len(episode)
-            subtract = np.random.choice([2, 3, 4, 5])
-            if episode_len < subtract:
+            if len(episode) < 2:  # Only 1 sample remaining, nothing to bootstrap from. Remove and continue
+                self.episode_memory.pop(i)
                 continue
-            learn_event_index = episode_len - subtract
 
-            episode_active = torch.tensor([0.]).float() if learn_event_index == episode_len - 1 else torch.tensor(
-                [1.]).float()
-            state, action, reward = episode[learn_event_index][0], episode[learn_event_index][1], \
-                episode[learn_event_index][2]
-            successor_state, successor_action, _ = episode[learn_event_index + 1][0], episode[learn_event_index + 1][1], \
-                episode[learn_event_index + 1][2]
-            action_space = episode[learn_event_index][3]
+            i1 = len(episode) - 1  # successor index
+
+            episode_end = episode[i1][4]
+
+            if episode_end:
+                i0 = i1
+            else:
+                i0 = i1-1
+
+            state, move, reward, action_space = episode[i0][0], episode[i0][1], episode[i0][2], episode[i0][3]
+            successor_state, successor_move = episode[i1][0], episode[i1][1]
+            episode_active = torch.tensor([1]).float(
+            ) - torch.tensor([episode_end]).float()
+
             episode_actives.append(episode_active)
             states.append(state)
-            moves.append(action)
+            moves.append(move)
             rewards.append(reward)
             successor_states.append(successor_state)
-            successor_actions.append(successor_action)
+            successor_moves.append(successor_move)
             action_spaces.append(action_space)
-            self.episode_memory[i] = self.episode_memory[i][:-subtract]
+
+            self.episode_memory[i] = self.episode_memory[i][:-1]
 
         episode_actives = torch.cat(episode_actives, dim=0).unsqueeze(dim=1)
         states = torch.cat(states, dim=0)
@@ -267,7 +273,7 @@ class ReinforcementLearning(object):
         successor_states = torch.cat(successor_states, dim=0)
         action_spaces = torch.cat(action_spaces)
 
-        return episode_actives, states, moves, rewards, successor_states, successor_actions, action_spaces
+        return episode_actives, states, moves, rewards, successor_states, successor_moves, action_spaces
 
     def mcts(self, starting_color):
         """

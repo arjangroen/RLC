@@ -63,7 +63,7 @@ class Node(object):
         Na = 1
         if move in self.children.keys():
             q = np.mean(np.array(self.children[move].values) * color)
-            Na = len(self.children[move].values)
+            Na = len(self.children[move].values) + 1
         confidence_interval = c * np.sqrt(np.log(len(self.values)) / Na)
         return q + confidence_interval
 
@@ -74,7 +74,8 @@ class Node(object):
             if move in self.children.keys():
                 child_value = self.get_ucb(move, 1, color)
             else:
-                child_value = self.get_ucb(move, 1,  color=color, q=q_values[0, move.from_square, move.to_square].detach().numpy())
+                child_value = self.get_ucb(
+                    move, 1,  color=color, q=q_values[0, move.to_square].detach().numpy())
             if child_value > max_value:
                 max_move = move
                 max_value = child_value
@@ -91,7 +92,7 @@ class Node(object):
     def get_down(self, move):
         return self.children[move]
 
-    def simulate(self, fixed_agent, env, depth=0, max_depth=10, eps=.25):
+    def simulate(self, fixed_agent, env, depth=0, max_depth=6, eps=.01):
         """
         Recursive Monte Carlo Playout
         Args:
@@ -114,24 +115,23 @@ class Node(object):
             move, move_proba = fixed_agent.select_action(env)
         episode_end, reward = env.step(move)
 
-        new_state = torch.from_numpy(np.expand_dims(env.layer_board, axis=0)).float()
-        all_probas, new_qs = fixed_agent(new_state)
-        entropy_bonus = (-torch.log(all_probas) * all_probas).mean().mean()
-        reward = reward + entropy_bonus
+        new_state = torch.from_numpy(
+            np.expand_dims(env.layer_board, axis=0)).float()
+        _, new_qs = fixed_agent(new_state)
 
         if episode_end:
-            Returns = reward.detach().numpy()
+            Returns = reward
         elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
 
             if env.board.turn:
                 Returns = reward + self.gamma * new_qs.max()
             else:
                 Returns = reward + self.gamma * new_qs.min()
-                  # Assuming black chooses lowest Q value
+                # Assuming black chooses lowest Q value
             Returns = Returns.detach().numpy()
         else:  # Recursively continue
-            Returns = reward + self.gamma * self.simulate(fixed_agent, env, depth=depth + 1)
-            Returns = Returns.detach().numpy()
+            Returns = reward + self.gamma * \
+                self.simulate(fixed_agent, env, depth=depth + 1)
 
         env.reverse()
 

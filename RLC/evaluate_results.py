@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 mean_returns = []
-for i in range(20):
+for i in range(14):
     istr = str((i+1)*10)
     filename = "end_result_" + istr
     df = pd.read_csv(filename)

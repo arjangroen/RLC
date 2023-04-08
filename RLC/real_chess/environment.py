@@ -20,14 +20,14 @@ mapper["K"] = 5
 
 class Board(object):
 
-    def __init__(self):
+    def __init__(self, gamma=0.8):
         """
         Chess Board Environment
         """
         self.board = chess.Board()
         self.layer_board = np.zeros(shape=(8, 8, 8))
         self.init_layer_board()
-        self.node = Node(gamma=0.5)
+        self.node = Node(gamma=gamma)
 
     def init_layer_board(self):
         """
@@ -78,7 +78,7 @@ class Board(object):
         color = 1 if self.board.turn else -1
         self.board.push(move)
         if not self.board.is_valid():
-            warnings.warn("Invalid position reached.")
+            warnings.warn("Invalid position.")
         self.update_layer_board(move)
         piece_balance_after = self.get_material_value()
         auxiliary_reward = (piece_balance_after - piece_balance_before)
@@ -106,12 +106,10 @@ class Board(object):
         Create a mask of legal actions
         Returns: np.ndarray with shape (64,64)
         """
-        self.action_space = np.zeros(shape=(64, 64))
-        moves = [[x.from_square, x.to_square]
-                 for x in self.board.generate_legal_moves()]
+        self.action_space = np.zeros(shape=(64))
+        moves = set([x.to_square for x in self.board.generate_legal_moves()])
         for move in moves:
-            self.action_space[move[0], move[1]] = 1
-
+            self.action_space[move] = 1
         return self.action_space
 
     def get_material_value(self):
