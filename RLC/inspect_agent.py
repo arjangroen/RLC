@@ -7,7 +7,7 @@ from RLC.real_chess.environment import Board
 
 
 agent = NanoActorCritic()
-best_state = torch.load("agent_best.pth")
+best_state = torch.load("agent_320.pth")
 board = Board()
 
 

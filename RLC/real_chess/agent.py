@@ -1,9 +1,12 @@
+from environment import moves_mirror
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 import logging
+from RLC.real_chess.hyperparams import GAMMA
+from experiences import TemporalDifferenceTrainingBatch, MonteCarloTrainingBatch
 logging.basicConfig(level=logging.INFO)
 
 torch.autograd.set_detect_anomaly(True)
@@ -15,7 +18,8 @@ priority = [
     "a", "h", "b", "g", "c", "f", "d", "e",  # Pawn moves outside-in
     "B", "N", "R", "Q", "K"   # Bishop - Knight - Rook - Queen - King
 ]
-priorities = {c: i for i, c in enumerate(priority)}
+max_prio = len(priority)
+priorities = {c: max_prio-i for i, c in enumerate(priority)}
 
 
 class ConvBlock(nn.Module):
@@ -83,11 +87,6 @@ class ChessUNet(nn.Module):
     def forward(self, inputs):
 
         # For computing action probabilities, states are color invariant.
-        if self.is_actor:
-            color = inputs[:, 6, :, :].mean()
-            inputs = inputs * color
-            inputs = torch.flip(inputs, dims=[2])
-
         p0 = self.input_embedding_layer(inputs)
         s1, p1 = self.e1(p0)
         s2, p2 = self.e2(p1)
@@ -95,33 +94,23 @@ class ChessUNet(nn.Module):
         d1 = self.d1(b, s2)
         d2 = self.d2(d1, s1)
         outputs2d = self.output_layer2d(d2)
-
-        # Flip back
-        if self.is_actor:
-            outputs2d = torch.flip(outputs2d, dims=[2])
-
         outputs = self.output_flat(outputs2d)
         return outputs
 
 
 class NanoActorCritic(nn.Module):
 
-    def __init__(self, gamma=0.8, lr=.001, verbose=0):
+    def __init__(self, lr=.001, verbose=0):
         """
         Agent that plays the white pieces in capture chess.
         The action space is defined as a combination of a "source square" and a "target square".
         The actor gives an action probability for each square combination.
         The critic gives an action value for each square combination.
         Args:
-            gamma: float
-                Temporal discount factor
-            network: str
-                'linear' or 'conv'
             lr: float
                 Learning rate, ideally around 0.001
         """
         super(NanoActorCritic, self).__init__()
-        self.gamma = gamma
         self.lr = lr
         self.verbose = verbose
         self.actor = ChessUNet(is_actor=True)
@@ -145,6 +134,39 @@ class NanoActorCritic(nn.Module):
 
         return action_logits, action_values
 
+    def get_action_probabilities(self, env):
+        """
+        """
+        action_space = env.project_legal_moves(
+        )  # The environment determines which moves are legal
+
+        # Mirror the board so the neural network always gets white POV.
+        layer_board = env.layer_board if env.board.turn else env.layer_board_mirror
+
+        action_logits = self.actor(layer_board)
+
+        # Mirror action logits back to the real POV.
+        if not env.board.turn:
+            torch.index_select(
+                action_logits, 1, torch.LongTensor(moves_mirror))
+
+        action_logits = self.legalize_action_logits(
+            action_logits, action_space)
+        action_logits = action_logits.reshape(1, 64)
+        action_probs = F.softmax(action_logits, dim=1).detach()
+
+        return action_probs
+
+    def get_q_values(self, env):
+        layer_board = env.layer_board if env.board.turn else env.layer_board_mirror
+        q_values = self.critic(layer_board)
+        if not env.board.turn:
+            q_values = q_values * torch.tensor(-1.)
+            q_values = q_values.view(-1, 8,
+                                     8).flip(dims=(1,)).view(-1, 64).clone()
+
+        return q_values
+
     def select_action(self, env, greedy=False):
         """
         Select an action using the action probabilites supplied by the actor
@@ -152,16 +174,8 @@ class NanoActorCritic(nn.Module):
         :param bool greedy: Whether to always pick the most probable action
         :return: a move and its probability
         """
-        action_space = torch.from_numpy(np.expand_dims(env.project_legal_moves(),
-                                                       axis=0)).float()  # The environment determines which moves are legal
-        state = torch.from_numpy(np.expand_dims(
-            env.layer_board, axis=0)).float()
-        action_logits, action_values = self(state)
-        action_logits = self.legalize_action_logits(
-            action_logits, action_space)
-        action_logits = action_logits.reshape(1, 64)
-        action_probs = F.softmax(
-            action_logits, dim=1).detach()
+        action_probs = self.get_action_probabilities(env)
+
         if greedy:
             move_to_idx = np.argmax(action_probs[0])
         else:
@@ -173,20 +187,16 @@ class NanoActorCritic(nn.Module):
 
         # multiple moves can have the same target square. For now, move with the weakest piece
         if len(moves) > 1:
-            min_prio = 100
-            min_move = None
+            prios = []
             for move in moves:
-                ucistr = move.uci()
-                prio = priorities[ucistr[0]]
-                if prio < min_prio:
-                    min_prio = prio
-                    min_move = move
+                prios.append(priorities[move.uci()[0]])
+            probas = np.array(prios) / np.sum(prios)
+            move = np.random.choice(moves, p=probas)
         else:
-            min_move = moves[0]
-        return min_move, move_proba
+            move = moves[0]
+        return move, move_proba
 
-    def td_update(self, fixed_model, episode_actives, states, moves, rewards, successor_states, successor_moves,
-                  action_spaces):
+    def td_update(self, fixed_model, td_training_batch: TemporalDifferenceTrainingBatch):
         """
         Performs a Temporal Difference Update on the network
         :param fixed_model, stationary ActorCritic model
@@ -198,42 +208,41 @@ class NanoActorCritic(nn.Module):
         :param action_spaces: Tensor for shape (n_samples, 64, 64)
         :return:
         """
-        successor_qs = fixed_model.critic(successor_states).detach()
-        predicted_q = self.critic(states)
-        current_action_logits = self.actor(states)
-        old_action_logits = fixed_model.actor(states).detach()
+        successor_qs = fixed_model.critic(
+            td_training_batch.successor_layer_boards).detach() * torch.tensor(-1.)
+        predicted_q = self.critic(td_training_batch.layer_boards)
+        current_action_logits = self.actor(td_training_batch.layer_boards)
+        old_action_logits = fixed_model.actor(
+            td_training_batch.layer_boards).detach()
 
         # Calculate Expected Q
-        bootstrapped_q = rewards + episode_actives * self.gamma * successor_qs
-        bootstrapped_q_indexer = torch.LongTensor(
-            [m.to_square for m in successor_moves]).unsqueeze(dim=1)
+        bootstrapped_q = td_training_batch.rewards + \
+            td_training_batch.episode_actives * GAMMA * successor_qs
         bootstrapped_q_sliced = torch.gather(
-            bootstrapped_q, 1, bootstrapped_q_indexer)
+            bootstrapped_q, 1, td_training_batch.successor_moves_to)
 
         # Calculate Predicted Q
-        move_indexer = torch.LongTensor(
-            [m.to_square for m in moves]).unsqueeze(dim=1)
-        predicted_q_sliced = torch.gather(predicted_q, 1, move_indexer)
+        predicted_q_sliced = torch.gather(
+            predicted_q, 1, td_training_batch.moves_to)
 
         # Q Loss
         Q_loss = F.mse_loss(predicted_q_sliced.float(),
                             bootstrapped_q_sliced.float())
 
-        # Action Probas
-        colors = states[:, 6, 0, 0].unsqueeze(1)
-        advantages_unbased = bootstrapped_q_sliced * colors
+        advantages_unbased = bootstrapped_q_sliced
 
         # Substract Baseline for stable performance
         advantages = (advantages_unbased - advantages_unbased.mean()
                       ) / advantages_unbased.std()
 
         actions_probs_all = F.softmax(self.legalize_action_logits(
-            current_action_logits, action_spaces), dim=1)
-        action_probs = torch.gather(actions_probs_all, 1, move_indexer)
+            current_action_logits, td_training_batch.action_spaces), dim=1)
+        action_probs = torch.gather(
+            actions_probs_all, 1, td_training_batch.moves_to)
         actions_probs_fixed_all = F.softmax(self.legalize_action_logits(
-            old_action_logits, action_spaces), dim=1)
+            old_action_logits, td_training_batch.action_spaces), dim=1)
         action_probs_fixed = torch.gather(
-            actions_probs_fixed_all, 1, move_indexer)
+            actions_probs_fixed_all, 1, td_training_batch.moves_to)
 
         proba_rt_unclipped = action_probs/action_probs_fixed
         proba_rt_clipped = torch.clamp(proba_rt_unclipped, min=0.9, max=1.1)
@@ -248,6 +257,73 @@ class NanoActorCritic(nn.Module):
         self.actor_optimizer.zero_grad()
         ppo_loss.backward()
         self.actor_optimizer.step()
+
+        logging.info(
+            "Updated agent with temporal diffence learning, batch_size=%s", td_training_batch.moves_to.shape[0])
+
+    def log_proba_rts(self):
+        pass
+
+    def mc_update(self, fixed_model, mc_training_batch: MonteCarloTrainingBatch):
+        """
+        Performs a Temporal Difference Update on the network
+        :param fixed_model, stationary ActorCritic model
+        :param states: Tensor of shape (n_samples, 8, 8, 8)
+        :param moves: list[chess.move]
+        :param rewards: Tensor of shape (n_samples, 1)
+        :param action_spaces: Tensor for shape (n_samples, 64)
+        :return:
+        """
+        if mc_training_batch.moves_to.shape[0] < 4:
+            return None
+
+        predicted_q = self.critic(mc_training_batch.layer_boards)
+        current_action_logits = self.actor(mc_training_batch.layer_boards)
+        old_action_logits = fixed_model.actor(
+            mc_training_batch.layer_boards).detach()
+
+        # Calculate Predicted Q
+        predicted_q_sliced = torch.gather(
+            predicted_q, 1, mc_training_batch.moves_to)
+
+        # Q Loss
+        Q_loss = F.mse_loss(predicted_q_sliced.float(),
+                            mc_training_batch.returns)
+
+        # Action Probas
+        advantages_unbased = mc_training_batch.returns
+
+        # Normalize accross the batch dimension
+        advantages = (advantages_unbased - advantages_unbased.mean()
+                      ) / advantages_unbased.std()
+
+        actions_probs_all = F.softmax(self.legalize_action_logits(
+            current_action_logits, mc_training_batch.action_spaces), dim=1)
+        action_probs = torch.gather(
+            actions_probs_all, 1, mc_training_batch.moves_to)
+        actions_probs_fixed_all = F.softmax(self.legalize_action_logits(
+            old_action_logits, mc_training_batch.action_spaces), dim=1)
+        action_probs_fixed = torch.gather(
+            actions_probs_fixed_all, 1, mc_training_batch.moves_to)
+
+        proba_rt_unclipped = action_probs/action_probs_fixed
+        proba_rt_clipped = torch.clamp(proba_rt_unclipped, min=0.9, max=1.1)
+
+        ppo_loss = (-torch.min(proba_rt_clipped*advantages,
+                               proba_rt_unclipped*advantages)).mean()
+
+        self.critic_optimizer.zero_grad()
+        Q_loss.backward()
+        self.critic_optimizer.step()
+
+        self.actor_optimizer.zero_grad()
+        ppo_loss.backward()
+        self.actor_optimizer.step()
+
+        # TO DO: record output distribution of proba rts unclipped, verify bouding boxes
+
+        logging.info("Trained on MC samples: n=%s",
+                     mc_training_batch.moves_to.shape[0])
 
     def get_proba_for_move(self, move, action_logits, action_space_tensor):
         probas = F.softmax(self.legalize_action_logits(
@@ -274,7 +350,7 @@ class NanoActorCritic(nn.Module):
             action_space_tensor == 0, float('-inf'))
         return action_logits_legal
 
-    def mc_update_agent(self, state, move, Returns, action_space, fixed_model):
+    def mc_update_agent_(self, state, move, Returns, action_space, fixed_model):
         """
         Update the actor and the critic based on observed Returns in Monte Carlo simulations
         :param torch.tensor state: The root state of the board
@@ -283,14 +359,10 @@ class NanoActorCritic(nn.Module):
         :param action_space: The action space
         :return:
         """
-        n_legal_actions = action_space.sum()
-        if n_legal_actions == 1:
-            return
 
-        Returns_tensor = torch.tensor(Returns).float()
-        state_tensor = torch.from_numpy(state).unsqueeze(dim=0).float()
-        action_space_tensor = torch.from_numpy(
-            action_space).unsqueeze(dim=0).float()
+        Returns_tensor = torch.tensor(Returns).unsqueeze(dim=1).float()
+        state_tensor = torch.from_numpy(np.array(state)).float()
+        action_space_tensor = torch.from_numpy(np.array(action_space)).float()
 
         if state_tensor[0, 6, 0, :].detach().numpy().sum() == -8.0:
             color = torch.Tensor([-1.])

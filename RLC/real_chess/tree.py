@@ -2,6 +2,7 @@ import numpy as np
 import sys
 import gc
 import torch
+from hyperparams import GAMMA
 
 
 def softmax(x, temperature=1):
@@ -10,7 +11,7 @@ def softmax(x, temperature=1):
 
 class Node(object):
 
-    def __init__(self, board=None, parent=None, gamma=0.8):
+    def __init__(self, board=None, parent=None):
         """
         Game Node for Monte Carlo Tree Search
         Args:
@@ -22,7 +23,6 @@ class Node(object):
         self.board = board  # Chess board
         self.parent = parent
         self.values = []  # reward + Returns
-        self.gamma = gamma
         self.starting_value = 0
 
     def get_root(self):
@@ -55,27 +55,21 @@ class Node(object):
         """
         self.values.append(Returns)
 
-    def get_ucb(self, move, c, color=1, q=None):
-        """
-        Calculate the UCB
-        :return: UCB
-        """
-        Na = 1
-        if move in self.children.keys():
-            q = np.mean(np.array(self.children[move].values) * color)
-            Na = len(self.children[move].values) + 1
-        confidence_interval = c * np.sqrt(np.log(len(self.values)) / Na)
-        return q + confidence_interval
+    def ucb1(Qsa, Ns, Nsa, C=1.4):
+        """Calculate the UCB1 value for a given state-action pair."""
+        return Qsa + C * torch.sqrt(torch.log(Ns) / Nsa)
 
     def select(self, color=1, legal_moves=None, q_values=None):
         max_value = np.NINF
         max_move = None
+        Ns = torch.tensor(len(self.values))
         for move in legal_moves:
+            Qsa = q_values[0, move.to_square] * color
             if move in self.children.keys():
-                child_value = self.get_ucb(move, 1, color)
+                Nsa = torch.tensor(len(self.children[move].values))
             else:
-                child_value = self.get_ucb(
-                    move, 1,  color=color, q=q_values[0, move.to_square].detach().numpy())
+                Nsa = torch.tensor(.5)
+            child_value = self.ucb1(Qsa, Ns, Nsa)
             if child_value > max_value:
                 max_move = move
                 max_value = child_value
@@ -110,27 +104,21 @@ class Node(object):
         if explore:
             legal_moves = [x for x in env.board.generate_legal_moves()]
             move = np.random.choice(legal_moves)
-            move_proba = torch.Tensor([1 / len(legal_moves)]).float()
         else:
-            move, move_proba = fixed_agent.select_action(env)
-        episode_end, reward = env.step(move)
+            move, _ = fixed_agent.select_action(env)
+        episode_active, reward = env.step(move)
 
-        new_state = torch.from_numpy(
-            np.expand_dims(env.layer_board, axis=0)).float()
-        _, new_qs = fixed_agent(new_state)
-
-        if episode_end:
+        if episode_active < 1.:
             Returns = reward
         elif depth >= max_depth:  # Bootstrap the Monte Carlo Playout
 
-            if env.board.turn:
-                Returns = reward + self.gamma * new_qs.max()
-            else:
-                Returns = reward + self.gamma * new_qs.min()
-                # Assuming black chooses lowest Q value
-            Returns = Returns.detach().numpy()
+            bootstrap_q = fixed_agent.critic(env.layer_board)
+            action_probas = fixed_agent.get_action_probabilities(env)
+            state_value = torch.inner(action_probas, bootstrap_q).squeeze()
+            Returns = reward + GAMMA * state_value
+
         else:  # Recursively continue
-            Returns = reward + self.gamma * \
+            Returns = reward + GAMMA * \
                 self.simulate(fixed_agent, env, depth=depth + 1)
 
         env.reverse()
@@ -139,5 +127,4 @@ class Node(object):
             gc.collect()
             return Returns, move
         else:
-            noise = np.random.randn() / 1e6
-            return Returns + noise
+            return Returns
