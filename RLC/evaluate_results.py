@@ -1,24 +1,13 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
 
 
-mean_returns = []
-for i in range(28):
-    istr = str((i+1)*10)
-    filename = "end_result_" + istr
-    df = pd.read_csv(filename)
-    mean_returns.append(df['Return'].mean())
+filename = "end_result.csv"
+df = pd.read_csv(filename)
 
-ema = []
-ema_current = 0
-inverse_gamma = 1
-i = 1
-
-for r in mean_returns:
-    gamma = 1 / min(i, inverse_gamma)
-    ema_current = (1-gamma) * ema_current + gamma * r
-    ema.append(ema_current)
-    i += 1
-
-plt.plot(ema)
+# df['Return'] = df['Return'].apply(lambda x: float(eval('torch.' + x)))
+df = df[df['iter'] < 190]
+df.groupby('iter')['Return'].mean().plot()
 plt.show()

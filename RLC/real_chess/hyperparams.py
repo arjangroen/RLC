@@ -1,1 +1,1 @@
-GAMMA = 0.5  # Discount factor for future rewards
+GAMMA = 0.7  # Discount factor for future rewards

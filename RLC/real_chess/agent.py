@@ -1,4 +1,4 @@
-from environment import moves_mirror
+from RLC.real_chess.environment import moves_mirror
 import numpy as np
 import torch
 import torch.nn as nn
@@ -6,7 +6,7 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import logging
 from RLC.real_chess.hyperparams import GAMMA
-from experiences import TemporalDifferenceTrainingBatch, MonteCarloTrainingBatch
+from RLC.real_chess.experiences import TemporalDifferenceTrainingBatch, MonteCarloTrainingBatch
 logging.basicConfig(level=logging.INFO)
 
 torch.autograd.set_detect_anomaly(True)
@@ -116,7 +116,7 @@ class NanoActorCritic(nn.Module):
         self.actor = ChessUNet(is_actor=True)
         self.critic = ChessUNet()
         self.actor_optimizer = torch.optim.Adam(
-            self.actor.parameters(), lr=1e-4)
+            self.actor.parameters(), lr=2e-4)
         self.critic_optimizer = torch.optim.Adam(
             self.critic.parameters(), lr=1e-4)
         self.historical_pg_losses = torch.tensor([0.]).float()
@@ -147,7 +147,7 @@ class NanoActorCritic(nn.Module):
 
         # Mirror action logits back to the real POV.
         if not env.board.turn:
-            torch.index_select(
+            action_logits = torch.index_select(
                 action_logits, 1, torch.LongTensor(moves_mirror))
 
         action_logits = self.legalize_action_logits(
@@ -163,7 +163,7 @@ class NanoActorCritic(nn.Module):
         if not env.board.turn:
             q_values = q_values * torch.tensor(-1.)
             q_values = q_values.view(-1, 8,
-                                     8).flip(dims=(1,)).view(-1, 64).clone()
+                                     8).flip(dims=(1,)).view(-1, 64).clone()  # Reverse Q values back
 
         return q_values
 
@@ -210,7 +210,8 @@ class NanoActorCritic(nn.Module):
         """
         successor_qs = fixed_model.critic(
             td_training_batch.successor_layer_boards).detach() * torch.tensor(-1.)
-        predicted_q = self.critic(td_training_batch.layer_boards)
+        predicted_q = self.critic(
+            td_training_batch.layer_boards) * td_training_batch.colors
         current_action_logits = self.actor(td_training_batch.layer_boards)
         old_action_logits = fixed_model.actor(
             td_training_batch.layer_boards).detach()
@@ -224,6 +225,8 @@ class NanoActorCritic(nn.Module):
         # Calculate Predicted Q
         predicted_q_sliced = torch.gather(
             predicted_q, 1, td_training_batch.moves_to)
+
+        predicted_q_sliced = predicted_q_sliced
 
         # Q Loss
         Q_loss = F.mse_loss(predicted_q_sliced.float(),
@@ -245,7 +248,7 @@ class NanoActorCritic(nn.Module):
             actions_probs_fixed_all, 1, td_training_batch.moves_to)
 
         proba_rt_unclipped = action_probs/action_probs_fixed
-        proba_rt_clipped = torch.clamp(proba_rt_unclipped, min=0.9, max=1.1)
+        proba_rt_clipped = torch.clamp(proba_rt_unclipped, min=0.8, max=1.2)
 
         ppo_loss = (-torch.min(proba_rt_clipped*advantages,
                                proba_rt_unclipped*advantages)).mean()
@@ -259,7 +262,7 @@ class NanoActorCritic(nn.Module):
         self.actor_optimizer.step()
 
         logging.info(
-            "Updated agent with temporal diffence learning, batch_size=%s", td_training_batch.moves_to.shape[0])
+            "Trained on TD samples, n=%s", td_training_batch.moves_to.shape[0])
 
     def log_proba_rts(self):
         pass
@@ -307,7 +310,7 @@ class NanoActorCritic(nn.Module):
             actions_probs_fixed_all, 1, mc_training_batch.moves_to)
 
         proba_rt_unclipped = action_probs/action_probs_fixed
-        proba_rt_clipped = torch.clamp(proba_rt_unclipped, min=0.9, max=1.1)
+        proba_rt_clipped = torch.clamp(proba_rt_unclipped, min=0.8, max=1.2)
 
         ppo_loss = (-torch.min(proba_rt_clipped*advantages,
                                proba_rt_unclipped*advantages)).mean()

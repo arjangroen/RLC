@@ -3,21 +3,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-from RLC.real_chess import agent, torch_environment, learn, tree
+from RLC.real_chess import agent, environment, learn, tree
 from chess.pgn import Game
 import torch
 
-load_best = False
+load_best = True
 
-env = torch_environment.ChessEnv()
+env = environment.ChessEnv()
 player = agent.NanoActorCritic()
 if load_best:
-    best_state = torch.load("mc_agent_best.pth")
+    best_state = torch.load("agent_best.pth")
     player.actor.load_state_dict(best_state['actor_state_dict'])
     player.critic.load_state_dict(best_state['critic_state_dict'])
 
 learner = learn.ReinforcementLearning(
     env, player, search_time=1e-3)
+# learner.best_so_far = 2.
 final_game = learner.learn(
     iters=2500, timelimit_seconds=3600*6, test_at_zero=False, c=10)
 

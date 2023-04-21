@@ -9,7 +9,7 @@ from hyperparams import GAMMA
 import chess
 from experiences import TemporalDifferenceStep, TemporalDifferenceTrainingSample, MonteCarloTrainingSample,\
     MonteCarloTrainingData, TemporalDifferenceMemory, TemporalDifferenceEpisode, TemporalDifferenceTrainingBatch, MonteCarloTrainingBatch, TemporalDifferenceTrainingData
-from torch_environment import ChessEnv, moves_mirror
+from RLC.real_chess.environment import ChessEnv, moves_mirror
 
 
 class ReinforcementLearning(object):
@@ -30,9 +30,9 @@ class ReinforcementLearning(object):
         self.fixed_agent.load_state_dict(self.agent.state_dict())
         self.batch_size = batch_size  # Batch size for TD Learning
         self.search_time = search_time  # How long to do MCTS
-        self.min_sim_count = 1  # Minimal amount of playouts in MCTS
+        self.min_sim_count = 8  # Minimal amount of playouts in MCTS
         self.best_so_far = 0.001  # Best test result so far
-        self.maxiter = 10
+        self.maxiter = 20
         self.td_memory = TemporalDifferenceMemory(episodes=[])
         self.td_training_data = TemporalDifferenceTrainingData(samples=[])
         self.mc_training_data = MonteCarloTrainingData(samples=[])
@@ -51,7 +51,7 @@ class ReinforcementLearning(object):
         starttime = time.time()
         for k in range(iters):
             self.env.reset()
-            if k % c == 0 and (test_at_zero or k > 0):
+            if k % c == 0 and (test_at_zero or k > 100):
                 self.build_td_training_samples()
                 td_training_batches = self.get_td_training_batches()
                 mc_training_batches = self.get_mc_training_batches()
@@ -62,7 +62,7 @@ class ReinforcementLearning(object):
                 for td_training_batch in td_training_batches:
                     self.agent.td_update(self.fixed_agent, td_training_batch)
                 self.test(k+1)
-                print("iter", k)
+
             self.play_game(k, maxiter=self.maxiter)
             # self.td_update_agent()
             if starttime + timelimit_seconds < time.time():
@@ -75,6 +75,7 @@ class ReinforcementLearning(object):
         :param int k: test iteration
         :return:
         """
+        logging.info("---testing new agent------")
         results = []
         testsize = 25
         for _ in range(testsize):
@@ -85,20 +86,25 @@ class ReinforcementLearning(object):
                 self.fixed_agent, self.agent, random=1))
         end_result = pd.DataFrame(results)
         end_result.columns = ['Return']
+        end_result['Return'] = end_result['Return'].apply(float)
         end_result['color'] = ['white'] * testsize + ['black'] * testsize
+        mean_return = end_result['Return'].mean() / self.min_sim_count
         logging.info("Average Return newest agent: %s",
-                     end_result['Return'].mean())
+                     mean_return)
         logging.info("Best So Far: %s", self.best_so_far)
+
         end_result['iter'] = k
         self.record_end_result(end_result)
 
-        if end_result['Return'].mean() > self.best_so_far:
-            print("replacing fixed agent by updated agent")
+        if mean_return > self.best_so_far:
+            logging.info("new highest score")
             self.fixed_agent.load_state_dict(self.agent.state_dict())
-            self.best_so_far = end_result['Return'].mean()
+            self.best_so_far = mean_return
             self.save_agent(k='best')
-            self.maxiter += 2
+            self.maxiter += 1
             self.min_sim_count += 1
+
+        logging.info("---test completed------\n")
 
     def record_end_result(self, end_result):
         fn_existing = "end_result.csv"
@@ -108,8 +114,6 @@ class ReinforcementLearning(object):
         else:
             updated = end_result
         updated.to_csv(fn_existing, index=False)
-
-        end_result.to_csv(fn_existing)
 
     def save_agent(self, k='last'):
         checkpoint = {'agent': type(self.agent)(),
@@ -175,6 +179,7 @@ class ReinforcementLearning(object):
 
         # INITIALIZE GAME STATE
         # state, action, reward, actionspace
+        logging.info("Practicing Chess through self-play iteration %s", k)
         episode_memory = TemporalDifferenceEpisode(steps=[])
         episode_active = torch.tensor(1.)
         turncount = 0
@@ -241,7 +246,7 @@ class ReinforcementLearning(object):
                                                                               color=step.color,
                                                                               successor_layer_board=step.layer_board,  # Dummy value
                                                                               successor_action_space=step.action_space,  # Dummy value
-                                                                              successor_move=step.move_to  # Dummy value
+                                                                              successor_move_to=step.move_to  # Dummy value
                                                                               )
                     else:
                         successor_step = step
@@ -268,7 +273,7 @@ class ReinforcementLearning(object):
         del self.td_memory
         self.td_memory = TemporalDifferenceMemory(episodes=[])
 
-    def get_td_training_batches(self, frac=0.2, batch_size=64):
+    def get_td_training_batches(self, frac=0.1, batch_size=32):
         total_n_samples = len(self.td_training_data.samples)
         train_n_samples = int(total_n_samples*frac)
         train_on_indices = np.random.choice(
@@ -276,7 +281,7 @@ class ReinforcementLearning(object):
 
         # Cut train_on_indices in batches
         batches = [train_on_indices[i:i+batch_size]
-                   for i in range(0, len(train_on_indices), batch_size)]
+                   for i in range(0, len(train_on_indices), batch_size)][:-1]
 
         batches_out = []
 
@@ -326,7 +331,7 @@ class ReinforcementLearning(object):
             batches_out.append(batch)
         return batches_out
 
-    def get_mc_training_batches(self, batch_size=64, frac=0.25):
+    def get_mc_training_batches(self, batch_size=64, frac=0.1):
         total_n_samples = len(self.mc_training_data.samples)
         train_n_samples = int(total_n_samples*frac)
         train_on_indices = np.random.choice(
@@ -334,7 +339,7 @@ class ReinforcementLearning(object):
 
         # Cut train_on_indices in batches
         batches = [train_on_indices[i:i+batch_size]
-                   for i in range(0, len(train_on_indices), batch_size)]
+                   for i in range(0, len(train_on_indices), batch_size)][:-1]
         batches_out = []
 
         for batch in batches:
@@ -461,11 +466,13 @@ class ReinforcementLearning(object):
                     1.) if self.env.board.turn else torch.tensor(-1.)
 
                 mc_sample = MonteCarloTrainingSample(
-                    layer_board=self.env.layer_board, returns=Returns, action_space=self.env.project_legal_moves(), color=color, move_to=move.to_square)
+                    layer_board=self.env.layer_board, returns=Returns, action_space=self.env.project_legal_moves(),
+                    color=color, move_to=move.to_square)
 
                 self.mc_training_data.samples.append(mc_sample)
             else:
-                Returns = torch.Tensor(0)  # episode is over, no future returns
+                # episode is over, no future returns
+                Returns = torch.tensor(0.)
 
             # 4. Backpropagate Returns
             self.env.node.update(Returns)
